@@ -15,7 +15,9 @@ A lightweight, personal tool to catalog your girlfriend's VHS collection — cap
 ## Data model
 
 Each tape is one record in tapes.json:
-json{
+
+```json
+{
   "id": "VHS-0001",
   "scanned_at": "2025-04-28",
   "photo": "photos/batch-01.jpg",
@@ -35,6 +37,7 @@ json{
   },
   "status": "in_collection"
 }
+```
 status can be: in_collection, for_sale, sold, donated, missing
 
 ## Repo structure
