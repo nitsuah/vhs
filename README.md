@@ -14,7 +14,7 @@ A lightweight, personal tool to catalog your girlfriend's VHS collection — cap
 
 ## Data model
 
-Each tape is one record in tapes.json:
+Each tape is one record in data/tapes.json:
 
 ```json
 {
