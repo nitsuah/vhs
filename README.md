@@ -14,8 +14,10 @@ A lightweight, personal tool to catalog your girlfriend's VHS collection — cap
 
 ## Data model
 
-Each tape is one record in tapes.json:
-json{
+Each tape is one record in data/tapes.json:
+
+```json
+{
   "id": "VHS-0001",
   "scanned_at": "2025-04-28",
   "photo": "photos/batch-01.jpg",
@@ -35,6 +37,7 @@ json{
   },
   "status": "in_collection"
 }
+```
 status can be: in_collection, for_sale, sold, donated, missing
 
 ## Repo structure
@@ -54,3 +57,10 @@ vhs-collection/
 │   └── collection.csv      ← generated, not edited by hand
 └── README.md
 ```
+
+## Decisions made
+
+- **Condition** — track it, defaults to `"great"` since she keeps her stuff well. Notes field for anything specific.
+- **Wishlist** — skip it for now. She's in downsize mode, not acquisition mode.
+- **Sold tapes** — stay in the file. `status` field handles everything: `in_collection`, `for_sale`, `sold`, `donated`. No separate file needed.
+- **Flat JSON vs SQLite** — flat JSON is the right call. Collection is likely under 500, nothing sensitive, can live as a public GitHub repo. Simple is correct here.
