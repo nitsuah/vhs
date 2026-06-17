@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VHS Shelf Scanner</title>
+<style>
+:root {
+  --bg: #0a0a0a; --bg2: #111; --bg3: #1a1a1a; --bg4: #222;
+  --border: #2a2a2a; --border2: #333;
+  --accent: #e84040; --accent2: #ff6060;
+  --text: #e8e8e8; --text2: #999; --text3: #555;
+  --green: #3dbb3d; --yellow: #f0c040; --blue: #4488ff; --red: #e84040;
+  --crop: rgba(255,120,0,0.9);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* HEADER */
+#header{background:var(--bg2);border-bottom:1px solid var(--border);height:50px;padding:0 14px;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:50}
+#header h1{font-size:15px;font-weight:700;color:var(--accent);white-space:nowrap;letter-spacing:.04em}
+#header h1 span{color:var(--text3);font-weight:400}
+#stub-badge{background:rgba(240,192,64,.15);color:var(--yellow);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid rgba(240,192,64,.3);letter-spacing:.05em;white-space:nowrap}
+#camera-select{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:5px 8px;border-radius:6px;font-size:12px;max-width:200px}
+#camera-select:focus{outline:none;border-color:var(--accent)}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+#count-badge{font-size:12px;color:var(--text2)}
+.hbtn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.hbtn:hover{border-color:var(--accent);color:var(--text)}
+
+/* MAIN LAYOUT */
+#main{display:flex;flex:1;overflow:hidden}
+
+/* LEFT - WEBCAM */
+#cam-panel{flex:0 0 60%;display:flex;flex-direction:column;background:#000;border-right:1px solid var(--border)}
+#vid-wrap{flex:1;position:relative;overflow:hidden;background:#000}
+#video{width:100%;height:100%;object-fit:contain;display:block}
+#no-cam{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3)}
+#no-cam p{font-size:13px;text-align:center;line-height:1.6}
+
+/* CROP BOX */
+#crop{position:absolute;border:2px dashed var(--crop);cursor:move;user-select:none;box-shadow:0 0 0 9999px rgba(0,0,0,.38)}
+.cc{position:absolute;width:14px;height:14px;border:3px solid var(--crop)}
+.cc.tl{top:-3px;left:-3px;border-right:none;border-bottom:none}
+.cc.tr{top:-3px;right:-3px;border-left:none;border-bottom:none}
+.cc.bl{bottom:-3px;left:-3px;border-right:none;border-top:none}
+.cc.br{bottom:-3px;right:-3px;border-left:none;border-top:none}
+#crop-handle{position:absolute;bottom:-8px;right:-8px;width:22px;height:22px;background:var(--crop);border-radius:4px;cursor:se-resize;opacity:.85}
+
+/* CAM CONTROLS */
+#cam-ctrl{background:var(--bg2);border-top:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+#btn-cap{background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;padding:11px 28px;border-radius:8px;cursor:pointer;letter-spacing:.03em}
+#btn-cap:hover{background:var(--accent2)}
+#btn-cap:disabled{opacity:.4;cursor:not-allowed}
+.key-hint{font-size:11px;color:var(--text3)}
+#thumb-wrap{margin-left:auto;display:none;flex-direction:column;align-items:flex-end;gap:3px}
+#thumb-img{width:80px;height:56px;object-fit:cover;border-radius:4px;border:1px solid var(--border2)}
+#thumb-wrap span{font-size:10px;color:var(--text3)}
+
+/* RIGHT PANEL */
+#right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* REVIEW PANEL */
+#review{background:var(--bg2);border-bottom:1px solid var(--border);display:none;flex-direction:column;padding:14px;gap:10px;max-height:52%;overflow-y:auto;flex-shrink:0}
+#review.on{display:flex}
+#rev-hdr{display:flex;align-items:center;gap:8px}
+#rev-hdr h2{font-size:13px;font-weight:700;color:var(--yellow)}
+#rev-nav{margin-left:auto;font-size:11px;color:var(--text2)}
+.spinner-row{display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px}
+.spin{width:15px;height:15px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.rev-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rev-grid .full{grid-column:1/-1}
+.fg{display:flex;flex-direction:column;gap:3px}
+.fg label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.fg input,.fg select,.fg textarea{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:7px 9px;border-radius:5px;font-size:13px;font-family:inherit}
+.fg textarea{resize:none;height:46px}
+.fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--accent)}
+.rev-acts{display:flex;gap:8px;flex-wrap:wrap}
+.btn{padding:9px 18px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:600}
+.btn-ok{background:var(--green);color:#000}
+.btn-x{background:var(--bg4);color:var(--text2);border:1px solid var(--border2)}
+.btn-re{background:var(--blue);color:#fff}
+.btn:hover{filter:brightness(1.12)}
+#rev-err{color:var(--red);font-size:12px}
+
+/* INVENTORY */
+#inv-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#inv-ctrl{padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+#search{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:7px 11px;border-radius:6px;font-size:13px;width:100%}
+#search:focus{outline:none;border-color:var(--accent)}
+.frow{display:flex;gap:5px;flex-wrap:wrap}
+.frow select,.frow input{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:4px 7px;border-radius:5px;font-size:11px;flex:1;min-width:70px}
+.frow select:focus,.frow input:focus{outline:none;border-color:var(--accent)}
+#inv-list{flex:1;overflow-y:auto}
+.tape-row{display:grid;grid-template-columns:68px 1fr auto;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center}
+.tape-row:hover{background:var(--bg3)}
+.tid{font-size:11px;color:var(--text3);font-family:monospace}
+.tinfo h3{font-size:13px;font-weight:600;margin-bottom:2px}
+.tmeta{font-size:11px;color:var(--text3)}
+.badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;white-space:nowrap}
+.b-in_collection{background:rgba(61,187,61,.15);color:#3dbb3d}
+.b-for_sale{background:rgba(240,192,64,.15);color:#f0c040}
+.b-sold{background:rgba(100,100,100,.15);color:#777}
+.b-donated{background:rgba(68,136,255,.15);color:#4488ff}
+.b-missing{background:rgba(232,64,64,.15);color:#e84040}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--text3);padding:40px;text-align:center;font-size:13px;line-height:1.6}
+
+/* MODALS */
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:200}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:22px;width:90%;max-width:460px;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.modal h2{font-size:15px;font-weight:700}
+.modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.dfield{display:flex;flex-direction:column;gap:3px}
+.dfield label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.dfield input,.dfield select,.dfield textarea{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:7px 9px;border-radius:5px;font-size:13px;font-family:inherit}
+.dfield textarea{resize:none;height:52px}
+.dfield input:focus,.dfield select:focus,.dfield textarea:focus{outline:none;border-color:var(--accent)}
+.dfield input[readonly]{color:var(--text3)}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.dgrid .full{grid-column:1/-1}
+#detail-thumb{width:100%;max-height:110px;object-fit:contain;border-radius:5px;border:1px solid var(--border);background:#000;display:none}
+.dup-box{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:11px;font-size:13px}
+.dup-box strong{color:var(--yellow)}
+.sfield{display:flex;flex-direction:column;gap:5px}
+.sfield label{font-size:12px;color:var(--text2)}
+.sfield input{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:7px 11px;border-radius:5px;font-size:13px;font-family:monospace}
+.sfield input:focus{outline:none;border-color:var(--accent)}
+.shint{font-size:11px;color:var(--text3);line-height:1.5}
+
+/* EXPORT DROPDOWN */
+.exp-wrap{position:relative}
+.exp-dd{position:absolute;top:calc(100% + 4px);right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:4px;min-width:130px;z-index:300;display:none}
+.exp-dd.on{display:block}
+.exp-dd button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text);padding:7px 11px;font-size:12px;cursor:pointer;border-radius:4px}
+.exp-dd button:hover{background:var(--bg4)}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<header id="header">
+  <h1>VHS <span>Shelf Scanner</span></h1>
+  <span id="stub-badge" style="display:none">STUB MODE</span>
+  <select id="camera-select" style="display:none"></select>
+  <div class="hdr-right">
+    <span id="count-badge">0 tapes</span>
+    <div class="exp-wrap" id="exp-wrap">
+      <button class="hbtn" id="btn-export">↓ Export</button>
+      <div class="exp-dd" id="exp-dd">
+        <button id="exp-json">Export JSON</button>
+        <button id="exp-csv">Export CSV</button>
+      </div>
+    </div>
+    <button class="hbtn" id="btn-settings">⚙ Settings</button>
+  </div>
+</header>
+
+<main id="main">
+  <!-- LEFT: WEBCAM -->
+  <section id="cam-panel">
+    <div id="vid-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <div id="no-cam">
+        <svg width="44" height="44" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M4 8h11a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2z"/>
+        </svg>
+        <p>No camera detected.<br>Check browser permissions.</p>
+      </div>
+      <div id="crop">
+        <div class="cc tl"></div><div class="cc tr"></div>
+        <div class="cc bl"></div><div class="cc br"></div>
+        <div id="crop-handle"></div>
+      </div>
+    </div>
+    <div id="cam-ctrl">
+      <button id="btn-cap">⬤ Capture</button>
+      <span class="key-hint">Space to capture</span>
+      <div id="thumb-wrap">
+        <span>Last capture</span>
+        <img id="thumb-img" src="" alt="last capture">
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT -->
+  <section id="right">
+    <!-- REVIEW -->
+    <div id="review">
+      <div id="rev-hdr">
+        <h2 id="rev-title">Review Extracted Tape</h2>
+        <span id="rev-nav"></span>
+      </div>
+      <div id="rev-loading" class="spinner-row" style="display:none">
+        <div class="spin"></div><span>Analyzing with AI…</span>
+      </div>
+      <div id="rev-form" style="display:none">
+        <div class="rev-grid" style="margin-bottom:10px">
+          <div class="fg full"><label>Title</label><input id="f-title" type="text" placeholder="Title"></div>
+          <div class="fg"><label>Year</label><input id="f-year" type="text" placeholder="1984"></div>
+          <div class="fg"><label>Label / Studio</label><input id="f-label" type="text" placeholder="Orion"></div>
+          <div class="fg"><label>Format</label><input id="f-format" type="text" value="VHS"></div>
+          <div class="fg"><label>Condition</label>
+            <select id="f-cond">
+              <option value="great">Great</option><option value="good">Good</option>
+              <option value="fair">Fair</option><option value="poor">Poor</option>
+            </select>
+          </div>
+          <div class="fg"><label>Status</label>
+            <select id="f-status">
+              <option value="in_collection">In Collection</option><option value="for_sale">For Sale</option>
+              <option value="sold">Sold</option><option value="donated">Donated</option><option value="missing">Missing</option>
+            </select>
+          </div>
+          <div class="fg full"><label>Notes</label><textarea id="f-notes" placeholder="Condition notes…"></textarea></div>
+        </div>
+        <div class="rev-acts">
+          <button class="btn btn-ok" id="btn-confirm">✓ Confirm (Enter)</button>
+          <button class="btn btn-re" id="btn-rescan">↺ Re-scan</button>
+          <button class="btn btn-x" id="btn-discard">✕ Discard (Esc)</button>
+        </div>
+      </div>
+      <div id="rev-err" style="display:none"></div>
+    </div>
+
+    <!-- INVENTORY -->
+    <div id="inv-panel">
+      <div id="inv-ctrl">
+        <input id="search" type="text" placeholder="Search titles…">
+        <div class="frow">
+          <select id="f-stat-filter">
+            <option value="">All statuses</option>
+            <option value="in_collection">In Collection</option><option value="for_sale">For Sale</option>
+            <option value="sold">Sold</option><option value="donated">Donated</option><option value="missing">Missing</option>
+          </select>
+          <select id="f-cond-filter">
+            <option value="">All conditions</option>
+            <option value="great">Great</option><option value="good">Good</option>
+            <option value="fair">Fair</option><option value="poor">Poor</option>
+          </select>
+          <input id="f-label-filter" type="text" placeholder="Label…">
+          <input id="f-yr-from" type="number" placeholder="From yr">
+          <input id="f-yr-to" type="number" placeholder="To yr">
+          <select id="sort-sel">
+            <option value="scanned_desc">Newest</option>
+            <option value="scanned_asc">Oldest</option>
+            <option value="title_asc">Title A–Z</option>
+            <option value="title_desc">Title Z–A</option>
+            <option value="id_asc">ID ↑</option>
+          </select>
+        </div>
+      </div>
+      <div id="inv-list">
+        <div class="empty" id="empty-state">No tapes yet.<br>Point the camera at a VHS shelf and press Capture.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- MODALS -->
+<div class="backdrop" id="m-settings" style="display:none">
+  <div class="modal">
+    <h2>⚙ Settings</h2>
+    <div class="sfield">
+      <label>Anthropic API Key</label>
+      <input id="s-apikey" type="password" placeholder="sk-ant-…" autocomplete="off">
+      <span class="shint">Stored only in your browser's localStorage. Sent directly to api.anthropic.com.<br>Leave blank to run in stub/mock mode (random titles for UI testing).</span>
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-x" id="s-cancel">Cancel</button>
+      <button class="btn btn-ok" id="s-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="backdrop" id="m-dup" style="display:none">
+  <div class="modal">
+    <h2>⚠ Possible Duplicate</h2>
+    <p style="font-size:13px;color:var(--text2)">This looks similar to an existing entry:</p>
+    <div class="dup-box" id="dup-info"></div>
+    <p style="font-size:13px;color:var(--text2)">Add it anyway?</p>
+    <div class="modal-acts">
+      <button class="btn btn-x" id="dup-cancel">Cancel</button>
+      <button class="btn btn-ok" id="dup-add">Add Anyway</button>
+    </div>
+  </div>
+</div>
+
+<div class="backdrop" id="m-detail" style="display:none">
+  <div class="modal">
+    <h2 id="d-heading">Tape Details</h2>
+    <img id="detail-thumb" src="" alt="">
+    <div class="dgrid">
+      <div class="dfield full"><label>Title</label><input id="d-title" type="text"></div>
+      <div class="dfield"><label>Year</label><input id="d-year" type="text"></div>
+      <div class="dfield"><label>Label</label><input id="d-label" type="text"></div>
+      <div class="dfield"><label>Format</label><input id="d-format" type="text"></div>
+      <div class="dfield"><label>Condition</label>
+        <select id="d-cond">
+          <option value="great">Great</option><option value="good">Good</option>
+          <option value="fair">Fair</option><option value="poor">Poor</option>
+        </select>
+      </div>
+      <div class="dfield"><label>Status</label>
+        <select id="d-status">
+          <option value="in_collection">In Collection</option><option value="for_sale">For Sale</option>
+          <option value="sold">Sold</option><option value="donated">Donated</option><option value="missing">Missing</option>
+        </select>
+      </div>
+      <div class="dfield full"><label>Notes</label><textarea id="d-notes"></textarea></div>
+      <div class="dfield"><label>ID</label><input id="d-id" type="text" readonly></div>
+      <div class="dfield"><label>Scanned At</label><input id="d-scanned" type="text" readonly></div>
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-x" id="d-cancel">Cancel</button>
+      <button class="btn btn-ok" id="d-save">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── MOCK DATA ────────────────────────────────────────────────────────────────
+const MOCKS = [
+  [{ title:'The Terminator', year:'1984', label:'Orion', format:'VHS' }],
+  [{ title:'Back to the Future', year:'1985', label:'MCA/Universal', format:'VHS' }],
+  [{ title:'Ghostbusters', year:'1984', label:'RCA/Columbia', format:'VHS' }],
+  [{ title:'E.T. the Extra-Terrestrial', year:'1982', label:'MCA', format:'VHS' }],
+  [{ title:'Raiders of the Lost Ark', year:'1981', label:'Paramount', format:'VHS' }],
+  [{ title:'Beverly Hills Cop', year:'1984', label:'Paramount', format:'VHS' },
+   { title:'Top Gun', year:'1986', label:'Paramount', format:'VHS' }],
+  [{ title:'RoboCop', year:'1987', label:'Orion', format:'VHS' }],
+  [{ title:'Predator', year:'1987', label:'Fox', format:'VHS' }],
+];
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let apiKey = localStorage.getItem('vhs-apikey') || '';
+let inventory = [];
+let pending = [], pendIdx = 0, pendThumb = null;
+let isCapturing = false;
+let cropFrac = { x:.12, y:.08, w:.76, h:.84 };
+let dragging = false, resizing = false, dragOrig = {};
+let selectedId = null;
+let dupResolve = null;
+
+// ── INDEXEDDB ────────────────────────────────────────────────────────────────
+const DB_NAME = 'vhs-scanner', DB_VER = 1, STORE = 'tapes';
+let db;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE, { keyPath:'id' });
+    };
+    r.onsuccess = e => { db = e.target.result; res(); };
+    r.onerror = e => rej(e.target.error);
+  });
+}
+const tx = (mode) => db.transaction(STORE, mode).objectStore(STORE);
+const dbAll = () => new Promise((res,rej) => { const r=tx('readonly').getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+const dbAdd = rec => new Promise((res,rej) => { const r=tx('readwrite').add(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+const dbPut = rec => new Promise((res,rej) => { const r=tx('readwrite').put(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+
+async function nextId() {
+  if (!inventory.length) return 'VHS-0001';
+  const max = Math.max(...inventory.map(t => parseInt(t.id.slice(4), 10)).filter(n => !isNaN(n)));
+  return `VHS-${String(max+1).padStart(4,'0')}`;
+}
+
+// ── LEVENSHTEIN / DEDUP ──────────────────────────────────────────────────────
+function lev(a, b) {
+  const m=a.length, n=b.length;
+  const d=Array.from({length:m+1},(_,i)=>Array(n+1).fill(0));
+  for(let i=0;i<=m;i++) d[i][0]=i;
+  for(let j=0;j<=n;j++) d[0][j]=j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    d[i][j]=a[i-1]===b[j-1]?d[i-1][j-1]:1+Math.min(d[i-1][j],d[i][j-1],d[i-1][j-1]);
+  return d[m][n];
+}
+const norm = t => t.toLowerCase().replace(/^(the |a |an )/i,'').trim();
+function findDup(title) {
+  const n = norm(title);
+  for (const tape of inventory) {
+    const e = norm(tape.title);
+    const maxL = Math.max(n.length, e.length);
+    if (maxL && 1 - lev(n, e)/maxL >= 0.85) return tape;
+  }
+  return null;
+}
+
+// ── CAMERA ───────────────────────────────────────────────────────────────────
+const video = document.getElementById('video');
+const camSel = document.getElementById('camera-select');
+
+async function initCamera() {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video:true });
+    s.getTracks().forEach(t=>t.stop());
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+    camSel.innerHTML = devs.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
+    if (devs.length > 1) camSel.style.display = '';
+    await startStream(devs[0]?.deviceId);
+  } catch(e) {
+    console.warn('Camera unavailable:', e.message);
+    document.getElementById('no-cam').style.display = 'flex';
+    video.style.display = 'none';
+    document.getElementById('crop').style.display = 'none';
+  }
+}
+
+async function startStream(deviceId) {
+  if (video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
+  try {
+    video.srcObject = await navigator.mediaDevices.getUserMedia({
+      video: deviceId ? { deviceId:{exact:deviceId} } : true, audio:false
+    });
+    await video.play();
+    document.getElementById('no-cam').style.display = 'none';
+    video.style.display = '';
+    updateCrop();
+  } catch(e) {
+    document.getElementById('no-cam').style.display = 'flex';
+    video.style.display = 'none';
+    document.getElementById('crop').style.display = 'none';
+  }
+}
+
+camSel.addEventListener('change', () => startStream(camSel.value));
+
+// ── CROP BOX ─────────────────────────────────────────────────────────────────
+const vidWrap = document.getElementById('vid-wrap');
+const cropEl = document.getElementById('crop');
+const cropHandle = document.getElementById('crop-handle');
+
+function updateCrop() {
+  const r = vidWrap.getBoundingClientRect();
+  cropEl.style.left   = (cropFrac.x * r.width)  + 'px';
+  cropEl.style.top    = (cropFrac.y * r.height) + 'px';
+  cropEl.style.width  = (cropFrac.w * r.width)  + 'px';
+  cropEl.style.height = (cropFrac.h * r.height) + 'px';
+}
+
+cropEl.addEventListener('mousedown', e => {
+  if (e.target === cropHandle) return;
+  dragging = true;
+  const r = vidWrap.getBoundingClientRect();
+  dragOrig = { mx:e.clientX, my:e.clientY, fx:cropFrac.x, fy:cropFrac.y, rw:r.width, rh:r.height };
+  e.preventDefault();
+});
+
+cropHandle.addEventListener('mousedown', e => {
+  resizing = true;
+  const r = vidWrap.getBoundingClientRect();
+  dragOrig = { mx:e.clientX, my:e.clientY, fw:cropFrac.w, fh:cropFrac.h, rw:r.width, rh:r.height };
+  e.stopPropagation(); e.preventDefault();
+});
+
+document.addEventListener('mousemove', e => {
+  if (dragging) {
+    const dx=(e.clientX-dragOrig.mx)/dragOrig.rw, dy=(e.clientY-dragOrig.my)/dragOrig.rh;
+    cropFrac.x = Math.max(0, Math.min(dragOrig.fx+dx, 1-cropFrac.w));
+    cropFrac.y = Math.max(0, Math.min(dragOrig.fy+dy, 1-cropFrac.h));
+    updateCrop();
+  }
+  if (resizing) {
+    const dx=(e.clientX-dragOrig.mx)/dragOrig.rw, dy=(e.clientY-dragOrig.my)/dragOrig.rh;
+    cropFrac.w = Math.max(0.1, Math.min(dragOrig.fw+dx, 1-cropFrac.x));
+    cropFrac.h = Math.max(0.08, Math.min(dragOrig.fh+dy, 1-cropFrac.y));
+    updateCrop();
+  }
+});
+
+document.addEventListener('mouseup', () => { dragging=false; resizing=false; });
+window.addEventListener('resize', updateCrop);
+
+// ── CAPTURE ───────────────────────────────────────────────────────────────────
+async function capture() {
+  if (isCapturing) return;
+  isCapturing = true;
+  document.getElementById('btn-cap').disabled = true;
+
+  let base64 = null, thumb = null;
+
+  if (video.srcObject && video.readyState >= 2) {
+    const vw = video.videoWidth  || 640;
+    const vh = video.videoHeight || 480;
+    const cr = vidWrap.getBoundingClientRect();
+    const vAR = vw/vh, cAR = cr.width/cr.height;
+    let dw, dh, dx, dy;
+    if (vAR > cAR) { dw=cr.width; dh=cr.width/vAR; dx=0; dy=(cr.height-dh)/2; }
+    else            { dh=cr.height; dw=cr.height*vAR; dx=(cr.width-dw)/2; dy=0; }
+
+    const bx=cropFrac.x*cr.width, by=cropFrac.y*cr.height;
+    const bw=cropFrac.w*cr.width, bh=cropFrac.h*cr.height;
+    const sx=Math.max(0,(bx-dx)/dw*vw), sy=Math.max(0,(by-dy)/dh*vh);
+    const sw=Math.min(vw-sx,bw/dw*vw), sh=Math.min(vh-sy,bh/dh*vh);
+
+    const canvas = document.createElement('canvas');
+    canvas.width=Math.round(sw); canvas.height=Math.round(sh);
+    canvas.getContext('2d').drawImage(video, Math.round(sx),Math.round(sy),Math.round(sw),Math.round(sh),0,0,canvas.width,canvas.height);
+    base64 = canvas.toDataURL('image/jpeg',.9).split(',')[1];
+    thumb  = canvas.toDataURL('image/jpeg',.6);
+  }
+
+  pendThumb = thumb;
+  if (thumb) {
+    document.getElementById('thumb-img').src = thumb;
+    document.getElementById('thumb-wrap').style.display = 'flex';
+  }
+
+  showRev('loading');
+  try {
+    const results = await callAPI(base64);
+    if (!results.length) { showRev('error','No tapes detected — try adjusting the crop box.'); }
+    else { pending = results; pendIdx = 0; showRev('form'); }
+  } catch(e) {
+    showRev('error', e.message);
+  } finally {
+    isCapturing = false;
+    document.getElementById('btn-cap').disabled = false;
+  }
+}
+
+// ── VISION API ────────────────────────────────────────────────────────────────
+async function callAPI(base64) {
+  if (!apiKey || !base64) {
+    await new Promise(r=>setTimeout(r, 800));
+    return MOCKS[Math.floor(Math.random()*MOCKS.length)];
+  }
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model:'claude-sonnet-4-6', max_tokens:1024,
+      messages:[{ role:'user', content:[
+        { type:'image', source:{ type:'base64', media_type:'image/jpeg', data:base64 }},
+        { type:'text', text:`You are a VHS tape cataloger. Examine this image of VHS tape(s).
+
+VHS spines often have vertical text — mentally rotate and read any vertical text before extracting.
+
+For each tape visible, extract:
+- title: movie/show title (required)
+- year: release year if visible (string, optional)
+- label: studio or distributor (e.g. "Paramount", "Orion", "Warner") (optional)
+- format: "VHS", "Beta", or other if identifiable (default "VHS")
+
+Return ONLY a raw JSON array, one object per tape. No prose, no markdown fences.
+Example: [{"title":"The Terminator","year":"1984","label":"Orion","format":"VHS"}]
+If no readable tapes: []`}
+      ]}]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+  const data = await res.json();
+  const txt = data.content?.[0]?.text?.trim() || '[]';
+  const m = txt.match(/\[[\s\S]*\]/);
+  return m ? JSON.parse(m[0]) : [];
+}
+
+// ── REVIEW PANEL ─────────────────────────────────────────────────────────────
+const revPanel  = document.getElementById('review');
+const revLoad   = document.getElementById('rev-loading');
+const revForm   = document.getElementById('rev-form');
+const revErr    = document.getElementById('rev-err');
+
+function showRev(mode, msg='') {
+  revPanel.classList.add('on');
+  revLoad.style.display = mode==='loading' ? 'flex' : 'none';
+  revForm.style.display = mode==='form'    ? 'block' : 'none';
+  revErr.style.display  = mode==='error'   ? 'block' : 'none';
+  if (mode==='error') revErr.textContent = msg;
+  if (mode==='form')  fillRevForm();
+}
+
+function hideRev() {
+  revPanel.classList.remove('on');
+  pending=[]; pendIdx=0;
+}
+
+function fillRevForm() {
+  const it = pending[pendIdx] || {};
+  document.getElementById('f-title').value  = it.title  || '';
+  document.getElementById('f-year').value   = it.year   || '';
+  document.getElementById('f-label').value  = it.label  || '';
+  document.getElementById('f-format').value = it.format || 'VHS';
+  document.getElementById('f-cond').value   = 'great';
+  document.getElementById('f-status').value = 'in_collection';
+  document.getElementById('f-notes').value  = '';
+  document.getElementById('rev-nav').textContent = pending.length > 1 ? `${pendIdx+1} / ${pending.length}` : '';
+  setTimeout(() => document.getElementById('f-title').focus(), 40);
+}
+
+async function confirmItem() {
+  const title = document.getElementById('f-title').value.trim();
+  if (!title) { document.getElementById('f-title').style.borderColor='var(--red)'; document.getElementById('f-title').focus(); return; }
+  document.getElementById('f-title').style.borderColor = '';
+
+  const dup = findDup(title);
+  if (dup && !(await askDup(dup))) return;
+
+  const rec = {
+    id: await nextId(),
+    title,
+    year:             document.getElementById('f-year').value.trim(),
+    label:            document.getElementById('f-label').value.trim(),
+    format:           document.getElementById('f-format').value.trim() || 'VHS',
+    condition:        document.getElementById('f-cond').value,
+    condition_notes:  document.getElementById('f-notes').value.trim(),
+    status:           document.getElementById('f-status').value,
+    tags: [],
+    scanned_at:       new Date().toISOString(),
+    photo_thumbnail:  pendThumb || '',
+  };
+  await dbAdd(rec);
+  inventory.push(rec);
+  renderInv(); updateCount();
+
+  pendIdx++;
+  if (pendIdx < pending.length) fillRevForm();
+  else hideRev();
+}
+
+function discardItem() {
+  pendIdx++;
+  if (pendIdx < pending.length) fillRevForm();
+  else hideRev();
+}
+
+async function rescan() { hideRev(); await capture(); }
+
+document.getElementById('btn-cap').addEventListener('click', capture);
+document.getElementById('btn-confirm').addEventListener('click', confirmItem);
+document.getElementById('btn-discard').addEventListener('click', discardItem);
+document.getElementById('btn-rescan').addEventListener('click', rescan);
+
+// ── DUPLICATE MODAL ────────────────────────────────────────────────────────
+function askDup(existing) {
+  return new Promise(res => {
+    const m = document.getElementById('m-dup');
+    document.getElementById('dup-info').innerHTML =
+      `<strong>${esc(existing.title)}</strong><br><span style="font-size:11px;color:var(--text3)">${existing.id} · ${existing.year||''} · ${existing.label||''}</span>`;
+    m.style.display = 'flex';
+    const add    = () => { cleanup(); res(true);  };
+    const cancel = () => { cleanup(); res(false); };
+    function cleanup() {
+      m.style.display = 'none';
+      document.getElementById('dup-add').removeEventListener('click', add);
+      document.getElementById('dup-cancel').removeEventListener('click', cancel);
+    }
+    document.getElementById('dup-add').addEventListener('click', add);
+    document.getElementById('dup-cancel').addEventListener('click', cancel);
+  });
+}
+
+// ── INVENTORY ─────────────────────────────────────────────────────────────────
+function getFiltered() {
+  const q    = document.getElementById('search').value.toLowerCase();
+  const stat = document.getElementById('f-stat-filter').value;
+  const cond = document.getElementById('f-cond-filter').value;
+  const lbl  = document.getElementById('f-label-filter').value.toLowerCase();
+  const yfr  = document.getElementById('f-yr-from').value;
+  const yto  = document.getElementById('f-yr-to').value;
+  const sort = document.getElementById('sort-sel').value;
+
+  let items = inventory.filter(t => {
+    if (q    && !t.title.toLowerCase().includes(q)) return false;
+    if (stat && t.status !== stat) return false;
+    if (cond && t.condition !== cond) return false;
+    if (lbl  && !(t.label||'').toLowerCase().includes(lbl)) return false;
+    if (yfr  && t.year && +t.year < +yfr) return false;
+    if (yto  && t.year && +t.year > +yto) return false;
+    return true;
+  });
+
+  items.sort((a,b) => {
+    if (sort==='title_asc')    return norm(a.title).localeCompare(norm(b.title));
+    if (sort==='title_desc')   return norm(b.title).localeCompare(norm(a.title));
+    if (sort==='scanned_asc')  return a.scanned_at.localeCompare(b.scanned_at);
+    if (sort==='id_asc')       return a.id.localeCompare(b.id);
+    return b.scanned_at.localeCompare(a.scanned_at);
+  });
+  return items;
+}
+
+function renderInv() {
+  const list = document.getElementById('inv-list');
+  const items = getFiltered();
+  const empty = document.getElementById('empty-state');
+  if (!items.length) { list.innerHTML=''; list.appendChild(empty); empty.style.display='flex'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = items.map(t => {
+    const meta = [t.year, t.label, t.format].filter(Boolean).join(' · ');
+    return `<div class="tape-row" data-id="${t.id}">
+      <span class="tid">${esc(t.id)}</span>
+      <div class="tinfo"><h3>${esc(t.title)}</h3>${meta?`<div class="tmeta">${esc(meta)}</div>`:''}</div>
+      <span class="badge b-${t.status}">${statusLbl(t.status)}</span>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.tape-row').forEach(row => {
+    row.addEventListener('click', () => openDetail(row.dataset.id));
+  });
+}
+
+const statusLbl = s => ({in_collection:'In Coll.',for_sale:'For Sale',sold:'Sold',donated:'Donated',missing:'Missing'}[s]||s);
+const updateCount = () => { document.getElementById('count-badge').textContent=`${inventory.length} tape${inventory.length!==1?'s':''}`; };
+
+['search','f-stat-filter','f-cond-filter','f-label-filter','f-yr-from','f-yr-to','sort-sel']
+  .forEach(id => document.getElementById(id).addEventListener('input', renderInv));
+
+// ── DETAIL MODAL ─────────────────────────────────────────────────────────────
+function openDetail(id) {
+  const t = inventory.find(x=>x.id===id);
+  if (!t) return;
+  selectedId = id;
+  document.getElementById('d-heading').textContent = t.title;
+  document.getElementById('d-title').value   = t.title;
+  document.getElementById('d-year').value    = t.year||'';
+  document.getElementById('d-label').value   = t.label||'';
+  document.getElementById('d-format').value  = t.format||'VHS';
+  document.getElementById('d-cond').value    = t.condition||'great';
+  document.getElementById('d-status').value  = t.status||'in_collection';
+  document.getElementById('d-notes').value   = t.condition_notes||'';
+  document.getElementById('d-id').value      = t.id;
+  document.getElementById('d-scanned').value = new Date(t.scanned_at).toLocaleString();
+  const th = document.getElementById('detail-thumb');
+  if (t.photo_thumbnail) { th.src=t.photo_thumbnail; th.style.display='block'; }
+  else th.style.display = 'none';
+  document.getElementById('m-detail').style.display = 'flex';
+}
+
+document.getElementById('d-cancel').addEventListener('click', () => { document.getElementById('m-detail').style.display='none'; });
+document.getElementById('d-save').addEventListener('click', async () => {
+  const t = inventory.find(x=>x.id===selectedId);
+  if (!t) return;
+  t.title          = document.getElementById('d-title').value.trim()  || t.title;
+  t.year           = document.getElementById('d-year').value.trim();
+  t.label          = document.getElementById('d-label').value.trim();
+  t.format         = document.getElementById('d-format').value.trim() || 'VHS';
+  t.condition      = document.getElementById('d-cond').value;
+  t.status         = document.getElementById('d-status').value;
+  t.condition_notes= document.getElementById('d-notes').value.trim();
+  await dbPut(t);
+  renderInv();
+  document.getElementById('m-detail').style.display = 'none';
+});
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+function updateStubBadge() {
+  document.getElementById('stub-badge').style.display = apiKey ? 'none' : '';
+}
+
+document.getElementById('btn-settings').addEventListener('click', () => {
+  document.getElementById('s-apikey').value = apiKey;
+  document.getElementById('m-settings').style.display = 'flex';
+});
+document.getElementById('s-cancel').addEventListener('click', () => { document.getElementById('m-settings').style.display='none'; });
+document.getElementById('s-save').addEventListener('click', () => {
+  apiKey = document.getElementById('s-apikey').value.trim();
+  apiKey ? localStorage.setItem('vhs-apikey', apiKey) : localStorage.removeItem('vhs-apikey');
+  updateStubBadge();
+  document.getElementById('m-settings').style.display = 'none';
+});
+
+// ── EXPORT ───────────────────────────────────────────────────────────────────
+document.getElementById('btn-export').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('exp-dd').classList.toggle('on');
+});
+document.addEventListener('click', () => document.getElementById('exp-dd').classList.remove('on'));
+
+document.getElementById('exp-json').addEventListener('click', () => {
+  const data = inventory.map(({id,title,year,label,format,condition,condition_notes,tags,status,scanned_at})=>
+    ({id,title,year,label,format,condition,condition_notes,tags:tags||[],status,scanned_at}));
+  dl(JSON.stringify(data,null,2),'vhs-inventory.json','application/json');
+  document.getElementById('exp-dd').classList.remove('on');
+});
+
+document.getElementById('exp-csv').addEventListener('click', () => {
+  const cols=['id','title','year','label','format','condition','condition_notes','status','scanned_at'];
+  const csv=[cols.join(','),...inventory.map(t=>cols.map(c=>`"${String(t[c]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+  dl(csv,'vhs-inventory.csv','text/csv');
+  document.getElementById('exp-dd').classList.remove('on');
+});
+
+function dl(content, name, type) {
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=name; a.click();
+}
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const tag = document.activeElement?.tagName;
+  const inInput = tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
+  if (e.code==='Space' && !inInput) { e.preventDefault(); capture(); }
+  if (e.code==='Enter' && !inInput) {
+    e.preventDefault();
+    if (revPanel.classList.contains('on') && revForm.style.display!=='none') confirmItem();
+  }
+  if (e.code==='Escape') {
+    if (document.getElementById('m-detail').style.display!=='none')   { document.getElementById('m-detail').style.display='none';   return; }
+    if (document.getElementById('m-settings').style.display!=='none') { document.getElementById('m-settings').style.display='none'; return; }
+    if (revPanel.classList.contains('on') && revForm.style.display!=='none') discardItem();
+  }
+});
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  await openDB();
+  inventory = await dbAll();
+  renderInv();
+  updateCount();
+  updateStubBadge();
+  await initCamera();
+  updateCrop();
+}
+
+init().catch(console.error);
+</script>
+</body>
+</html>
