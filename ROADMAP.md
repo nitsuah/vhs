@@ -78,6 +78,8 @@ That list becomes your eBay drafts or a Mercari batch upload.
 - Photo thumbnails auto-cropped per tape (OpenCV or ImageMagick, crop each tape from batch photo)
 - Barcode scanning for tapes that still have UPC stickers (cross-reference ISRC/barcode databases)
 - Condition grading rubric (create a standard so anyone rating tapes uses the same scale)
+- **Tape wall gallery view** — scrollable masonry grid of tape thumbnails (one photo minimum per tape); makes the digital collection feel like the physical shelf and gives a quick visual inventory scan without opening individual records.
+- **Sell queue export** — a one-command workflow (`export.py --status for_sale --format drafts`) that auto-populates eBay/Mercari draft templates (title, condition, valuation range, photo path) for each `for_sale` tape; reduces manual copy-paste from `tapes.json` to listing pages.
 
 ---
 
