@@ -304,6 +304,17 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 
     <hr class="ssep">
 
+    <hr class="ssep">
+
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Extraction mode</div>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text2)">
+      <input type="checkbox" id="s-fast-mode" style="width:16px;height:16px;accent-color:var(--accent)">
+      <span><b style="color:var(--text)">Titles only (fast mode)</b> — skips year/label/format, fewer output tokens<br>
+      <span style="font-size:11px;color:var(--text3)">Recommended for local Ollama. You can fill in details later from the edit panel.</span></span>
+    </label>
+
+    <hr class="ssep">
+
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Fallback</div>
     <span class="shint">When neither Claude nor Ollama is available, the app uses random mock/stub data for UI testing.</span>
 
@@ -362,8 +373,18 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 </div>
 
 <script>
-// ── VISION PROMPT (shared) ─────────────────────────────────────────────────
-const VISION_PROMPT = `You are a VHS tape cataloger. Examine this image of VHS tape(s).
+// ── VISION PROMPTS ────────────────────────────────────────────────────────
+// Fast mode: title only — fewer output tokens, noticeably quicker on local models.
+const VISION_PROMPT_FAST = `You are a VHS tape cataloger. Examine this image of VHS tape(s).
+
+VHS spines are often printed vertically — mentally rotate any vertical text and read it before extracting.
+
+Return ONLY a raw JSON array with one object per tape, containing only the title.
+Example: [{"title":"The Terminator"},{"title":"Ghostbusters"}]
+If no readable tapes: []`;
+
+// Full mode: all metadata fields.
+const VISION_PROMPT_FULL = `You are a VHS tape cataloger. Examine this image of VHS tape(s).
 
 VHS spines are often printed vertically — mentally rotate any vertical text and read it before extracting.
 
@@ -394,6 +415,7 @@ const MOCKS = [
 let apiKey       = localStorage.getItem('vhs-apikey')     || '';
 let ollamaUrl    = localStorage.getItem('vhs-ollama-url') || defaultOllamaUrl();
 let ollamaModel  = localStorage.getItem('vhs-ollama-model') || 'llava:7b';
+let fastMode     = localStorage.getItem('vhs-fast-mode') !== 'false'; // default on
 let ollamaAvail  = false;
 let inventory    = [];
 let pending = [], pendIdx = 0, pendThumb = null;
@@ -660,7 +682,7 @@ async function callClaude(base64) {
       model:'claude-sonnet-4-6', max_tokens:1024,
       messages:[{ role:'user', content:[
         { type:'image', source:{ type:'base64', media_type:'image/jpeg', data:base64 }},
-        { type:'text', text: VISION_PROMPT }
+        { type:'text', text: fastMode ? VISION_PROMPT_FAST : VISION_PROMPT_FULL }
       ]}]
     })
   });
@@ -674,14 +696,18 @@ async function callClaude(base64) {
 
 // Tier 2: Ollama (local vision model)
 async function callOllama(base64) {
+  const prompt = fastMode ? VISION_PROMPT_FAST : VISION_PROMPT_FULL;
+  // num_predict caps output tokens — keeps responses tight and cuts CPU time
+  const num_predict = fastMode ? 60 : 150;
   const res = await fetch(`${ollamaUrl}/api/generate`, {
     method:'POST',
     headers:{ 'content-type':'application/json' },
     body: JSON.stringify({
       model: ollamaModel,
-      prompt: VISION_PROMPT,
+      prompt,
       images: [base64],
       stream: false,
+      options: { num_predict },
     })
   });
   if (!res.ok) throw new Error(`Ollama error ${res.status}`);
@@ -866,9 +892,10 @@ document.getElementById('d-save').addEventListener('click', async ()=>{
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────
 document.getElementById('btn-settings').addEventListener('click', ()=>{
-  document.getElementById('s-apikey').value       = apiKey;
-  document.getElementById('s-ollama-url').value   = ollamaUrl;
-  document.getElementById('s-ollama-model').value = ollamaModel;
+  document.getElementById('s-apikey').value        = apiKey;
+  document.getElementById('s-ollama-url').value    = ollamaUrl;
+  document.getElementById('s-ollama-model').value  = ollamaModel;
+  document.getElementById('s-fast-mode').checked   = fastMode;
   checkOllama(); // refresh status
   document.getElementById('m-settings').style.display='flex';
 });
@@ -877,9 +904,11 @@ document.getElementById('s-save').addEventListener('click',()=>{
   apiKey      = document.getElementById('s-apikey').value.trim();
   ollamaUrl   = document.getElementById('s-ollama-url').value.trim() || defaultOllamaUrl();
   ollamaModel = document.getElementById('s-ollama-model').value;
+  fastMode    = document.getElementById('s-fast-mode').checked;
   apiKey      ? localStorage.setItem('vhs-apikey',apiKey)           : localStorage.removeItem('vhs-apikey');
   localStorage.setItem('vhs-ollama-url',   ollamaUrl);
   localStorage.setItem('vhs-ollama-model', ollamaModel);
+  localStorage.setItem('vhs-fast-mode',    String(fastMode));
   updateAiBadge();
   document.getElementById('m-settings').style.display='none';
 });
