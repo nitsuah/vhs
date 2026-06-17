@@ -1,0 +1,51 @@
+services:
+
+  web:
+    build: .
+    ports:
+      - "${APP_PORT:-8080}:80"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_ORIGINS=*          # allow direct browser access if needed
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list > /dev/null 2>&1 || exit 1"]
+      interval: 8s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    # Uncomment if you have an NVIDIA GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # One-shot service: pulls the vision model into the shared volume on first run.
+  # Subsequent starts skip this instantly because the model is already cached.
+  ollama-pull:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["sh", "-c", "ollama pull ${OLLAMA_MODEL:-llava:7b} && echo '✓ Model ready'"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  ollama_models:
