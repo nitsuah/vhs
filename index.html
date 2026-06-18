@@ -233,6 +233,45 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 #db-dot.ok{background:var(--green)}
 #db-dot.err{background:var(--red);cursor:pointer;box-shadow:0 0 4px var(--red)}
 @keyframes toastin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ── NO-CAM permission UI ───────────────────────────────────────── */
+#btn-enable-cam{background:var(--accent);color:#fff;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;margin-top:4px}
+#btn-enable-cam:hover{background:var(--accent2)}
+
+/* ── RESPONSIVE ─────────────────────────────────────────────────── */
+@media (max-width:700px){
+  body{overflow:auto;height:auto;min-height:100dvh}
+  #main{flex-direction:column;overflow:visible;height:auto}
+  #header{height:auto;flex-wrap:wrap;padding:8px 10px;gap:6px}
+  #header h1{font-size:14px}
+  #ai-badge{font-size:9px;padding:2px 6px}
+  #camera-select{max-width:130px;font-size:11px}
+  .hdr-right{width:100%;overflow-x:auto;padding-bottom:2px;gap:5px}
+  .hdr-right::-webkit-scrollbar{height:0}
+  .hbtn{padding:4px 8px;font-size:11px}
+  #count-badge{font-size:11px}
+  #cam-panel{flex:0 0 auto;height:280px;border-right:none;border-bottom:1px solid var(--border)}
+  #cam-ctrl{padding:7px 10px;gap:5px}
+  #btn-cap{padding:10px 16px;font-size:13px}
+  .ctrl-btn{padding:8px 10px;font-size:11px}
+  .key-hint{display:none}
+  #thumb-wrap{display:none!important}
+  #right{flex:1;min-height:0}
+  #review{max-height:50vh}
+  .tape-row{grid-template-columns:24px 40px 1fr auto;gap:5px;padding:6px 10px}
+  .tid{display:none}
+  .row-thumb{width:40px;height:28px}
+  .row-thumb-ph{width:40px;height:28px;font-size:13px}
+  .tinfo h3{font-size:12px}
+  .modal{max-height:90dvh;overflow-y:auto;width:calc(100vw - 24px)}
+  .dgrid{grid-template-columns:1fr}
+  .dfield.full{grid-column:1}
+  .rev-grid{grid-template-columns:1fr}
+  .rev-grid .full{grid-column:1}
+}
+@media (max-width:700px) and (orientation:landscape){
+  #cam-panel{height:160px}
+}
 </style>
 </head>
 <body>
@@ -270,7 +309,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
         <svg width="44" height="44" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M4 8h11a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2z"/>
         </svg>
-        <p>No camera detected.<br>Check browser permissions.</p>
+        <p id="no-cam-msg">Tap to enable camera</p>
+        <button id="btn-enable-cam">📷 Enable Camera</button>
       </div>
       <div id="crop">
         <div class="cc tl"></div><div class="cc tr"></div>
@@ -612,37 +652,68 @@ function findDup(title){
 // ── CAMERA ───────────────────────────────────────────────────────────────
 const video=document.getElementById('video');
 const camSel=document.getElementById('camera-select');
+const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+function showNoCam(msg){
+  document.getElementById('no-cam-msg').textContent=msg||'Camera unavailable';
+  document.getElementById('no-cam').style.display='flex';
+  video.style.display='none';
+  document.getElementById('crop').style.display='none';
+}
+function hideNoCam(){
+  document.getElementById('no-cam').style.display='none';
+  video.style.display='';
+  document.getElementById('crop').style.display='';
+}
 
 async function initCamera(){
+  if(!navigator.mediaDevices?.getUserMedia){
+    showNoCam('Camera API not supported in this browser.');return;
+  }
   try{
-    const s=await navigator.mediaDevices.getUserMedia({video:true});
-    s.getTracks().forEach(t=>t.stop());
+    // Probe with rear-camera preference on mobile
+    const probe=await navigator.mediaDevices.getUserMedia({
+      video: isMobile ? {facingMode:{ideal:'environment'}} : true
+    });
+    probe.getTracks().forEach(t=>t.stop());
     const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
     camSel.innerHTML=devs.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
     if(devs.length>1)camSel.style.display='';
-    await startStream(devs[0]?.deviceId);
+    // On mobile default to last camera (usually rear)
+    const defaultDev=isMobile?(devs[devs.length-1]?.deviceId):devs[0]?.deviceId;
+    await startStream(defaultDev);
   }catch(e){
     console.warn('Camera:',e.message);
-    document.getElementById('no-cam').style.display='flex';
-    video.style.display='none';
-    document.getElementById('crop').style.display='none';
+    if(e.name==='NotAllowedError'||e.name==='PermissionDeniedError')
+      showNoCam('Camera permission denied.\nAllow access in browser settings and tap Enable.');
+    else if(e.name==='NotFoundError')
+      showNoCam('No camera found on this device.');
+    else
+      showNoCam('Could not start camera: '+e.message);
   }
 }
 async function startStream(deviceId){
   if(video.srcObject)video.srcObject.getTracks().forEach(t=>t.stop());
   try{
-    video.srcObject=await navigator.mediaDevices.getUserMedia({video:deviceId?{deviceId:{exact:deviceId}}:true,audio:false});
+    const constraints={
+      video: deviceId
+        ? {deviceId:{exact:deviceId}}
+        : isMobile
+          ? {facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
+          : true,
+      audio:false
+    };
+    video.srcObject=await navigator.mediaDevices.getUserMedia(constraints);
     await video.play();
-    document.getElementById('no-cam').style.display='none';
-    video.style.display='';
+    hideNoCam();
     updateCrop();
     if(barcodeMode&&barcodeRdr)startBarcodeLoop();
-  }catch{
-    document.getElementById('no-cam').style.display='flex';
-    video.style.display='none';
+  }catch(e){
+    showNoCam(e.name==='NotAllowedError'?'Camera permission denied.\nTap Enable to retry.':'Could not start camera.');
   }
 }
 camSel.addEventListener('change',()=>startStream(camSel.value));
+document.getElementById('btn-enable-cam').addEventListener('click',()=>initCamera());
 
 // ── CROP BOX ─────────────────────────────────────────────────────────────
 const vidWrap=document.getElementById('vid-wrap');
@@ -653,32 +724,48 @@ function updateCrop(){
   cropEl.style.left=cropFrac.x*r.width+'px'; cropEl.style.top=cropFrac.y*r.height+'px';
   cropEl.style.width=cropFrac.w*r.width+'px'; cropEl.style.height=cropFrac.h*r.height+'px';
 }
-cropEl.addEventListener('mousedown',e=>{
-  if(e.target===cropHandle)return;
+function startDrag(cx,cy){
   dragging=true; const r=vidWrap.getBoundingClientRect();
-  dragOrig={mx:e.clientX,my:e.clientY,fx:cropFrac.x,fy:cropFrac.y,rw:r.width,rh:r.height};
-  e.preventDefault();
-});
-cropHandle.addEventListener('mousedown',e=>{
+  dragOrig={mx:cx,my:cy,fx:cropFrac.x,fy:cropFrac.y,rw:r.width,rh:r.height};
+}
+function startResize(cx,cy){
   resizing=true; const r=vidWrap.getBoundingClientRect();
-  dragOrig={mx:e.clientX,my:e.clientY,fw:cropFrac.w,fh:cropFrac.h,rw:r.width,rh:r.height};
-  e.stopPropagation(); e.preventDefault();
-});
-document.addEventListener('mousemove',e=>{
+  dragOrig={mx:cx,my:cy,fw:cropFrac.w,fh:cropFrac.h,rw:r.width,rh:r.height};
+}
+function onMove(cx,cy){
   if(dragging){
-    const dx=(e.clientX-dragOrig.mx)/dragOrig.rw,dy=(e.clientY-dragOrig.my)/dragOrig.rh;
+    const dx=(cx-dragOrig.mx)/dragOrig.rw,dy=(cy-dragOrig.my)/dragOrig.rh;
     cropFrac.x=Math.max(0,Math.min(dragOrig.fx+dx,1-cropFrac.w));
     cropFrac.y=Math.max(0,Math.min(dragOrig.fy+dy,1-cropFrac.h));
     updateCrop();
   }
   if(resizing){
-    const dx=(e.clientX-dragOrig.mx)/dragOrig.rw,dy=(e.clientY-dragOrig.my)/dragOrig.rh;
+    const dx=(cx-dragOrig.mx)/dragOrig.rw,dy=(cy-dragOrig.my)/dragOrig.rh;
     cropFrac.w=Math.max(0.1,Math.min(dragOrig.fw+dx,1-cropFrac.x));
     cropFrac.h=Math.max(0.08,Math.min(dragOrig.fh+dy,1-cropFrac.y));
     updateCrop();
   }
+}
+cropEl.addEventListener('mousedown',e=>{
+  if(e.target===cropHandle)return;
+  startDrag(e.clientX,e.clientY); e.preventDefault();
 });
+cropHandle.addEventListener('mousedown',e=>{
+  startResize(e.clientX,e.clientY); e.stopPropagation(); e.preventDefault();
+});
+document.addEventListener('mousemove',e=>onMove(e.clientX,e.clientY));
 document.addEventListener('mouseup',()=>{dragging=false;resizing=false;});
+cropEl.addEventListener('touchstart',e=>{
+  if(e.target===cropHandle)return;
+  const t=e.touches[0]; startDrag(t.clientX,t.clientY); e.preventDefault();
+},{passive:false});
+cropHandle.addEventListener('touchstart',e=>{
+  const t=e.touches[0]; startResize(t.clientX,t.clientY); e.stopPropagation(); e.preventDefault();
+},{passive:false});
+document.addEventListener('touchmove',e=>{
+  if(dragging||resizing){const t=e.touches[0];onMove(t.clientX,t.clientY);e.preventDefault();}
+},{passive:false});
+document.addEventListener('touchend',()=>{dragging=false;resizing=false;});
 window.addEventListener('resize',updateCrop);
 
 // ── BARCODE ──────────────────────────────────────────────────────────────

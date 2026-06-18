@@ -44,6 +44,12 @@ All notable changes to this project are documented here.
 - **Print price tags** — printable 2.4" dashed-border tags for for-sale tapes
 - **Printable HTML list** — clean table sorted by ID with Print button
 
+#### Mobile & Responsive
+- **Responsive layout** — `@media (max-width:700px)` stacks panels vertically; camera fixed 280px (160px landscape)
+- **Rear camera preference** — `facingMode: 'environment'` on mobile for scanning VHS tapes
+- **Permission UX** — contextual `#no-cam-msg` (denied / not found / no API); "📷 Enable Camera" retry button
+- **Touch events on crop box** — `touchstart/touchmove/touchend` mirrors mouse drag/resize so crop works on mobile
+
 #### UX
 - **Better empty state** — action buttons (Capture / Add Manually / Upload) on first run
 - **eBay sold-listings search** — one-click search for comps on any tape
