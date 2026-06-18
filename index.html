@@ -298,6 +298,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
           <button id="btn-wall">⊞ Wall</button>
         </div>
       </div>
+      <div id="inv-stats" style="display:none;padding:5px 12px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);gap:12px;flex-wrap:wrap"></div>
       <div id="inv-list">
         <div class="empty" id="empty-state">No tapes yet.<br>Point the camera at a VHS shelf and press Capture.</div>
       </div>
@@ -367,6 +368,12 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   <div class="modal">
     <h2 id="d-heading">Tape Details</h2>
     <img id="detail-thumb" src="" alt="">
+    <div id="detail-photos" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+      <button class="btn-lookup" id="d-add-photo-file" title="Upload a photo for this tape">📎 Add Photo</button>
+      <span id="d-photo-count" style="font-size:11px;color:var(--text3)"></span>
+      <input type="file" id="d-photo-input" accept="image/*" multiple style="display:none">
+    </div>
     <div class="dgrid">
       <div class="dfield full"><label>Title</label><div style="display:flex;gap:6px;align-items:center"><input id="d-title" type="text" style="flex:1"><button class="btn-lookup" id="d-lookup" title="Look up metadata by title">🔍 Lookup</button></div></div>
       <div class="dfield"><label>Year</label><input id="d-year" type="text"></div>
@@ -389,6 +396,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     </div>
     <div class="modal-acts">
       <button class="btn btn-del m-acts-left" id="d-delete">🗑 Delete</button>
+      <button class="btn btn-x" id="d-ebay" title="Search eBay sold listings for this title">🛒 eBay</button>
       <button class="btn btn-x" id="d-cancel">Cancel</button>
       <button class="btn btn-ok" id="d-save">Save</button>
     </div>
@@ -1097,7 +1105,20 @@ function renderInv(){
   list.querySelectorAll('.tape-row').forEach(row=>row.addEventListener('click',()=>openDetail(row.dataset.id)));
 }
 const statusLbl=s=>({in_collection:'In Coll.',for_sale:'For Sale',sold:'Sold',donated:'Donated',missing:'Missing'}[s]||s);
-const updateCount=()=>{document.getElementById('count-badge').textContent=`${inventory.length} tape${inventory.length!==1?'s':''}`;};
+const updateCount=()=>{
+  document.getElementById('count-badge').textContent=`${inventory.length} tape${inventory.length!==1?'s':''}`;
+  const statsEl=document.getElementById('inv-stats');
+  if(!inventory.length){statsEl.style.display='none';return;}
+  const forSale=inventory.filter(t=>t.status==='for_sale').length;
+  const withVal=inventory.filter(t=>t.value_low||t.value_high);
+  const totalLo=withVal.reduce((s,t)=>s+(parseFloat(t.value_low)||0),0);
+  const totalHi=withVal.reduce((s,t)=>s+(parseFloat(t.value_high)||0),0);
+  const parts=[`${inventory.length} tapes`];
+  if(forSale)parts.push(`<span style="color:var(--yellow)">${forSale} for sale</span>`);
+  if(withVal.length)parts.push(`<span style="color:var(--green)">Est. $${totalLo.toFixed(0)}–$${totalHi.toFixed(0)}</span>`);
+  statsEl.style.display='flex';
+  statsEl.innerHTML=parts.join('<span style="color:var(--border2)"> · </span>');
+};
 
 ['search','f-stat-filter','f-cond-filter','f-label-filter','f-yr-from','f-yr-to','sort-sel']
   .forEach(id=>document.getElementById(id).addEventListener('input',renderInv));
@@ -1126,9 +1147,49 @@ function openDetail(id){
   document.getElementById('d-scanned').value=new Date(t.scanned_at).toLocaleString();
   const th=document.getElementById('detail-thumb');
   if(t.photo_thumbnail){th.src=t.photo_thumbnail;th.style.display='block';}else th.style.display='none';
+  renderDetailPhotos(t);
   document.getElementById('m-detail').style.display='flex';
 }
+function renderDetailPhotos(t){
+  const wrap=document.getElementById('detail-photos');
+  const count=document.getElementById('d-photo-count');
+  const photos=t.photos||[];
+  count.textContent=photos.length?`${photos.length} photo${photos.length!==1?'s':''}` :'No photos';
+  if(!photos.length){wrap.style.display='none';return;}
+  wrap.style.display='flex';
+  wrap.innerHTML=photos.map((src,i)=>`<div style="position:relative;flex-shrink:0">
+    <img src="${src}" style="width:72px;height:52px;object-fit:cover;border-radius:4px;border:1px solid var(--border2);cursor:pointer" onclick="window.open(this.src,'_blank')">
+    <button onclick="removeDetailPhoto(${i})" style="position:absolute;top:-5px;right:-5px;background:var(--red);border:none;color:#fff;width:16px;height:16px;border-radius:50%;cursor:pointer;font-size:10px;line-height:16px;text-align:center;padding:0" title="Remove photo">×</button>
+  </div>`).join('');
+}
+window.removeDetailPhoto=async function(idx){
+  const t=inventory.find(x=>x.id===selectedId);if(!t)return;
+  t.photos=(t.photos||[]).filter((_,i)=>i!==idx);
+  t.photo_thumbnail=t.photos.length?t.photos[0]:'';
+  await dbPut(t);renderInv();renderDetailPhotos(t);
+  const th=document.getElementById('detail-thumb');
+  if(t.photo_thumbnail){th.src=t.photo_thumbnail;th.style.display='block';}else th.style.display='none';
+};
+document.getElementById('d-add-photo-file').addEventListener('click',()=>document.getElementById('d-photo-input').click());
+document.getElementById('d-photo-input').addEventListener('change',async e=>{
+  const t=inventory.find(x=>x.id===selectedId);if(!t||!e.target.files.length)return;
+  for(const file of e.target.files){
+    const dataUrl=await new Promise(res=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.readAsDataURL(file);});
+    t.photos=t.photos||[];
+    t.photos.push(dataUrl);
+    if(!t.photo_thumbnail)t.photo_thumbnail=dataUrl;
+  }
+  await dbPut(t);renderInv();renderDetailPhotos(t);
+  const th=document.getElementById('detail-thumb');
+  if(t.photo_thumbnail){th.src=t.photo_thumbnail;th.style.display='block';}
+  e.target.value='';
+});
 document.getElementById('d-cancel').addEventListener('click',()=>document.getElementById('m-detail').style.display='none');
+document.getElementById('d-ebay').addEventListener('click',()=>{
+  const title=document.getElementById('d-title').value.trim()||document.getElementById('d-heading').textContent;
+  const q=encodeURIComponent(title+' VHS');
+  window.open(`https://www.ebay.com/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1`,'_blank','noopener');
+});
 document.getElementById('d-lookup').addEventListener('click',async()=>{
   const title=document.getElementById('d-title').value.trim();if(!title)return;
   const btn=document.getElementById('d-lookup');
