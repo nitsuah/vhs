@@ -2,15 +2,38 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/**]
   pull_request:
     branches: [main]
 
 jobs:
-  validate:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - name: Validate tapes.json
-        run: python3 -c "import json, sys; json.load(open('data/tapes.json')); print('tapes.json is valid JSON')"
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning
+
+      - name: Lint shell scripts
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck start.sh
+
+      - name: Lint HTML
+        run: |
+          npm install -g htmlhint@1
+          htmlhint --config .htmlhintrc index.html
+
+  build:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t vhs-scanner:ci .
