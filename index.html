@@ -330,6 +330,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
           <select id="sort-sel">
             <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
             <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
+            <option value="val_desc">Value ↓</option><option value="val_asc">Value ↑</option>
             <option value="id_asc">ID ↑</option>
           </select>
           <button id="btn-wall">⊞ Wall</button>
@@ -456,6 +457,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
       <div class="dfield"><label>Year</label><input id="d-year" type="text"></div>
       <div class="dfield"><label>Label</label><input id="d-label" type="text"></div>
       <div class="dfield"><label>Format</label><input id="d-format" type="text"></div>
+      <div class="dfield"><label>Barcode (UPC/EAN)</label><input id="d-barcode" type="text" placeholder="0 00000 00000 0"></div>
       <div class="dfield"><label>Est. Value Low ($)</label><input id="d-value-low" type="text" placeholder="5"></div>
       <div class="dfield"><label>Est. Value High ($)</label><input id="d-value-high" type="text" placeholder="20"></div>
       <div class="dfield"><label>Condition</label>
@@ -810,10 +812,12 @@ function startBarcodeLoop(){
           if(code!==lastCode.val||now-lastCode.t>3000){
             lastCode={val:code,t:now};
             beep();flashBcTarget();
+            const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
+            if(bcDup)toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);
             const uid=++uidSeq;
-            cards.push({uid,data:{title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
+            cards.push({uid,data:{title:bcDup?bcDup.title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
             renderCards();showRevPanel();
-            lookupBarcode(code).then(meta=>{
+            if(!bcDup)lookupBarcode(code).then(meta=>{
               if(!meta)return;
               const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
               card.data.title=meta.title;
@@ -858,10 +862,12 @@ async function snapAndDecode(){
     if(code!==lastCode.val||now-lastCode.t>3000){
       lastCode={val:code,t:now};
       beep();flashBcTarget();
+      const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
+      if(bcDup)toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);
       const uid=++uidSeq;
-      cards.push({uid,data:{title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
+      cards.push({uid,data:{title:bcDup?bcDup.title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
       renderCards();showRevPanel();
-      lookupBarcode(code).then(meta=>{
+      if(!bcDup)lookupBarcode(code).then(meta=>{
         if(!meta)return;
         const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
         card.data.title=meta.title;
@@ -1348,6 +1354,8 @@ function getFiltered(){
     if(sort==='title_desc')return norm(b.title).localeCompare(norm(a.title));
     if(sort==='scanned_asc')return a.scanned_at.localeCompare(b.scanned_at);
     if(sort==='id_asc')return a.id.localeCompare(b.id);
+    if(sort==='val_desc')return(parseFloat(b.value_high)||parseFloat(b.value_low)||0)-(parseFloat(a.value_high)||parseFloat(a.value_low)||0);
+    if(sort==='val_asc')return(parseFloat(a.value_low)||parseFloat(a.value_high)||0)-(parseFloat(b.value_low)||parseFloat(b.value_high)||0);
     return b.scanned_at.localeCompare(a.scanned_at);
   });
   return items;
@@ -1373,15 +1381,17 @@ function renderInv(){
   wall.classList.remove('on');list.style.display='';
   if(!items.length){list.innerHTML='';list.appendChild(empty);empty.style.display='flex';return;}
   empty.style.display='none';
+  const condColor={'great':'#3dbb3d','good':'#4488ff','fair':'#f0c040','poor':'#e84040'};
   list.innerHTML=items.map(t=>{
     const meta=[t.year,t.label,t.format].filter(Boolean).join(' · ');
     const val=(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
+    const condBit=t.condition&&t.condition!=='great'?`<span style="font-size:9px;font-weight:700;color:${condColor[t.condition]||'var(--text3)'}">${t.condition}</span>`:'';
     const tagBit=(t.tags||[]).slice(0,3).map(tag=>`<span style="font-size:9px;padding:1px 5px;border-radius:10px;background:rgba(68,136,255,.12);color:var(--blue);border:1px solid rgba(68,136,255,.25)">${esc(tag)}</span>`).join(' ');
     const checked=selectedIds.has(t.id);
     return `<div class="tape-row${checked?' selected':''}" data-id="${t.id}">
       <input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''} onclick="event.stopPropagation()">
       <span class="tid">${esc(t.id)}</span>
-      <div class="tinfo"><h3>${esc(t.title)}</h3><div class="tmeta" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${meta?`<span>${esc(meta)}</span>`:''}${val?`<span style="color:var(--green)">${esc(val)}</span>`:''}${tagBit}</div></div>
+      <div class="tinfo"><h3>${esc(t.title)}</h3><div class="tmeta" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${meta?`<span>${esc(meta)}</span>`:''}${val?`<span style="color:var(--green)">${esc(val)}</span>`:''}${condBit}${tagBit}</div></div>
       <span class="badge b-${t.status}">${statusLbl(t.status)}</span>
     </div>`;
   }).join('');
@@ -1459,6 +1469,7 @@ function openDetail(id){
   document.getElementById('d-year').value=t.year||'';
   document.getElementById('d-label').value=t.label||'';
   document.getElementById('d-format').value=t.format||'VHS';
+  document.getElementById('d-barcode').value=t.barcode||'';
   document.getElementById('d-value-low').value=t.value_low||'';
   document.getElementById('d-value-high').value=t.value_high||'';
   document.getElementById('d-cond').value=t.condition||'great';
@@ -1534,6 +1545,7 @@ document.getElementById('d-save').addEventListener('click',async()=>{
   t.year=document.getElementById('d-year').value.trim();
   t.label=document.getElementById('d-label').value.trim();
   t.format=document.getElementById('d-format').value.trim()||'VHS';
+  t.barcode=document.getElementById('d-barcode').value.trim();
   t.value_low=document.getElementById('d-value-low').value.trim();
   t.value_high=document.getElementById('d-value-high').value.trim();
   t.condition=document.getElementById('d-cond').value;
