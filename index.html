@@ -52,6 +52,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .bc-target{position:relative;width:70%;height:28%;border:2px solid rgba(61,187,61,.7);border-radius:4px;overflow:hidden;transition:width .2s,height .2s}
 .bc-scanline{position:absolute;left:0;right:0;height:2px;background:rgba(61,187,61,.9);box-shadow:0 0 8px var(--green);animation:scan 1.5s ease-in-out infinite}
 @keyframes scan{0%,100%{top:5%}50%{top:90%}}
+@keyframes scan-hit{0%,100%{border-color:rgba(61,187,61,.7)}50%{border-color:#3f3;box-shadow:0 0 18px 6px rgba(61,187,61,.6)}}
+.bc-target.hit{animation:scan-hit .5s ease}
 .bc-corner{position:absolute;width:14px;height:14px;border-color:var(--green);border-style:solid}
 .bc-corner.tl{top:-1px;left:-1px;border-width:3px 0 0 3px}
 .bc-corner.tr{top:-1px;right:-1px;border-width:3px 3px 0 0}
@@ -279,6 +281,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     <div id="cam-ctrl">
       <button id="btn-cap">⬤ Stage</button>
       <button class="ctrl-btn" id="btn-barcode">⬡ Barcode</button>
+      <button class="ctrl-btn" id="btn-torch" style="display:none">🔦 Torch</button>
+      <button class="ctrl-btn" id="btn-snap" style="display:none">📷 Snap</button>
       <button class="ctrl-btn" id="btn-upload">⬆ Upload</button>
       <input type="file" id="file-input" accept="image/*" multiple>
       <span class="key-hint">Space to stage · Enter to analyze</span>
@@ -521,6 +525,7 @@ let selectedId  = null;
 let selectedIds = new Set();
 let cropFrac    = { x:.12, y:.08, w:.76, h:.84 };
 let bcZoom      = 0.7;
+let torchOn     = false;
 let dragging=false, resizing=false, dragOrig={};
 
 function defaultOllamaUrl() {
@@ -659,12 +664,17 @@ function beep(){
 }
 
 async function toggleBarcodeMode(){
+  const btnTorch=document.getElementById('btn-torch');
+  const btnSnap=document.getElementById('btn-snap');
   if(barcodeMode){
     barcodeMode=false;
     btnBarcode.classList.remove('active');btnBarcode.textContent='⬡ Barcode';
     barcodeOverlay.classList.remove('on');cropEl.style.display='';btnCap.disabled=false;
     barcodeRdr=null;
-    // Restore normal-res stream
+    btnTorch.style.display='none';btnSnap.style.display='none';
+    if(torchOn){
+      torchOn=false;btnTorch.classList.remove('active');btnTorch.textContent='🔦 Torch';
+    }
     await startStream(camSel.value||null);
   }else{
     btnBarcode.textContent='⟳ Loading…';btnBarcode.disabled=true;
@@ -673,7 +683,13 @@ async function toggleBarcodeMode(){
     barcodeMode=true;
     btnBarcode.classList.add('active');btnBarcode.textContent='⬡ Barcode ON';btnBarcode.disabled=false;
     barcodeOverlay.classList.add('on');cropEl.style.display='none';btnCap.disabled=true;
+    btnSnap.style.display='';
     await startBarcodeStream();
+    // Show torch button only if the track supports it
+    try{
+      const track=video.srcObject?.getVideoTracks()[0];
+      if(track?.getCapabilities?.()?.torch)btnTorch.style.display='';
+    }catch{}
     startBarcodeLoop();
   }
 }
@@ -710,74 +726,74 @@ document.getElementById('bc-zoom-in').addEventListener('click',()=>{
 });
 updateBcTarget();
 
+function bcAdaptiveThreshold(imgData){
+  const d=imgData.data,n=d.length;
+  let sum=0;
+  for(let i=0;i<n;i+=4)sum+=d[i];
+  const mean=sum/(n/4);
+  for(let i=0;i<n;i+=4){const v=d[i]<mean?0:255;d[i]=d[i+1]=d[i+2]=v;}
+  return imgData;
+}
+
+function bcSharpen(imgData){
+  const w=imgData.width,h=imgData.height,d=imgData.data;
+  const src=new Uint8ClampedArray(d);
+  const k=[0,-1,0,-1,5,-1,0,-1,0];
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++)for(let c=0;c<3;c++){
+    let v=0;
+    for(let ky=-1;ky<=1;ky++)for(let kx=-1;kx<=1;kx++)
+      v+=src[((y+ky)*w+(x+kx))*4+c]*k[(ky+1)*3+(kx+1)];
+    d[(y*w+x)*4+c]=Math.max(0,Math.min(255,v));
+  }
+  return imgData;
+}
+
+function buildBcVariant(vw,vh,v){
+  const sw=Math.round(vw*bcZoom),sh=Math.round(vh*bcZoom*.4);
+  const sx=Math.round((vw-sw)/2),sy=Math.round((vh-sh)/2);
+  const scale=v===1?2:1;
+  const c=document.createElement('canvas');
+  c.width=sw*scale;c.height=sh*scale;
+  const ctx=c.getContext('2d');
+  if(v===0){
+    ctx.filter='grayscale(100%) contrast(220%) brightness(110%)';
+    ctx.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
+  }else if(v===1){
+    ctx.filter='grayscale(100%) contrast(300%) brightness(108%)';
+    ctx.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
+  }else if(v===2){
+    ctx.filter='grayscale(100%)';
+    ctx.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
+    ctx.putImageData(bcAdaptiveThreshold(ctx.getImageData(0,0,c.width,c.height)),0,0);
+  }else{
+    ctx.filter='grayscale(100%)';
+    ctx.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
+    ctx.putImageData(bcAdaptiveThreshold(bcSharpen(ctx.getImageData(0,0,c.width,c.height))),0,0);
+  }
+  return c;
+}
+
+function flashBcTarget(){
+  const t=document.getElementById('bc-target');
+  if(!t)return;
+  t.classList.remove('hit');
+  void t.offsetWidth;
+  t.classList.add('hit');
+  setTimeout(()=>t.classList.remove('hit'),500);
+}
+
 function startBarcodeLoop(){
   if(!window.ZXing)return;
-  // Focus on 1D retail formats common on VHS/DVD; avoids wasting time on QR/DataMatrix
   const hints=new Map([
     [ZXing.DecodeHintType.TRY_HARDER,true],
     [ZXing.DecodeHintType.POSSIBLE_FORMATS,[
-      ZXing.BarcodeFormat.EAN_13,
-      ZXing.BarcodeFormat.UPC_A,
-      ZXing.BarcodeFormat.UPC_E,
-      ZXing.BarcodeFormat.EAN_8,
-      ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.CODE_39,
-      ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.ITF,
     ]]
   ]);
   barcodeRdr=new ZXing.BrowserMultiFormatReader(hints);
   let busy=false;
-
-  function adaptiveThreshold(imgData){
-    const d=imgData.data,n=d.length;
-    let sum=0;
-    for(let i=0;i<n;i+=4)sum+=d[i];
-    const mean=sum/(n/4);
-    for(let i=0;i<n;i+=4){const v=d[i]<mean?0:255;d[i]=d[i+1]=d[i+2]=v;}
-    return imgData;
-  }
-
-  function sharpenKernel(imgData){
-    const w=imgData.width,h=imgData.height,d=imgData.data;
-    const src=new Uint8ClampedArray(d);
-    const k=[0,-1,0,-1,5,-1,0,-1,0];
-    for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++)for(let c=0;c<3;c++){
-      let v=0;
-      for(let ky=-1;ky<=1;ky++)for(let kx=-1;kx<=1;kx++)
-        v+=src[((y+ky)*w+(x+kx))*4+c]*k[(ky+1)*3+(kx+1)];
-      d[(y*w+x)*4+c]=Math.max(0,Math.min(255,v));
-    }
-    return imgData;
-  }
-
-  function buildVariant(vw,vh,v){
-    const sw=Math.round(vw*bcZoom),sh=Math.round(vh*bcZoom*.4);
-    const sx=Math.round((vw-sw)/2),sy=Math.round((vh-sh)/2);
-    const scale=v===1?2:1;
-    const c=document.createElement('canvas');
-    c.width=sw*scale;c.height=sh*scale;
-    const ctx=c.getContext('2d');
-    if(v===0){
-      // Standard: grayscale + moderate contrast
-      ctx.filter='grayscale(100%) contrast(220%) brightness(110%)';
-      ctx.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
-    } else if(v===1){
-      // 2x upscale + high contrast — helps blurry/small barcodes fill more pixels
-      ctx.filter='grayscale(100%) contrast(300%) brightness(108%)';
-      ctx.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
-    } else if(v===2){
-      // Adaptive mean threshold — robust against dim or uneven lighting
-      ctx.filter='grayscale(100%)';
-      ctx.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
-      ctx.putImageData(adaptiveThreshold(ctx.getImageData(0,0,c.width,c.height)),0,0);
-    } else {
-      // Sharpen then adaptive threshold — handles slightly blurry cameras
-      ctx.filter='grayscale(100%)';
-      ctx.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
-      ctx.putImageData(adaptiveThreshold(sharpenKernel(ctx.getImageData(0,0,c.width,c.height))),0,0);
-    }
-    return c;
-  }
 
   const loop=async()=>{
     if(!barcodeMode)return;
@@ -787,13 +803,13 @@ function startBarcodeLoop(){
         const vw=video.videoWidth,vh=video.videoHeight;
         let result=null;
         for(let v=0;v<4&&!result;v++){
-          try{result=await barcodeRdr.decodeFromCanvas(buildVariant(vw,vh,v));}catch{}
+          try{result=await barcodeRdr.decodeFromCanvas(buildBcVariant(vw,vh,v));}catch{}
         }
         if(result){
           const code=result.getText(),now=Date.now();
           if(code!==lastCode.val||now-lastCode.t>3000){
             lastCode={val:code,t:now};
-            beep();
+            beep();flashBcTarget();
             const uid=++uidSeq;
             cards.push({uid,data:{title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
             renderCards();showRevPanel();
@@ -814,6 +830,54 @@ function startBarcodeLoop(){
   };
   loop();
 }
+
+async function toggleTorch(){
+  const btnTorch=document.getElementById('btn-torch');
+  const track=video.srcObject?.getVideoTracks()[0];
+  if(!track)return;
+  torchOn=!torchOn;
+  try{
+    await track.applyConstraints({advanced:[{torch:torchOn}]});
+    btnTorch.classList.toggle('active',torchOn);
+    btnTorch.textContent=torchOn?'🔦 ON':'🔦 Torch';
+  }catch{
+    toast('Torch not supported on this camera','err');
+    torchOn=false;btnTorch.classList.remove('active');
+  }
+}
+
+async function snapAndDecode(){
+  if(!window.ZXing||!barcodeRdr||!video.videoWidth)return;
+  const vw=video.videoWidth,vh=video.videoHeight;
+  let result=null;
+  for(let v=0;v<4&&!result;v++){
+    try{result=await barcodeRdr.decodeFromCanvas(buildBcVariant(vw,vh,v));}catch{}
+  }
+  if(result){
+    const code=result.getText(),now=Date.now();
+    if(code!==lastCode.val||now-lastCode.t>3000){
+      lastCode={val:code,t:now};
+      beep();flashBcTarget();
+      const uid=++uidSeq;
+      cards.push({uid,data:{title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
+      renderCards();showRevPanel();
+      lookupBarcode(code).then(meta=>{
+        if(!meta)return;
+        const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
+        card.data.title=meta.title;
+        if(meta.label)card.data.label=meta.label;
+        renderCards();
+        toast(`UPC matched: ${meta.title}`,'ok');
+      });
+    }else{
+      toast('Already scanned recently','');
+    }
+  }else{
+    toast('No barcode detected — try adjusting zoom or lighting','err');
+  }
+}
+document.getElementById('btn-torch').addEventListener('click',toggleTorch);
+document.getElementById('btn-snap').addEventListener('click',snapAndDecode);
 btnBarcode.addEventListener('click',toggleBarcodeMode);
 
 // ── BATCH UPLOAD ─────────────────────────────────────────────────────────
