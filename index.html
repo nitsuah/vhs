@@ -139,9 +139,15 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 #btn-wall.active{border-color:var(--accent);color:var(--accent)}
 
 #inv-list{flex:1;overflow-y:auto}
-.tape-row{display:grid;grid-template-columns:68px 1fr auto;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center}
+.tape-row{display:grid;grid-template-columns:28px 68px 1fr auto;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center}
 .tape-row:hover{background:var(--bg3)}
+.tape-row.selected{background:rgba(68,136,255,.08);border-bottom-color:rgba(68,136,255,.2)}
+.tape-row input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--blue);flex-shrink:0}
 .tid{font-size:11px;color:var(--text3);font-family:monospace}
+#bulk-bar{display:none;padding:8px 14px;background:var(--bg2);border-top:1px solid rgba(68,136,255,.3);flex-shrink:0;gap:8px;align-items:center;flex-wrap:wrap}
+#bulk-bar.on{display:flex}
+#bulk-bar select{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:5px 8px;border-radius:6px;font-size:12px}
+#bulk-bar select:focus{outline:none;border-color:var(--blue)}
 .tinfo h3{font-size:13px;font-weight:600;margin-bottom:2px}
 .tmeta{font-size:11px;color:var(--text3)}
 .badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;white-space:nowrap}
@@ -317,6 +323,18 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
         </div>
       </div>
       <div id="inv-stats" style="display:none;padding:5px 12px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);gap:12px;flex-wrap:wrap"></div>
+      <div id="bulk-bar">
+        <span id="bulk-count" style="font-size:12px;color:var(--blue);font-weight:700"></span>
+        <select id="bulk-status-sel">
+          <option value="">Change status…</option>
+          <option value="in_collection">In Collection</option>
+          <option value="for_sale">For Sale</option>
+          <option value="sold">Sold</option><option value="donated">Donated</option><option value="missing">Missing</option>
+        </select>
+        <button class="ctrl-btn" id="bulk-apply">Apply</button>
+        <button class="ctrl-btn" id="bulk-del" style="color:var(--red);border-color:rgba(232,64,64,.3)">Delete</button>
+        <button class="ctrl-btn" id="bulk-clear" style="margin-left:auto">Deselect All</button>
+      </div>
       <div id="inv-list">
         <div class="empty" id="empty-state">No tapes yet.<br>Point the camera at a VHS shelf and press Capture.</div>
       </div>
@@ -332,7 +350,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <tr><td style="padding:5px 0;color:var(--text3);width:90px"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Space</kbd></td><td style="padding:5px 0">Stage frame to capture queue</td></tr>
       <tr><td style="padding:5px 0"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Enter</kbd></td><td style="padding:5px 0">Process queue with AI</td></tr>
-      <tr><td style="padding:5px 0"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Esc</kbd></td><td style="padding:5px 0">Close modal / review panel</td></tr>
+      <tr><td style="padding:5px 0"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Esc</kbd></td><td style="padding:5px 0">Close modal / review panel / clear selection</td></tr>
       <tr><td style="padding:5px 0"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">?</kbd></td><td style="padding:5px 0">Show this help</td></tr>
     </table>
     <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
@@ -491,6 +509,7 @@ let barcodeRdr  = null;
 let lastCode    = { val:'', t:0 };
 let wallViewOn  = false;
 let selectedId  = null;
+let selectedIds = new Set();
 let cropFrac    = { x:.12, y:.08, w:.76, h:.84 };
 let dragging=false, resizing=false, dragOrig={};
 
@@ -1214,13 +1233,24 @@ function renderInv(){
     const meta=[t.year,t.label,t.format].filter(Boolean).join(' · ');
     const val=(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
     const tagBit=(t.tags||[]).slice(0,3).map(tag=>`<span style="font-size:9px;padding:1px 5px;border-radius:10px;background:rgba(68,136,255,.12);color:var(--blue);border:1px solid rgba(68,136,255,.25)">${esc(tag)}</span>`).join(' ');
-    return `<div class="tape-row" data-id="${t.id}">
+    const checked=selectedIds.has(t.id);
+    return `<div class="tape-row${checked?' selected':''}" data-id="${t.id}">
+      <input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''} onclick="event.stopPropagation()">
       <span class="tid">${esc(t.id)}</span>
       <div class="tinfo"><h3>${esc(t.title)}</h3><div class="tmeta" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${meta?`<span>${esc(meta)}</span>`:''}${val?`<span style="color:var(--green)">${esc(val)}</span>`:''}${tagBit}</div></div>
       <span class="badge b-${t.status}">${statusLbl(t.status)}</span>
     </div>`;
   }).join('');
-  list.querySelectorAll('.tape-row').forEach(row=>row.addEventListener('click',()=>openDetail(row.dataset.id)));
+  list.querySelectorAll('.tape-row').forEach(row=>row.addEventListener('click',e=>{
+    if(e.target.classList.contains('row-check'))return;
+    openDetail(row.dataset.id);
+  }));
+  list.querySelectorAll('.row-check').forEach(cb=>cb.addEventListener('change',()=>{
+    if(cb.checked)selectedIds.add(cb.dataset.id);else selectedIds.delete(cb.dataset.id);
+    const row=cb.closest('.tape-row');
+    if(row)row.classList.toggle('selected',cb.checked);
+    updateBulkBar();
+  }));
 }
 const statusLbl=s=>({in_collection:'In Coll.',for_sale:'For Sale',sold:'Sold',donated:'Donated',missing:'Missing'}[s]||s);
 const updateCount=()=>{
@@ -1237,6 +1267,35 @@ const updateCount=()=>{
   statsEl.style.display='flex';
   statsEl.innerHTML=parts.join('<span style="color:var(--border2)"> · </span>');
 };
+
+function updateBulkBar(){
+  const n=selectedIds.size;
+  const bar=document.getElementById('bulk-bar');
+  bar.classList.toggle('on',n>0);
+  document.getElementById('bulk-count').textContent=n>0?`${n} selected`:'';
+  if(!n)document.getElementById('bulk-status-sel').value='';
+}
+document.getElementById('bulk-apply').addEventListener('click',async()=>{
+  const status=document.getElementById('bulk-status-sel').value;
+  if(!status||!selectedIds.size)return;
+  for(const id of selectedIds){
+    const t=inventory.find(x=>x.id===id);if(!t)continue;
+    t.status=status;await dbPut(t);
+  }
+  renderInv();updateCount();
+  toast(`Updated ${selectedIds.size} tape${selectedIds.size!==1?'s':''} → ${statusLbl(status)}`,'ok');
+  selectedIds.clear();updateBulkBar();
+});
+document.getElementById('bulk-del').addEventListener('click',async()=>{
+  if(!selectedIds.size)return;
+  if(!confirm(`Delete ${selectedIds.size} tape${selectedIds.size!==1?'s':''}? This cannot be undone.`))return;
+  for(const id of selectedIds){await dbDel(id);}
+  inventory=inventory.filter(t=>!selectedIds.has(t.id));
+  renderInv();updateCount();
+  toast(`Deleted ${selectedIds.size} tape${selectedIds.size!==1?'s':''}`, 'err');
+  selectedIds.clear();updateBulkBar();
+});
+document.getElementById('bulk-clear').addEventListener('click',()=>{selectedIds.clear();renderInv();updateBulkBar();});
 
 ['search','f-stat-filter','f-cond-filter','f-label-filter','f-tag-filter','f-yr-from','f-yr-to','sort-sel']
   .forEach(id=>document.getElementById(id).addEventListener('input',renderInv));
@@ -1489,6 +1548,7 @@ document.addEventListener('keydown',e=>{
     if(document.getElementById('m-dup').style.display!=='none'){document.getElementById('m-dup').style.display='none';return;}
   }
   if(e.key==='?'&&!inp){document.getElementById('m-help').style.display='flex';}
+  if(e.code==='Escape'&&selectedIds.size){selectedIds.clear();renderInv();updateBulkBar();return;}
 });
 
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
