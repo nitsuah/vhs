@@ -156,6 +156,10 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 #bulk-bar select:focus{outline:none;border-color:var(--blue)}
 .tinfo h3{font-size:13px;font-weight:600;margin-bottom:2px}
 .tmeta{font-size:11px;color:var(--text3)}
+.stat-chip{cursor:pointer;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+.stat-chip:hover{opacity:.7}
+#btn-clear-filter{background:none;border:1px solid rgba(232,64,64,.35);color:var(--red);padding:3px 9px;border-radius:5px;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+#btn-clear-filter:hover{background:rgba(232,64,64,.1)}
 .badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;white-space:nowrap}
 .b-in_collection{background:rgba(61,187,61,.15);color:#3dbb3d}
 .b-for_sale{background:rgba(240,192,64,.15);color:#f0c040}
@@ -334,6 +338,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
             <option value="id_asc">ID ↑</option>
           </select>
           <button id="btn-wall">⊞ Wall</button>
+          <button id="btn-clear-filter" style="display:none">✕ Clear</button>
         </div>
       </div>
       <div id="inv-stats" style="display:none;padding:5px 12px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);gap:12px;flex-wrap:wrap"></div>
@@ -1407,18 +1412,43 @@ function renderInv(){
   }));
 }
 const statusLbl=s=>({in_collection:'In Coll.',for_sale:'For Sale',sold:'Sold',donated:'Donated',missing:'Missing'}[s]||s);
+window.quickFilter=function(status,cond){
+  if(status!==undefined&&status!==null)document.getElementById('f-stat-filter').value=status;
+  if(cond!==undefined&&cond!==null)document.getElementById('f-cond-filter').value=cond;
+  renderInv();updateClearBtn();
+};
+function updateClearBtn(){
+  const active=['search','f-label-filter','f-tag-filter','f-yr-from','f-yr-to'].some(id=>document.getElementById(id).value)
+    ||document.getElementById('f-stat-filter').value||document.getElementById('f-cond-filter').value;
+  document.getElementById('btn-clear-filter').style.display=active?'':'none';
+}
 const updateCount=()=>{
-  document.getElementById('count-badge').textContent=`${inventory.length} tape${inventory.length!==1?'s':''}`;
   const statsEl=document.getElementById('inv-stats');
-  if(!inventory.length){statsEl.style.display='none';return;}
-  const forSale=inventory.filter(t=>t.status==='for_sale').length;
-  const withVal=inventory.filter(t=>t.value_low||t.value_high);
-  const totalLo=withVal.reduce((s,t)=>s+(parseFloat(t.value_low)||0),0);
-  const totalHi=withVal.reduce((s,t)=>s+(parseFloat(t.value_high)||0),0);
-  const parts=[`${inventory.length} tapes`];
-  if(forSale)parts.push(`<span style="color:var(--yellow)">${forSale} for sale</span>`);
-  if(withVal.length)parts.push(`<span style="color:var(--green)">Est. $${totalLo.toFixed(0)}–$${totalHi.toFixed(0)}</span>`);
-  statsEl.style.display='flex';
+  if(!inventory.length){
+    document.getElementById('count-badge').textContent='0 tapes';
+    statsEl.style.display='none';return;
+  }
+  const byStat={in_collection:0,for_sale:0,sold:0,donated:0,missing:0};
+  const byCond={great:0,good:0,fair:0,poor:0};
+  let totalLo=0,totalHi=0,valCount=0;
+  for(const t of inventory){
+    if(byStat[t.status]!==undefined)byStat[t.status]++;
+    const c=t.condition||'great';if(byCond[c]!==undefined)byCond[c]++;
+    if(t.value_low||t.value_high){totalLo+=parseFloat(t.value_low)||0;totalHi+=parseFloat(t.value_high)||0;valCount++;}
+  }
+  const n=inventory.length;
+  const valStr=valCount?` · <span style="color:var(--green)">$${totalLo.toFixed(0)}–$${totalHi.toFixed(0)}</span>`:'';
+  document.getElementById('count-badge').innerHTML=`${n} tape${n!==1?'s':''}${valStr}`;
+  const parts=[];
+  const sc=(label,status,color)=>`<span class="stat-chip" onclick="quickFilter('${status}')" style="color:${color}">${label}</span>`;
+  if(byStat.in_collection)parts.push(sc(`${byStat.in_collection} in coll.`,'in_collection','var(--green)'));
+  if(byStat.for_sale)parts.push(sc(`${byStat.for_sale} for sale`,'for_sale','var(--yellow)'));
+  if(byStat.sold)parts.push(sc(`${byStat.sold} sold`,'sold','var(--text3)'));
+  if(byStat.donated)parts.push(sc(`${byStat.donated} donated`,'donated','var(--blue)'));
+  if(byStat.missing)parts.push(sc(`${byStat.missing} missing`,'missing','var(--red)'));
+  const badCond=byCond.fair+byCond.poor;
+  if(badCond)parts.push(`<span class="stat-chip" onclick="quickFilter('','fair')" style="color:var(--yellow)">${badCond} fair/poor</span>`);
+  statsEl.style.display=parts.length?'flex':'none';
   statsEl.innerHTML=parts.join('<span style="color:var(--border2)"> · </span>');
 };
 
@@ -1452,7 +1482,13 @@ document.getElementById('bulk-del').addEventListener('click',async()=>{
 document.getElementById('bulk-clear').addEventListener('click',()=>{selectedIds.clear();renderInv();updateBulkBar();});
 
 ['search','f-stat-filter','f-cond-filter','f-label-filter','f-tag-filter','f-yr-from','f-yr-to','sort-sel']
-  .forEach(id=>document.getElementById(id).addEventListener('input',renderInv));
+  .forEach(id=>document.getElementById(id).addEventListener('input',()=>{renderInv();updateClearBtn();}));
+document.getElementById('btn-clear-filter').addEventListener('click',()=>{
+  ['search','f-label-filter','f-tag-filter','f-yr-from','f-yr-to'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-stat-filter').value='';
+  document.getElementById('f-cond-filter').value='';
+  renderInv();updateClearBtn();
+});
 
 document.getElementById('btn-wall').addEventListener('click',()=>{
   wallViewOn=!wallViewOn;
