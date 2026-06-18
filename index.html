@@ -719,14 +719,12 @@ async function initCamera(){
 async function startStream(deviceId){
   if(video.srcObject)video.srcObject.getTracks().forEach(t=>t.stop());
   try{
-    const constraints={
-      video: deviceId
-        ? {deviceId:{exact:deviceId}}
-        : isMobile
-          ? {facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
-          : true,
-      audio:false
-    };
+    const videoConstraints=deviceId
+      ? {deviceId:{exact:deviceId}}
+      : isMobile
+        ? {facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080},focusMode:{ideal:'continuous'}}
+        : {width:{ideal:1920},height:{ideal:1080}};
+    const constraints={video:videoConstraints,audio:false};
     video.srcObject=await navigator.mediaDevices.getUserMedia(constraints);
     await video.play();
     hideNoCam();
@@ -899,9 +897,12 @@ function bcSharpen(imgData){
   return imgData;
 }
 
-function buildBcVariant(vw,vh,v){
-  const sw=Math.round(vw*bcZoom),sh=Math.round(vh*bcZoom*.4);
-  const sx=Math.round((vw-sw)/2),sy=Math.round((vh-sh)/2);
+function buildBcVariant(vw,vh,v,fullFrame=false){
+  // fullFrame=true: scan the entire video frame (catches barcodes outside the center strip)
+  const sw=fullFrame?vw:Math.round(vw*bcZoom);
+  const sh=fullFrame?vh:Math.round(vh*bcZoom*.4);
+  const sx=fullFrame?0:Math.round((vw-sw)/2);
+  const sy=fullFrame?0:Math.round((vh-sh)/2);
   const scale=v===1?2:1;
   const c=document.createElement('canvas');
   c.width=sw*scale;c.height=sh*scale;
@@ -945,6 +946,8 @@ function startBarcodeLoop(){
   ]);
   barcodeRdr=new ZXing.BrowserMultiFormatReader(hints);
   let busy=false;
+  // Accumulate candidate reads — require same code seen twice within 1.5s to confirm
+  const candidates=new Map(); // code → {count, firstSeen}
 
   const loop=async()=>{
     if(!barcodeMode)return;
@@ -953,33 +956,43 @@ function startBarcodeLoop(){
       try{
         const vw=video.videoWidth,vh=video.videoHeight;
         let result=null;
-        for(let v=0;v<4&&!result;v++){
-          try{result=await barcodeRdr.decodeFromCanvas(buildBcVariant(vw,vh,v));}catch{}
+        // Try all 4 preprocessing variants; also try full-frame as variant 4
+        for(let v=0;v<5&&!result;v++){
+          try{result=await barcodeRdr.decodeFromCanvas(buildBcVariant(vw,vh,v%4,v===4));}catch{}
         }
         if(result){
           const code=result.getText(),now=Date.now();
-          if(code!==lastCode.val||now-lastCode.t>3000){
-            lastCode={val:code,t:now};
-            beep();flashBcTarget();
-            const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
-            if(bcDup)toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);
-            const uid=++uidSeq;
-            cards.push({uid,data:{title:bcDup?bcDup.title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
-            renderCards();showRevPanel();
-            if(!bcDup)lookupBarcode(code).then(meta=>{
-              if(!meta)return;
-              const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
-              card.data.title=meta.title;
-              if(meta.label)card.data.label=meta.label;
-              renderCards();
-              toast(`UPC matched: ${meta.title}`,'ok');
-            });
+          const prev=candidates.get(code)||{count:0,firstSeen:now};
+          // Expire stale candidates older than 2s
+          if(now-prev.firstSeen>2000){candidates.set(code,{count:1,firstSeen:now});}
+          else{
+            const newCount=prev.count+1;
+            candidates.set(code,{count:newCount,firstSeen:prev.firstSeen});
+            // Confirm on 2nd consistent read
+            if(newCount>=2&&(code!==lastCode.val||now-lastCode.t>4000)){
+              lastCode={val:code,t:now};
+              candidates.clear();
+              beep();flashBcTarget();
+              const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
+              if(bcDup)toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);
+              const uid=++uidSeq;
+              cards.push({uid,data:{title:bcDup?bcDup.title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
+              renderCards();showRevPanel();
+              if(!bcDup)lookupBarcode(code).then(meta=>{
+                if(!meta)return;
+                const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
+                card.data.title=meta.title;
+                if(meta.label)card.data.label=meta.label;
+                renderCards();
+                toast(`UPC matched: ${meta.title}`,'ok');
+              });
+            }
           }
         }
       }catch{}
       busy=false;
     }
-    if(barcodeMode)setTimeout(loop,150);
+    if(barcodeMode)setTimeout(loop,100);
   };
   loop();
 }
@@ -1169,18 +1182,67 @@ async function processQueue(){
   if(!captureQueue.length)return;
   const queue=[...captureQueue];
   captureQueue=[];renderQueue();
-  showRevPanel();setRevLoading(true);
-  for(let i=0;i<queue.length;i++){
-    setRevMsg(`Analyzing image ${i+1} of ${queue.length}…`);
-    try{
-      const results=await callAI(queue[i].base64);
-      const wasEmpty=!cards.length;
-      results.forEach((d,j)=>addCard({...d,condition:'great',status:'in_collection',notes:''},null,queue[i].thumb,wasEmpty&&i===0&&j===0));
-      if(results.length)renderCards();
-    }catch(e){console.warn('Queue process:',e);}
+
+  // If Claude API key is set, run client-side for speed (still submits to server as backup)
+  if(apiKey){
+    showRevPanel();setRevLoading(true);
+    for(let i=0;i<queue.length;i++){
+      setRevMsg(`Analyzing image ${i+1} of ${queue.length}…`);
+      try{
+        const results=await callAI(queue[i].base64);
+        const wasEmpty=!cards.length;
+        results.forEach((d,j)=>addCard({...d,condition:'great',status:'in_collection',notes:''},null,queue[i].thumb,wasEmpty&&i===0&&j===0));
+        if(results.length)renderCards();
+      }catch(e){console.warn('Queue process (client):',e);}
+    }
+    setRevLoading(false);
+    if(!cards.length)showRevErr("Couldn't identify any tapes — try adjusting the crop box or improve lighting.");
+    return;
   }
-  setRevLoading(false);
-  if(!cards.length)showRevErr("Couldn't identify any tapes — try adjusting the crop box or improve lighting.");
+
+  // No API key — submit to server queue (durable: survives browser close)
+  let submitted=0;
+  for(const item of queue){
+    try{
+      await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({image:item.base64,thumb:item.thumb})});
+      submitted++;
+    }catch(e){console.warn('Job submit error:',e);}
+  }
+  if(submitted){
+    toast(`${submitted} image${submitted>1?'s':''} queued — Ollama is analyzing in the background. Results appear here automatically.`,'ok',6000);
+    showRevPanel();
+    setRevMsg('Waiting for server analysis…');
+    setRevLoading(true);
+  }
+}
+
+// Poll server for completed analysis jobs every 5s
+let jobPollTimer=null;
+async function pollReadyJobs(){
+  try{
+    const jobs=await fetch('/api/jobs/ready').then(r=>r.json());
+    if(!Array.isArray(jobs)||!jobs.length){
+      if(!cards.length)setRevLoading(false);
+      return;
+    }
+    showRevPanel();
+    let added=0;
+    for(const job of jobs){
+      const results=Array.isArray(job.result)?job.result:[];
+      const wasEmpty=!cards.length&&added===0;
+      results.forEach((d,j)=>addCard({...d,condition:'great',status:'in_collection',notes:''},null,job.thumb,wasEmpty&&j===0));
+      added+=results.length;
+      // claim the job so it doesn't reappear
+      fetch(`/api/jobs/${encodeURIComponent(job.id)}`,{method:'DELETE'}).catch(()=>{});
+    }
+    if(added){renderCards();setRevLoading(false);toast(`${added} tape${added>1?'s':''} ready for review`,'ok');}
+  }catch(e){console.warn('Job poll error:',e);}
+}
+function startJobPoller(){
+  if(jobPollTimer)return;
+  jobPollTimer=setInterval(pollReadyJobs,5000);
+  pollReadyJobs(); // immediate check on load (picks up results from previous sessions)
 }
 
 // ── AI DISPATCH ──────────────────────────────────────────────────────────
@@ -2192,6 +2254,7 @@ async function init(){
   checkOllama(true).then(updateAiBadge);
   await initCamera();
   updateCrop();
+  startJobPoller();
 }
 init().catch(err=>{setDbDot('err');console.error(err);});
 </script>

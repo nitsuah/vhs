@@ -8,11 +8,12 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 
 const app = express();
-const PORT      = parseInt(process.env.PORT       || '8080', 10);
-const HTTPS_PORT= parseInt(process.env.HTTPS_PORT || '8443', 10);
-const OLLAMA    = process.env.OLLAMA_UPSTREAM || 'http://ollama:11434';
-const HOST_IP   = (process.env.HOST_IP || '').trim();
-const CERT_DIR  = '/app/certs';
+const PORT       = parseInt(process.env.PORT       || '8080', 10);
+const HTTPS_PORT = parseInt(process.env.HTTPS_PORT || '8443', 10);
+const OLLAMA     = process.env.OLLAMA_UPSTREAM || 'http://ollama:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llava:7b';
+const HOST_IP    = (process.env.HOST_IP || '').trim();
+const CERT_DIR   = '/app/certs';
 
 app.use(express.json({ limit: '50mb' }));
 
@@ -30,6 +31,18 @@ async function initDb() {
       id         TEXT PRIMARY KEY,
       data       JSONB NOT NULL,
       scanned_at TEXT NOT NULL
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS upload_jobs (
+      id         TEXT PRIMARY KEY,
+      image_data TEXT NOT NULL,
+      thumb      TEXT,
+      status     TEXT NOT NULL DEFAULT 'pending',
+      result     JSONB,
+      error      TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     )
   `);
   console.log('✓ Database ready');
@@ -50,7 +63,6 @@ function ensureCerts() {
   console.log('⟳ Generating self-signed CA + server cert…');
   fs.mkdirSync(CERT_DIR, { recursive: true });
 
-  // Build SAN list — always include localhost; add HOST_IP if provided
   const sanParts = ['DNS:localhost', 'IP:127.0.0.1'];
   if (HOST_IP) sanParts.push(`IP:${HOST_IP}`);
   const san = sanParts.join(',');
@@ -65,6 +77,106 @@ function ensureCerts() {
   execSync(`openssl x509 -req -days 3650 -in "${CERT_DIR}/server.csr" -CA "${caCert}" -CAkey "${caKey}" -CAcreateserial -out "${srvCrt}" -extensions SAN -extfile "${extFile}"`);
 
   console.log(`✓ TLS certs generated (SAN: ${san})`);
+}
+
+// ── Ollama server-side caller ─────────────────────────────────────────────────
+const SCAN_PROMPT = `You are reading VHS tape labels from a photo. The photo may show one or more tapes.
+VHS spines are the narrow edges of cassettes — title text is often printed sideways (rotated 90°).
+For each tape, read: title (required), year (4 digits if visible), label (studio name if visible), format (almost always "VHS").
+Output ONLY a JSON array: [{"title":"Title Here","year":"1984","label":"Orion","format":"VHS"}]
+Include every tape you can make out, even partial readings. Return [] if truly unreadable.`;
+
+function parseJsonArray(txt) {
+  const m = (txt || '').trim().match(/\[[\s\S]*\]/);
+  if (!m) return [];
+  try { return JSON.parse(m[0]); } catch { return []; }
+}
+
+async function callOllamaServer(base64) {
+  const res = await fetch(`${OLLAMA}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: OLLAMA_MODEL, prompt: SCAN_PROMPT, images: [base64], stream: false }),
+    signal: AbortSignal.timeout(120000),
+  });
+  if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
+  const data = await res.json();
+  return parseJsonArray(data.response || '');
+}
+
+// ── Job queue ─────────────────────────────────────────────────────────────────
+function jobId() {
+  return `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+app.post('/api/jobs', async (req, res) => {
+  const { image, thumb } = req.body;
+  if (!image) return res.status(400).json({ error: 'image required' });
+  const id = jobId();
+  const now = new Date().toISOString();
+  try {
+    await pool.query(
+      'INSERT INTO upload_jobs(id,image_data,thumb,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6)',
+      [id, image, thumb || null, 'pending', now, now]
+    );
+    res.status(201).json({ id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/jobs/ready', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, thumb, result, created_at FROM upload_jobs WHERE status='done' ORDER BY created_at ASC"
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/jobs/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Background worker — picks pending jobs, calls Ollama, saves results
+let workerBusy = false;
+async function processJobs() {
+  if (workerBusy) return;
+  workerBusy = true;
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, image_data, thumb FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
+    );
+    if (!rows.length) return;
+    const job = rows[0];
+    const now = new Date().toISOString();
+    await pool.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [now, job.id]);
+    try {
+      const result = await callOllamaServer(job.image_data);
+      await pool.query(
+        "UPDATE upload_jobs SET status='done', result=$1, updated_at=$2 WHERE id=$3",
+        [JSON.stringify(result), new Date().toISOString(), job.id]
+      );
+      console.log(`✓ Job ${job.id}: ${result.length} tape(s) found`);
+    } catch (err) {
+      await pool.query(
+        "UPDATE upload_jobs SET status='failed', error=$1, updated_at=$2 WHERE id=$3",
+        [err.message, new Date().toISOString(), job.id]
+      );
+      console.warn(`✗ Job ${job.id} failed:`, err.message);
+    }
+  } catch (err) {
+    console.warn('Worker error:', err.message);
+  } finally {
+    workerBusy = false;
+  }
 }
 
 // ── REST API ──────────────────────────────────────────────────────────────────
@@ -113,9 +225,7 @@ app.delete('/api/tapes/:id', async (req, res) => {
   }
 });
 
-// ── CA cert download (Android/iOS trust install) ──────────────────────────────
-// Open http://<host>:8082/ca.crt on your phone → tap Install → trust it
-// Then use https://<host>:8443 for camera access
+// ── CA cert download ──────────────────────────────────────────────────────────
 app.get('/ca.crt', (_req, res) => {
   const caCert = path.join(CERT_DIR, 'ca.crt');
   if (!fs.existsSync(caCert)) return res.status(404).send('Cert not yet generated — restart the container.');
@@ -155,6 +265,10 @@ ensureCerts();
 
 initDb()
   .then(() => {
+    // Start job worker — runs every 5s
+    setInterval(processJobs, 5000);
+    processJobs(); // immediate first pass
+
     app.listen(PORT, () => console.log(`✓ VHS Scanner HTTP  on :${PORT}`));
 
     const tlsOpts = {
