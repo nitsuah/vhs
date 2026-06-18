@@ -1,4 +1,9 @@
-FROM nginx:1.27-alpine
-COPY nginx.conf.template /etc/nginx/templates/default.conf.template
-COPY index.html /usr/share/nginx/html/index.html
-EXPOSE 80
+FROM node:22-alpine
+WORKDIR /app
+COPY --chown=node:node package*.json ./
+RUN npm ci --omit=dev
+COPY --chown=node:node server.js .
+COPY --chown=node:node index.html .
+USER node
+EXPOSE 8080
+CMD ["node", "server.js"]

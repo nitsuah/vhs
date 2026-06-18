@@ -29,6 +29,9 @@ jobs:
           npm install -g htmlhint@1
           htmlhint --config .htmlhintrc index.html
 
+      - name: Check JS deps install cleanly
+        run: npm ci --omit=dev
+
   build:
     name: Docker build
     runs-on: ubuntu-latest

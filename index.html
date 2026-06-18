@@ -546,22 +546,16 @@ function defaultOllamaUrl() {
   return location.protocol==='file:' ? 'http://localhost:11434' : '/api/ollama';
 }
 
-// ── INDEXEDDB ────────────────────────────────────────────────────────────
-const DB_NAME='vhs-scanner', DB_VER=1, STORE='tapes';
-let db;
-function openDB() {
-  return new Promise((res,rej)=>{
-    const r=indexedDB.open(DB_NAME,DB_VER);
-    r.onupgradeneeded=e=>{ const d=e.target.result; if(!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE,{keyPath:'id'}); };
-    r.onsuccess=e=>{ db=e.target.result; res(); };
-    r.onerror=e=>rej(e.target.error);
-  });
+// ── REST API ──────────────────────────────────────────────────────────────
+async function apiReq(p,opts){
+  const r=await fetch(p,opts);
+  if(!r.ok){const t=await r.text();throw new Error(t||r.status);}
+  return r.json();
 }
-const tx    = m=>db.transaction(STORE,m).objectStore(STORE);
-const dbAll = ()=>new Promise((r,j)=>{const q=tx('readonly').getAll();q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
-const dbAdd = v=>new Promise((r,j)=>{const q=tx('readwrite').add(v);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
-const dbPut = v=>new Promise((r,j)=>{const q=tx('readwrite').put(v);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
-const dbDel = k=>new Promise((r,j)=>{const q=tx('readwrite').delete(k);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
+const dbAll = ()=>apiReq('/api/tapes');
+const dbAdd = v=>apiReq('/api/tapes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});
+const dbPut = v=>apiReq(`/api/tapes/${encodeURIComponent(v.id)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});
+const dbDel = k=>apiReq(`/api/tapes/${encodeURIComponent(k)}`,{method:'DELETE'});
 
 async function nextId() {
   if(!inventory.length) return 'VHS-0001';
@@ -1834,7 +1828,6 @@ document.addEventListener('keydown',e=>{
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 async function init(){
-  await openDB();
   inventory=await dbAll();
   renderInv();updateCount();
   setAiBadge('loading','⟳ CHECKING');
