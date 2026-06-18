@@ -227,6 +227,9 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .toast{background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:20px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.5);animation:toastin .2s ease;pointer-events:none}
 .toast.ok{border-color:rgba(61,187,61,.4);color:var(--green)}
 .toast.err{border-color:rgba(232,64,64,.4);color:var(--red)}
+#db-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);display:inline-block;margin-left:4px;vertical-align:middle;flex-shrink:0;transition:background .3s}
+#db-dot.ok{background:var(--green)}
+#db-dot.err{background:var(--red);cursor:pointer;box-shadow:0 0 4px var(--red)}
 @keyframes toastin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 </style>
 </head>
@@ -237,7 +240,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   <span id="ai-badge" class="loading">⟳ CHECKING</span>
   <select id="camera-select" style="display:none"></select>
   <div class="hdr-right">
-    <span id="count-badge">0 tapes</span>
+    <span id="count-badge">0 tapes</span><span id="db-dot" title="Connecting to database…"></span>
     <div class="exp-wrap">
       <button class="hbtn" id="btn-export">↓ Export</button>
       <div class="exp-dd" id="exp-dd">
@@ -548,9 +551,18 @@ function defaultOllamaUrl() {
 
 // ── REST API ──────────────────────────────────────────────────────────────
 async function apiReq(p,opts){
-  const r=await fetch(p,opts);
-  if(!r.ok){const t=await r.text();throw new Error(t||r.status);}
-  return r.json();
+  try{
+    const r=await fetch(p,opts);
+    if(!r.ok){const t=await r.text();throw new Error(t||r.status);}
+    const d=await r.json();
+    if(document.getElementById('db-dot')?.className==='err')
+      document.getElementById('db-dot').className='ok';
+    return d;
+  }catch(err){
+    const dot=document.getElementById('db-dot');
+    if(dot&&dot.className!=='')dot.className='err';
+    throw err;
+  }
 }
 const dbAll = ()=>apiReq('/api/tapes');
 const dbAdd = v=>apiReq('/api/tapes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});
@@ -912,6 +924,20 @@ fileInput.addEventListener('change',async()=>{
 
 function fileToB64(f){
   return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(',')[1]);fr.onerror=j;fr.readAsDataURL(f);});
+}
+function compressImage(dataUrl,maxSide=1200,quality=0.75){
+  return new Promise(r=>{
+    const img=new Image();
+    img.onload=()=>{
+      const scale=Math.min(1,maxSide/Math.max(img.width||maxSide,img.height||maxSide));
+      const c=document.createElement('canvas');
+      c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      r(c.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=()=>r(dataUrl);
+    img.src=dataUrl;
+  });
 }
 function fileToThumb(f){
   return new Promise(r=>{
@@ -1551,7 +1577,8 @@ document.getElementById('d-add-photo-file').addEventListener('click',()=>documen
 document.getElementById('d-photo-input').addEventListener('change',async e=>{
   const t=inventory.find(x=>x.id===selectedId);if(!t||!e.target.files.length)return;
   for(const file of e.target.files){
-    const dataUrl=await new Promise(res=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.readAsDataURL(file);});
+    const raw=await new Promise(res=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.readAsDataURL(file);});
+    const dataUrl=await compressImage(raw);
     t.photos=t.photos||[];
     t.photos.push(dataUrl);
     if(!t.photo_thumbnail)t.photo_thumbnail=dataUrl;
@@ -1827,15 +1854,30 @@ document.addEventListener('keydown',e=>{
 
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
+const dbDot=document.getElementById('db-dot');
+function setDbDot(state){
+  dbDot.className=state;
+  dbDot.title={ok:'Neon DB connected',err:'Database error — click to retry','':'Connecting to database…'}[state]||'';
+}
+dbDot.addEventListener('click',()=>{if(dbDot.className==='err')init();});
+
 async function init(){
-  inventory=await dbAll();
+  setDbDot('');
+  try{
+    inventory=await dbAll();
+    setDbDot('ok');
+  }catch(err){
+    setDbDot('err');
+    toast('Database error: '+err.message,'err',8000);
+    return;
+  }
   renderInv();updateCount();
   setAiBadge('loading','⟳ CHECKING');
   checkOllama(true).then(updateAiBadge);
   await initCamera();
   updateCrop();
 }
-init().catch(console.error);
+init().catch(err=>{setDbDot('err');console.error(err);});
 </script>
 <div id="toast-wrap"></div>
 </body>
