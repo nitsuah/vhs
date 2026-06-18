@@ -364,7 +364,16 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
         <button class="ctrl-btn" id="bulk-clear" style="margin-left:auto">Deselect All</button>
       </div>
       <div id="inv-list">
-        <div class="empty" id="empty-state">No tapes yet.<br>Point the camera at a VHS shelf and press Capture.</div>
+        <div class="empty" id="empty-state" style="flex-direction:column;gap:10px;padding:40px 20px">
+          <div style="font-size:36px">📼</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text)">No tapes yet</div>
+          <div style="font-size:12px;color:var(--text3);text-align:center;max-width:260px;line-height:1.6">Point the camera at a shelf and press <strong>Capture</strong>, scan a barcode, or press <kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:10px">N</kbd> to add manually.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px">
+            <button class="hbtn" onclick="document.getElementById('btn-cap').click()" style="font-size:12px">⬤ Capture</button>
+            <button class="hbtn" onclick="openNewTapeModal()" style="font-size:12px">+ Add Manually</button>
+            <button class="hbtn" onclick="document.getElementById('btn-upload').click()" style="font-size:12px">⬆ Upload Photo</button>
+          </div>
+        </div>
       </div>
       <div id="wall-view"></div>
     </div>
@@ -1521,6 +1530,9 @@ document.getElementById('bulk-clear').addEventListener('click',()=>{selectedIds.
 
 ['search','f-stat-filter','f-cond-filter','f-label-filter','f-tag-filter','f-yr-from','f-yr-to','sort-sel']
   .forEach(id=>document.getElementById(id).addEventListener('input',()=>{renderInv();updateClearBtn();}));
+const savedSort=localStorage.getItem('vhs-sort');
+if(savedSort)document.getElementById('sort-sel').value=savedSort;
+document.getElementById('sort-sel').addEventListener('change',()=>localStorage.setItem('vhs-sort',document.getElementById('sort-sel').value));
 document.getElementById('btn-clear-filter').addEventListener('click',()=>{
   ['search','f-label-filter','f-tag-filter','f-yr-from','f-yr-to'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-stat-filter').value='';
