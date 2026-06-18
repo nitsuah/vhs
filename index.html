@@ -200,6 +200,12 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.tag-wrap{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.tag-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;user-select:none;border:1px solid var(--border2);background:var(--bg4);color:var(--text3);transition:all .12s}
+.tag-chip.on{background:rgba(68,136,255,.18);border-color:rgba(68,136,255,.5);color:var(--blue)}
+.tag-chip:hover{border-color:var(--blue);color:var(--blue)}
+.tag-add-input{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:2px 7px;border-radius:20px;font-size:11px;width:90px;font-family:inherit}
+.tag-add-input:focus{outline:none;border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -216,6 +222,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
         <button id="exp-json">Export JSON</button>
         <button id="exp-csv">Export CSV</button>
         <button id="exp-sell">For Sale Export</button>
+        <button id="exp-print">Printable List</button>
       </div>
     </div>
     <button class="hbtn" id="btn-settings">⚙ Settings</button>
@@ -291,6 +298,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
             <option value="fair">Fair</option><option value="poor">Poor</option>
           </select>
           <input id="f-label-filter" type="text" placeholder="Label…">
+          <input id="f-tag-filter" type="text" placeholder="Tag/genre…">
           <input id="f-yr-from" type="number" placeholder="From yr">
           <input id="f-yr-to" type="number" placeholder="To yr">
           <select id="sort-sel">
@@ -414,6 +422,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
         </select>
       </div>
       <div class="dfield full"><label>Notes</label><textarea id="d-notes"></textarea></div>
+      <div class="dfield full"><label>Genres / Tags</label><div class="tag-wrap" id="d-tag-chips"></div></div>
       <div class="dfield"><label>ID</label><input id="d-id" type="text" readonly></div>
       <div class="dfield"><label>Scanned At</label><input id="d-scanned" type="text" readonly></div>
     </div>
@@ -931,6 +940,42 @@ async function lookupBarcode(code){
   }catch{return null;}
 }
 
+// ── TAG / GENRE HELPERS ──────────────────────────────────────────────────
+const GENRES=['Horror','Comedy','Action','Drama','Sci-Fi','Thriller','Documentary','Animation','Romance','Mystery','Western','Musical','Fantasy','Crime','Family','Foreign','Anime','SOV','Cult','Sports'];
+function renderTagChips(activeTags,editable=true){
+  return GENRES.map(g=>{
+    const on=activeTags.includes(g);
+    return `<span class="tag-chip${on?' on':''}" data-tag="${esc(g)}">${esc(g)}</span>`;
+  }).join('')+(editable?`<input class="tag-add-input" placeholder="custom…" title="Add custom tag" style="margin-left:2px" value="">`:'')+
+  (activeTags.filter(t=>!GENRES.includes(t)).map(t=>`<span class="tag-chip on" data-tag="${esc(t)}">${esc(t)} ×</span>`).join(''));
+}
+function initTagChips(container,getTags,setTags){
+  container.addEventListener('click',e=>{
+    const chip=e.target.closest('.tag-chip');
+    if(!chip)return;
+    const tag=chip.dataset.tag;
+    let tags=[...getTags()];
+    if(tags.includes(tag))tags=tags.filter(t=>t!==tag);
+    else tags.push(tag);
+    setTags(tags);
+    container.innerHTML=renderTagChips(tags);
+    initTagChips(container,getTags,setTags);
+  });
+  const inp=container.querySelector('.tag-add-input');
+  if(inp)inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'||e.key===','){
+      e.preventDefault();
+      const tag=inp.value.trim().replace(/,/g,'');
+      if(!tag)return;
+      const tags=[...getTags()];
+      if(!tags.includes(tag))tags.push(tag);
+      setTags(tags);
+      container.innerHTML=renderTagChips(tags);
+      initTagChips(container,getTags,setTags);
+    }
+  });
+}
+
 // ── REVIEW CARDS ─────────────────────────────────────────────────────────
 const revPanel=document.getElementById('review');
 const revLoading=document.getElementById('rev-loading');
@@ -987,6 +1032,7 @@ function renderCards(){
             </select>
           </div>
           <div class="fg full"><label>Notes</label><textarea class="c-f" data-f="notes" data-uid="${card.uid}" placeholder="Condition notes…">${esc(card.data.notes||'')}</textarea></div>
+          <div class="fg full"><label>Genres / Tags</label><div class="tag-wrap c-tag-wrap" data-uid="${card.uid}">${renderTagChips(card.data.tags||[])}</div></div>
           ${barcodeHtml}
         </div>
         <div class="card-acts">
@@ -1013,6 +1059,12 @@ function renderCards(){
   revCardsEl.querySelectorAll('.c-f').forEach(el=>{
     el.addEventListener('input',()=>syncCard(+el.dataset.uid));
     el.addEventListener('change',()=>syncCard(+el.dataset.uid));
+  });
+  revCardsEl.querySelectorAll('.c-tag-wrap').forEach(wrap=>{
+    const uid=+wrap.dataset.uid;
+    const card=cards.find(c=>c.uid===uid);if(!card)return;
+    if(!card.data.tags)card.data.tags=[];
+    initTagChips(wrap,()=>card.data.tags||[],tags=>{card.data.tags=tags;});
   });
   revCardsEl.querySelectorAll('.c-lookup').forEach(btn=>{
     btn.addEventListener('click',async e=>{
@@ -1058,7 +1110,7 @@ async function confirmCard(uid){
     year:card.data.year||'',label:card.data.label||'',
     format:card.data.format||'VHS',condition:card.data.condition||'great',
     condition_notes:card.data.notes||'',status:card.data.status||'in_collection',
-    barcode:card.data.barcode||'',tags:[],
+    barcode:card.data.barcode||'',tags:card.data.tags||[],
     value_low:card.data.value_low||'',value_high:card.data.value_high||'',
     photos:card.thumb?[card.thumb]:[],
     scanned_at:new Date().toISOString(),photo_thumbnail:card.thumb||'',
@@ -1097,6 +1149,7 @@ function getFiltered(){
   const stat=document.getElementById('f-stat-filter').value;
   const cond=document.getElementById('f-cond-filter').value;
   const lbl=document.getElementById('f-label-filter').value.toLowerCase();
+  const tagF=document.getElementById('f-tag-filter').value.toLowerCase().trim();
   const yfr=document.getElementById('f-yr-from').value;
   const yto=document.getElementById('f-yr-to').value;
   const sort=document.getElementById('sort-sel').value;
@@ -1105,6 +1158,7 @@ function getFiltered(){
     if(stat&&t.status!==stat)return false;
     if(cond&&t.condition!==cond)return false;
     if(lbl&&!(t.label||'').toLowerCase().includes(lbl))return false;
+    if(tagF&&!(t.tags||[]).some(tag=>tag.toLowerCase().includes(tagF)))return false;
     if(yfr&&t.year&&+t.year<+yfr)return false;
     if(yto&&t.year&&+t.year>+yto)return false;
     return true;
@@ -1142,9 +1196,10 @@ function renderInv(){
   list.innerHTML=items.map(t=>{
     const meta=[t.year,t.label,t.format].filter(Boolean).join(' · ');
     const val=(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
+    const tagBit=(t.tags||[]).slice(0,3).map(tag=>`<span style="font-size:9px;padding:1px 5px;border-radius:10px;background:rgba(68,136,255,.12);color:var(--blue);border:1px solid rgba(68,136,255,.25)">${esc(tag)}</span>`).join(' ');
     return `<div class="tape-row" data-id="${t.id}">
       <span class="tid">${esc(t.id)}</span>
-      <div class="tinfo"><h3>${esc(t.title)}</h3>${meta?`<div class="tmeta">${esc(meta)}${val?` · <span style="color:var(--green)">${esc(val)}</span>`:''}</div>`:val?`<div class="tmeta" style="color:var(--green)">${esc(val)}</div>`:''}</div>
+      <div class="tinfo"><h3>${esc(t.title)}</h3><div class="tmeta" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${meta?`<span>${esc(meta)}</span>`:''}${val?`<span style="color:var(--green)">${esc(val)}</span>`:''}${tagBit}</div></div>
       <span class="badge b-${t.status}">${statusLbl(t.status)}</span>
     </div>`;
   }).join('');
@@ -1166,7 +1221,7 @@ const updateCount=()=>{
   statsEl.innerHTML=parts.join('<span style="color:var(--border2)"> · </span>');
 };
 
-['search','f-stat-filter','f-cond-filter','f-label-filter','f-yr-from','f-yr-to','sort-sel']
+['search','f-stat-filter','f-cond-filter','f-label-filter','f-tag-filter','f-yr-from','f-yr-to','sort-sel']
   .forEach(id=>document.getElementById(id).addEventListener('input',renderInv));
 
 document.getElementById('btn-wall').addEventListener('click',()=>{
@@ -1194,6 +1249,10 @@ function openDetail(id){
   const th=document.getElementById('detail-thumb');
   if(t.photo_thumbnail){th.src=t.photo_thumbnail;th.style.display='block';}else th.style.display='none';
   renderDetailPhotos(t);
+  const tagWrap=document.getElementById('d-tag-chips');
+  const getTags=()=>(inventory.find(x=>x.id===selectedId)||{}).tags||[];
+  tagWrap.innerHTML=renderTagChips(t.tags||[]);
+  initTagChips(tagWrap,getTags,tags=>{const rec=inventory.find(x=>x.id===selectedId);if(rec)rec.tags=tags;});
   document.getElementById('m-detail').style.display='flex';
 }
 function renderDetailPhotos(t){
@@ -1260,6 +1319,8 @@ document.getElementById('d-save').addEventListener('click',async()=>{
   t.condition=document.getElementById('d-cond').value;
   t.status=document.getElementById('d-status').value;
   t.condition_notes=document.getElementById('d-notes').value.trim();
+  // tags are mutated in-place by initTagChips; just ensure the field exists
+  if(!t.tags)t.tags=[];
   await dbPut(t);renderInv();
   document.getElementById('m-detail').style.display='none';
 });
@@ -1327,6 +1388,28 @@ document.getElementById('exp-sell').addEventListener('click',()=>{
     condMap[t.condition]||''
   ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   dl([cols.map(c=>`"${c}"`).join(','),...rows].join('\n'),'vhs-for-sale.csv','text/csv');
+  document.getElementById('exp-dd').classList.remove('on');
+});
+document.getElementById('exp-print').addEventListener('click',()=>{
+  const items=getFiltered();
+  const condBadge={great:'✅ Great',good:'👍 Good',fair:'⚠️ Fair',poor:'❌ Poor'};
+  const rows=items.map((t,i)=>`<tr style="background:${i%2?'#f9f9f9':'#fff'}">
+    <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#666">${t.id}</td>
+    <td style="padding:6px 10px;font-weight:600">${t.title}</td>
+    <td style="padding:6px 10px;color:#555">${t.year||''}</td>
+    <td style="padding:6px 10px;color:#555">${t.label||''}</td>
+    <td style="padding:6px 10px">${condBadge[t.condition]||t.condition||''}</td>
+    <td style="padding:6px 10px;color:#2a7">${(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:''}</td>
+    <td style="padding:6px 10px;font-size:11px;color:#777">${(t.tags||[]).join(', ')}</td>
+  </tr>`).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>VHS Inventory</title>
+<style>body{font-family:system-ui,sans-serif;margin:30px;color:#222}h1{margin-bottom:4px}p{color:#777;font-size:13px;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;font-size:13px}th{background:#222;color:#fff;padding:8px 10px;text-align:left}
+tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style></head>
+<body><h1>VHS Collection</h1><p>Exported ${new Date().toLocaleDateString()} · ${items.length} tape${items.length!==1?'s':''}</p>
+<button onclick="window.print()" style="margin-bottom:16px;padding:8px 18px;background:#222;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨 Print</button>
+<table><tr><th>ID</th><th>Title</th><th>Year</th><th>Label</th><th>Condition</th><th>Est. Value</th><th>Tags</th></tr>${rows}</table></body></html>`;
+  const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();}
   document.getElementById('exp-dd').classList.remove('on');
 });
 function dl(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
