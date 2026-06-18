@@ -108,8 +108,12 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .card-hdr{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;user-select:none;min-width:0}
 .card-hdr:hover{background:rgba(255,255,255,.03)}
 .card-num{font-size:10px;color:var(--text3);font-family:monospace;flex-shrink:0}
-.card-title-txt{font-size:13px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.card-hdr-thumb{width:36px;height:26px;object-fit:cover;border-radius:3px;border:1px solid var(--border2);flex-shrink:0}
+.card-hdr-ph{width:36px;height:26px;border-radius:3px;background:var(--bg4);border:1px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px}
+.card-hdr-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;overflow:hidden}
+.card-title-txt{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-title-txt.empty{color:var(--text3);font-style:italic;font-weight:400}
+.card-meta-txt{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-chev{font-size:9px;color:var(--text3);flex-shrink:0;transition:transform .15s}
 .rev-card.expanded .card-chev{transform:rotate(180deg)}
 .card-body{display:none;padding:10px 12px 12px;border-top:1px solid var(--border);flex-direction:column;gap:10px}
@@ -1343,12 +1347,21 @@ function renderCards(){
   revCardsEl.innerHTML=cards.map((card,idx)=>{
     const title=card.data.title||(card.source==='barcode'?`Barcode: ${card.data.barcode}`:'');
     const empty=!card.data.title;
+    const metaParts=[card.data.year,card.data.label].filter(Boolean);
+    const metaTxt=metaParts.join(' · ');
+    const hdrThumb=card.thumb
+      ?`<img class="card-hdr-thumb" src="${card.thumb}" alt="">`
+      :`<div class="card-hdr-ph">📼</div>`;
     const thumbHtml=card.thumb?`<img class="card-thumb" src="${card.thumb}" alt="">`:''
     const barcodeHtml=card.data.barcode?`<div class="fg full"><label>Barcode</label><input type="text" value="${esc(card.data.barcode)}" readonly style="font-family:monospace;color:var(--text3)"></div>`:''
     return `<div class="rev-card${card.expanded?' expanded':''}" data-uid="${card.uid}">
       <div class="card-hdr">
         <span class="card-num">#${idx+1}</span>
-        <span class="card-title-txt${empty?' empty':''}">${esc(title||'(click to edit)')}</span>
+        ${hdrThumb}
+        <div class="card-hdr-info">
+          <span class="card-title-txt${empty?' empty':''}">${esc(title||'(click to edit)')}</span>
+          ${metaTxt?`<span class="card-meta-txt">${esc(metaTxt)}</span>`:''}
+        </div>
         <span class="card-chev">▼</span>
       </div>
       <div class="card-body">
@@ -1382,6 +1395,7 @@ function renderCards(){
         <div class="card-acts">
           <button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}">✓ Confirm</button>
           <button class="btn btn-sm btn-x c-discard" data-uid="${card.uid}">✕ Discard</button>
+          ${idx<cards.length-1?`<button class="btn btn-sm btn-x c-next" data-uid="${card.uid}" style="margin-left:auto">Next →</button>`:''}
         </div>
       </div>
     </div>`;
@@ -1429,6 +1443,20 @@ function renderCards(){
       renderCards();
     });
   });
+  revCardsEl.querySelectorAll('.c-next').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const uid=+btn.dataset.uid;
+      const idx=cards.findIndex(c=>c.uid===uid);
+      syncCard(uid);
+      const c=cards.find(x=>x.uid===uid);if(c)c.expanded=false;
+      if(idx+1<cards.length){cards[idx+1].expanded=true;}
+      renderCards();
+      // scroll next card into view
+      const next=revCardsEl.querySelectorAll('.rev-card')[idx+1];
+      if(next)next.scrollIntoView({behavior:'smooth',block:'nearest'});
+    });
+  });
 }
 
 function syncCard(uid){
@@ -1461,8 +1489,15 @@ async function confirmCard(uid){
   };
   await dbAdd(rec);inventory.push(rec);renderInv();updateCount();
   toast(`Saved: ${rec.title}`,'ok');
+  const confirmedIdx=cards.findIndex(c=>c.uid===uid);
   cards=cards.filter(c=>c.uid!==uid);
-  if(!cards.length)hideRevPanel();else renderCards();
+  if(!cards.length){hideRevPanel();return;}
+  // auto-expand and scroll to the next card
+  const nextCard=cards[confirmedIdx]||cards[confirmedIdx-1];
+  if(nextCard){nextCard.expanded=true;}
+  renderCards();
+  const nextEl=revCardsEl.querySelectorAll('.rev-card')[Math.min(confirmedIdx,cards.length-1)];
+  if(nextEl)nextEl.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 function discardCard(uid){
