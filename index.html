@@ -555,6 +555,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     <div class="modal-acts">
       <button class="btn btn-del m-acts-left" id="d-delete">🗑 Delete</button>
       <button class="btn btn-x" id="d-ebay" title="Search eBay sold listings for this title">🛒 eBay</button>
+      <button class="btn btn-x" id="d-copy-listing" title="Copy eBay listing text to clipboard">📋 Listing</button>
       <button class="btn btn-x" id="d-cancel">Cancel</button>
       <button class="btn btn-ok" id="d-save">Save</button>
     </div>
@@ -1796,6 +1797,47 @@ document.getElementById('d-ebay').addEventListener('click',()=>{
   const title=document.getElementById('d-title').value.trim()||document.getElementById('d-heading').textContent;
   const q=encodeURIComponent(title+' VHS');
   window.open(`https://www.ebay.com/sch/i.html?_nkw=${q}&LH_Sold=1&LH_Complete=1`,'_blank','noopener');
+});
+document.getElementById('d-copy-listing').addEventListener('click',async()=>{
+  const t={
+    title:  document.getElementById('d-title').value.trim(),
+    year:   document.getElementById('d-year').value.trim(),
+    label:  document.getElementById('d-label').value.trim(),
+    format: document.getElementById('d-format').value.trim()||'VHS',
+    condition: document.getElementById('d-condition').value,
+    notes:  document.getElementById('d-notes').value.trim(),
+    value_low:  document.getElementById('d-val-low').value.trim(),
+    value_high: document.getElementById('d-val-high').value.trim(),
+    tags:   [...document.getElementById('d-tag-chips').querySelectorAll('.tag-chip.on')].map(c=>c.dataset.tag),
+  };
+  if(!t.title){toast('Add a title first','err');return;}
+  const condMap={great:'Like New',good:'Very Good Plus (VG+)',fair:'Good (G)',poor:'Acceptable'};
+  const ebayCondition=condMap[t.condition]||'Used';
+  const year=t.year?` (${t.year})`:'';
+  const studio=t.label?` | ${t.label}`:'';
+  const tags=t.tags.length?`\nGenres/Tags: ${t.tags.join(', ')}`:'';
+  const price=t.value_low&&t.value_high?`\n\nAsking price based on recent eBay sold comps: $${t.value_low}–$${t.value_high}.`
+    :t.value_high?`\n\nAsking price based on recent eBay sold comps: ~$${t.value_high}.`:'';
+  const notesLine=t.notes?`\n\nSeller notes: ${t.notes}`:'';
+  const listing=`${t.title}${year} [${t.format}]${studio}
+
+Condition: ${ebayCondition}${tags}
+
+Up for sale: ${t.title}${year} on ${t.format}.${t.label?' Released by '+t.label+'.':''}
+
+Tape plays well. Case is in ${ebayCondition.toLowerCase()} condition. Please see photos for the best assessment.${notesLine}${price}
+
+Ships in a padded bubble mailer. Combined shipping available.
+
+Thanks for looking!`;
+  try{
+    await navigator.clipboard.writeText(listing);
+    const btn=document.getElementById('d-copy-listing');
+    btn.textContent='✓ Copied!';
+    setTimeout(()=>{btn.textContent='📋 Listing';},2000);
+  }catch{
+    toast('Could not copy — try manually','err');
+  }
 });
 document.getElementById('d-lookup').addEventListener('click',async()=>{
   const title=document.getElementById('d-title').value.trim();if(!title)return;

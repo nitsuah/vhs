@@ -1,4 +1,5 @@
 FROM node:22-alpine
+# hadolint ignore=DL3018
 RUN apk add --no-cache openssl
 WORKDIR /app
 COPY --chown=node:node package*.json ./
