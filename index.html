@@ -16,15 +16,14 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column}
 
-/* HEADER */
 #header{background:var(--bg2);border-bottom:1px solid var(--border);height:50px;padding:0 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;z-index:50}
 #header h1{font-size:15px;font-weight:700;color:var(--accent);white-space:nowrap;letter-spacing:.04em}
 #header h1 span{color:var(--text3);font-weight:400}
 #ai-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.05em;white-space:nowrap;border:1px solid}
-#ai-badge.claude  {background:rgba(68,136,255,.15);color:var(--blue);border-color:rgba(68,136,255,.3)}
-#ai-badge.ollama  {background:rgba(61,187,61,.15);color:var(--green);border-color:rgba(61,187,61,.3)}
-#ai-badge.stub    {background:rgba(240,192,64,.15);color:var(--yellow);border-color:rgba(240,192,64,.3)}
-#ai-badge.loading {background:rgba(153,102,255,.15);color:var(--purple);border-color:rgba(153,102,255,.3)}
+#ai-badge.claude {background:rgba(68,136,255,.15);color:var(--blue);border-color:rgba(68,136,255,.3)}
+#ai-badge.ollama {background:rgba(61,187,61,.15);color:var(--green);border-color:rgba(61,187,61,.3)}
+#ai-badge.noai  {background:rgba(240,192,64,.15);color:var(--yellow);border-color:rgba(240,192,64,.3)}
+#ai-badge.loading{background:rgba(153,102,255,.15);color:var(--purple);border-color:rgba(153,102,255,.3)}
 #camera-select{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:5px 8px;border-radius:6px;font-size:12px;max-width:200px}
 #camera-select:focus{outline:none;border-color:var(--accent)}
 .hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px}
@@ -32,17 +31,14 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .hbtn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;white-space:nowrap}
 .hbtn:hover{border-color:var(--accent);color:var(--text)}
 
-/* MAIN */
 #main{display:flex;flex:1;overflow:hidden}
 
-/* LEFT: WEBCAM */
 #cam-panel{flex:0 0 60%;display:flex;flex-direction:column;background:#000;border-right:1px solid var(--border)}
 #vid-wrap{flex:1;position:relative;overflow:hidden;background:#000}
 #video{width:100%;height:100%;object-fit:contain;display:block}
 #no-cam{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3)}
 #no-cam p{font-size:13px;text-align:center;line-height:1.6}
 
-/* CROP BOX */
 #crop{position:absolute;border:2px dashed var(--crop);cursor:move;user-select:none;box-shadow:0 0 0 9999px rgba(0,0,0,.38)}
 .cc{position:absolute;width:14px;height:14px;border:3px solid var(--crop)}
 .cc.tl{top:-3px;left:-3px;border-right:none;border-bottom:none}
@@ -51,51 +47,80 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .cc.br{bottom:-3px;right:-3px;border-left:none;border-top:none}
 #crop-handle{position:absolute;bottom:-8px;right:-8px;width:22px;height:22px;background:var(--crop);border-radius:4px;cursor:se-resize;opacity:.85}
 
-/* CAM CONTROLS */
-#cam-ctrl{background:var(--bg2);border-top:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-shrink:0}
-#btn-cap{background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;padding:11px 28px;border-radius:8px;cursor:pointer;letter-spacing:.03em}
+#barcode-overlay{position:absolute;inset:0;display:none;pointer-events:none}
+#barcode-overlay.on{display:block}
+.bc-scanline{position:absolute;left:5%;right:5%;height:2px;background:rgba(61,187,61,.8);box-shadow:0 0 10px var(--green);animation:scan 2s ease-in-out infinite;top:20%}
+@keyframes scan{0%,100%{top:20%}50%{top:75%}}
+.bc-corners{position:absolute;inset:5%}
+.bc-corners::before,.bc-corners::after{content:'';position:absolute;width:30px;height:30px;border-color:var(--green);border-style:solid;opacity:.8}
+.bc-corners::before{top:0;left:0;border-width:3px 0 0 3px}
+.bc-corners::after{bottom:0;right:0;border-width:0 3px 3px 0}
+.bc-label{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:var(--green);font-size:11px;padding:3px 10px;border-radius:20px;font-weight:700;letter-spacing:.05em;white-space:nowrap}
+
+#cam-ctrl{background:var(--bg2);border-top:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+#btn-cap{background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;padding:10px 22px;border-radius:8px;cursor:pointer;letter-spacing:.03em}
 #btn-cap:hover{background:var(--accent2)}
 #btn-cap:disabled{opacity:.4;cursor:not-allowed}
+.ctrl-btn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:9px 13px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600}
+.ctrl-btn:hover{border-color:var(--accent);color:var(--text)}
+.ctrl-btn.active{border-color:var(--green);color:var(--green);background:rgba(61,187,61,.1)}
+#file-input{display:none}
 .key-hint{font-size:11px;color:var(--text3)}
+#upload-prog{font-size:11px;color:var(--purple);display:none}
 #thumb-wrap{margin-left:auto;display:none;flex-direction:column;align-items:flex-end;gap:3px}
 #thumb-img{width:80px;height:56px;object-fit:cover;border-radius:4px;border:1px solid var(--border2)}
 #thumb-wrap span{font-size:10px;color:var(--text3)}
 
-/* RIGHT */
 #right{flex:1;display:flex;flex-direction:column;overflow:hidden}
 
-/* REVIEW */
-#review{background:var(--bg2);border-bottom:1px solid var(--border);display:none;flex-direction:column;padding:14px;gap:10px;max-height:52%;overflow-y:auto;flex-shrink:0}
+#review{background:var(--bg2);border-bottom:1px solid var(--border);display:none;flex-direction:column;padding:12px 14px;gap:8px;max-height:56%;overflow-y:auto;flex-shrink:0}
 #review.on{display:flex}
 #rev-hdr{display:flex;align-items:center;gap:8px}
-#rev-hdr h2{font-size:13px;font-weight:700;color:var(--yellow)}
-#rev-nav{margin-left:auto;font-size:11px;color:var(--text2)}
-.spinner-row{display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px}
+#rev-hdr h2{font-size:13px;font-weight:700;color:var(--yellow);flex:1}
+#rev-bulk{display:none;gap:6px}
+#rev-bulk.on{display:flex}
+.spin-row{display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px}
 .spin{width:15px;height:15px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-.rev-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.rev-card{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;overflow:hidden;margin-bottom:6px}
+.rev-card.expanded{border-color:rgba(232,64,64,.5)}
+.card-hdr{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;user-select:none;min-width:0}
+.card-hdr:hover{background:rgba(255,255,255,.03)}
+.card-num{font-size:10px;color:var(--text3);font-family:monospace;flex-shrink:0}
+.card-title-txt{font-size:13px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.card-title-txt.empty{color:var(--text3);font-style:italic;font-weight:400}
+.card-chev{font-size:9px;color:var(--text3);flex-shrink:0;transition:transform .15s}
+.rev-card.expanded .card-chev{transform:rotate(180deg)}
+.card-body{display:none;padding:10px 12px 12px;border-top:1px solid var(--border);flex-direction:column;gap:10px}
+.rev-card.expanded .card-body{display:flex}
+.card-thumb{width:100%;max-height:80px;object-fit:contain;border-radius:4px;border:1px solid var(--border);background:#000}
+.rev-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .rev-grid .full{grid-column:1/-1}
 .fg{display:flex;flex-direction:column;gap:3px}
 .fg label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
-.fg input,.fg select,.fg textarea{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:7px 9px;border-radius:5px;font-size:13px;font-family:inherit}
-.fg textarea{resize:none;height:46px}
+.fg input,.fg select,.fg textarea{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:6px 8px;border-radius:5px;font-size:12px;font-family:inherit}
+.fg textarea{resize:none;height:44px}
 .fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--accent)}
-.rev-acts{display:flex;gap:8px;flex-wrap:wrap}
-.btn{padding:9px 18px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:600}
+.card-acts{display:flex;gap:6px}
+.btn{padding:8px 16px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:600}
+.btn-sm{padding:5px 11px;font-size:12px}
 .btn-ok{background:var(--green);color:#000}
 .btn-x{background:var(--bg4);color:var(--text2);border:1px solid var(--border2)}
-.btn-re{background:var(--blue);color:#fff}
+.btn-del{background:rgba(232,64,64,.15);color:var(--red);border:1px solid rgba(232,64,64,.3)}
 .btn:hover{filter:brightness(1.12)}
-#rev-err{color:var(--red);font-size:12px}
+#rev-err{color:var(--red);font-size:12px;padding:4px 0}
 
-/* INVENTORY */
 #inv-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
 #inv-ctrl{padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px;flex-shrink:0}
 #search{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:7px 11px;border-radius:6px;font-size:13px;width:100%}
 #search:focus{outline:none;border-color:var(--accent)}
-.frow{display:flex;gap:5px;flex-wrap:wrap}
-.frow select,.frow input{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:4px 7px;border-radius:5px;font-size:11px;flex:1;min-width:70px}
+.frow{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.frow select,.frow input[type=text],.frow input[type=number]{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:4px 7px;border-radius:5px;font-size:11px;flex:1;min-width:70px}
 .frow select:focus,.frow input:focus{outline:none;border-color:var(--accent)}
+#btn-wall{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+#btn-wall.active{border-color:var(--accent);color:var(--accent)}
+
 #inv-list{flex:1;overflow-y:auto}
 .tape-row{display:grid;grid-template-columns:68px 1fr auto;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center}
 .tape-row:hover{background:var(--bg3)}
@@ -110,11 +135,19 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .b-missing{background:rgba(232,64,64,.15);color:#e84040}
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--text3);padding:40px;text-align:center;font-size:13px;line-height:1.6}
 
-/* MODALS */
+#wall-view{flex:1;overflow-y:auto;display:none;padding:10px;gap:8px;flex-wrap:wrap;align-content:flex-start}
+#wall-view.on{display:flex}
+.wall-card{width:100px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;border-radius:6px;border:1px solid var(--border)}
+.wall-card:hover{background:var(--bg3);border-color:var(--border2)}
+.wall-img{width:90px;height:64px;object-fit:cover;border-radius:4px;background:var(--bg4)}
+.wall-ph{width:90px;height:64px;border-radius:4px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:22px}
+.wall-lbl{font-size:10px;text-align:center;color:var(--text2);line-height:1.3;max-width:90px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:200}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:22px;width:90%;max-width:480px;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
 .modal h2{font-size:15px;font-weight:700}
-.modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;flex-wrap:wrap}
+.m-acts-left{margin-right:auto}
 .dfield{display:flex;flex-direction:column;gap:3px}
 .dfield label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
 .dfield input,.dfield select,.dfield textarea{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:7px 9px;border-radius:5px;font-size:13px;font-family:inherit}
@@ -140,14 +173,11 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .ai-dot.off{background:var(--text3)}
 .ai-dot.spin2{background:var(--purple);animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* EXPORT DROPDOWN */
 .exp-wrap{position:relative}
 .exp-dd{position:absolute;top:calc(100% + 4px);right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:4px;min-width:130px;z-index:300;display:none}
 .exp-dd.on{display:block}
 .exp-dd button{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text);padding:7px 11px;font-size:12px;cursor:pointer;border-radius:4px}
 .exp-dd button:hover{background:var(--bg4)}
-
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
@@ -157,11 +187,11 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 
 <header id="header">
   <h1>VHS <span>Shelf Scanner</span></h1>
-  <span id="ai-badge" class="loading">⟳ CHECKING AI</span>
+  <span id="ai-badge" class="loading">⟳ CHECKING</span>
   <select id="camera-select" style="display:none"></select>
   <div class="hdr-right">
     <span id="count-badge">0 tapes</span>
-    <div class="exp-wrap" id="exp-wrap">
+    <div class="exp-wrap">
       <button class="hbtn" id="btn-export">↓ Export</button>
       <div class="exp-dd" id="exp-dd">
         <button id="exp-json">Export JSON</button>
@@ -187,13 +217,22 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
         <div class="cc bl"></div><div class="cc br"></div>
         <div id="crop-handle"></div>
       </div>
+      <div id="barcode-overlay">
+        <div class="bc-scanline"></div>
+        <div class="bc-corners"></div>
+        <div class="bc-label">SCANNING FOR BARCODE</div>
+      </div>
     </div>
     <div id="cam-ctrl">
       <button id="btn-cap">⬤ Capture</button>
+      <button class="ctrl-btn" id="btn-barcode">⬡ Barcode</button>
+      <button class="ctrl-btn" id="btn-upload">⬆ Upload</button>
+      <input type="file" id="file-input" accept="image/*" multiple>
       <span class="key-hint">Space to capture</span>
+      <span id="upload-prog"></span>
       <div id="thumb-wrap">
         <span>Last capture</span>
-        <img id="thumb-img" src="" alt="last capture">
+        <img id="thumb-img" src="" alt="">
       </div>
     </div>
   </section>
@@ -201,38 +240,16 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   <section id="right">
     <div id="review">
       <div id="rev-hdr">
-        <h2 id="rev-title">Review Extracted Tape</h2>
-        <span id="rev-nav"></span>
-      </div>
-      <div id="rev-loading" class="spinner-row" style="display:none">
-        <div class="spin"></div><span id="rev-loading-msg">Analyzing…</span>
-      </div>
-      <div id="rev-form" style="display:none">
-        <div class="rev-grid" style="margin-bottom:10px">
-          <div class="fg full"><label>Title</label><input id="f-title" type="text" placeholder="Title"></div>
-          <div class="fg"><label>Year</label><input id="f-year" type="text" placeholder="1984"></div>
-          <div class="fg"><label>Label / Studio</label><input id="f-label" type="text" placeholder="Orion"></div>
-          <div class="fg"><label>Format</label><input id="f-format" type="text" value="VHS"></div>
-          <div class="fg"><label>Condition</label>
-            <select id="f-cond">
-              <option value="great">Great</option><option value="good">Good</option>
-              <option value="fair">Fair</option><option value="poor">Poor</option>
-            </select>
-          </div>
-          <div class="fg"><label>Status</label>
-            <select id="f-status">
-              <option value="in_collection">In Collection</option><option value="for_sale">For Sale</option>
-              <option value="sold">Sold</option><option value="donated">Donated</option><option value="missing">Missing</option>
-            </select>
-          </div>
-          <div class="fg full"><label>Notes</label><textarea id="f-notes" placeholder="Condition notes…"></textarea></div>
-        </div>
-        <div class="rev-acts">
-          <button class="btn btn-ok" id="btn-confirm">✓ Confirm (Enter)</button>
-          <button class="btn btn-re" id="btn-rescan">↺ Re-scan</button>
-          <button class="btn btn-x" id="btn-discard">✕ Discard (Esc)</button>
+        <h2 id="rev-title">Pending Review</h2>
+        <div id="rev-bulk">
+          <button class="btn btn-sm btn-ok" id="btn-confirm-all">✓ All</button>
+          <button class="btn btn-sm btn-x" id="btn-discard-all">✕ All</button>
         </div>
       </div>
+      <div id="rev-loading" class="spin-row" style="display:none">
+        <div class="spin"></div><span id="rev-msg">Analyzing…</span>
+      </div>
+      <div id="rev-cards"></div>
       <div id="rev-err" style="display:none"></div>
     </div>
 
@@ -256,11 +273,13 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
             <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
             <option value="id_asc">ID ↑</option>
           </select>
+          <button id="btn-wall">⊞ Wall</button>
         </div>
       </div>
       <div id="inv-list">
         <div class="empty" id="empty-state">No tapes yet.<br>Point the camera at a VHS shelf and press Capture.</div>
       </div>
+      <div id="wall-view"></div>
     </div>
   </section>
 </main>
@@ -269,55 +288,37 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 <div class="backdrop" id="m-settings" style="display:none">
   <div class="modal">
     <h2>⚙ Settings</h2>
-
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Claude API (tier 1)</div>
     <div class="sfield">
       <label>Anthropic API Key</label>
       <input id="s-apikey" type="password" placeholder="sk-ant-…" autocomplete="off">
-      <span class="shint">Stored in localStorage. Sent directly to api.anthropic.com. Leave blank to skip Claude.</span>
+      <span class="shint">Stored in localStorage only. Sent directly to api.anthropic.com.</span>
     </div>
-
     <hr class="ssep">
-
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Local Ollama (tier 2)</div>
-    <div id="ollama-status-row" class="ai-status-row">
+    <div class="ai-status-row">
       <div class="ai-dot spin2" id="ollama-dot"></div>
       <span id="ollama-status-text">Checking…</span>
     </div>
     <div class="srow">
-      <div class="sfield">
-        <label>Ollama URL</label>
-        <input id="s-ollama-url" type="text" placeholder="/api/ollama">
-      </div>
-      <div class="sfield">
-        <label>Model</label>
+      <div class="sfield"><label>Ollama URL</label><input id="s-ollama-url" type="text" placeholder="/api/ollama"></div>
+      <div class="sfield"><label>Model</label>
         <select id="s-ollama-model">
-          <option value="llava:7b">llava:7b (~4.7 GB, recommended)</option>
-          <option value="llava:13b">llava:13b (~8 GB, better quality)</option>
-          <option value="moondream">moondream (~1.6 GB, lightweight)</option>
-          <option value="bakllava">bakllava (~4.7 GB, Mistral-based)</option>
-          <option value="llava-phi3">llava-phi3 (~2.9 GB, fast)</option>
+          <option value="llava:7b">llava:7b (~4.7 GB)</option>
+          <option value="llava:13b">llava:13b (~8 GB)</option>
+          <option value="moondream">moondream (~1.6 GB)</option>
+          <option value="bakllava">bakllava (~4.7 GB)</option>
+          <option value="llava-phi3">llava-phi3 (~2.9 GB)</option>
         </select>
       </div>
     </div>
-    <span class="shint">When running via Docker, Ollama is proxied at <code>/api/ollama</code>. Ollama must have the model pulled — the docker-compose setup does this automatically on first run.</span>
-
+    <span class="shint">Docker proxies Ollama at <code>/api/ollama</code>. For GPU acceleration set <code>OLLAMA_UPSTREAM=http://host.docker.internal:11434</code> in <code>.env</code> to use native Windows Ollama with DirectML.</span>
     <hr class="ssep">
-
-    <hr class="ssep">
-
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Extraction mode</div>
     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text2)">
       <input type="checkbox" id="s-fast-mode" style="width:16px;height:16px;accent-color:var(--accent)">
-      <span><b style="color:var(--text)">Titles only (fast mode)</b> — skips year/label/format, fewer output tokens<br>
-      <span style="font-size:11px;color:var(--text3)">Recommended for local Ollama. You can fill in details later from the edit panel.</span></span>
+      <span><b style="color:var(--text)">Titles only (fast mode)</b> — fewer tokens, faster on local models</span>
     </label>
-
-    <hr class="ssep">
-
-    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Fallback</div>
-    <span class="shint">When neither Claude nor Ollama is available, the app uses random mock/stub data for UI testing.</span>
-
     <div class="modal-acts">
       <button class="btn btn-x" id="s-cancel">Cancel</button>
       <button class="btn btn-ok" id="s-save">Save</button>
@@ -350,10 +351,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
       <div class="dfield"><label>Label</label><input id="d-label" type="text"></div>
       <div class="dfield"><label>Format</label><input id="d-format" type="text"></div>
       <div class="dfield"><label>Condition</label>
-        <select id="d-cond">
-          <option value="great">Great</option><option value="good">Good</option>
-          <option value="fair">Fair</option><option value="poor">Poor</option>
-        </select>
+        <select id="d-cond"><option value="great">Great</option><option value="good">Good</option><option value="fair">Fair</option><option value="poor">Poor</option></select>
       </div>
       <div class="dfield"><label>Status</label>
         <select id="d-status">
@@ -366,452 +364,516 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
       <div class="dfield"><label>Scanned At</label><input id="d-scanned" type="text" readonly></div>
     </div>
     <div class="modal-acts">
+      <button class="btn btn-del m-acts-left" id="d-delete">🗑 Delete</button>
       <button class="btn btn-x" id="d-cancel">Cancel</button>
-      <button class="btn btn-ok" id="d-save">Save Changes</button>
+      <button class="btn btn-ok" id="d-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="backdrop" id="m-del-confirm" style="display:none">
+  <div class="modal">
+    <h2>Delete Tape?</h2>
+    <p style="font-size:13px;color:var(--text2)" id="del-text"></p>
+    <div class="modal-acts">
+      <button class="btn btn-x" id="del-cancel">Cancel</button>
+      <button class="btn btn-del" id="del-ok">Delete</button>
     </div>
   </div>
 </div>
 
 <script>
-// ── VISION PROMPTS ────────────────────────────────────────────────────────
-// Fast mode: title only — fewer output tokens, noticeably quicker on local models.
 const VISION_PROMPT_FAST = `You are a VHS tape cataloger. Examine this image of VHS tape(s).
-
-VHS spines are often printed vertically — mentally rotate any vertical text and read it before extracting.
-
+VHS spines are often printed vertically — mentally rotate vertical text before reading.
 Return ONLY a raw JSON array with one object per tape, containing only the title.
 Example: [{"title":"The Terminator"},{"title":"Ghostbusters"}]
 If no readable tapes: []`;
 
-// Full mode: all metadata fields.
 const VISION_PROMPT_FULL = `You are a VHS tape cataloger. Examine this image of VHS tape(s).
-
-VHS spines are often printed vertically — mentally rotate any vertical text and read it before extracting.
-
-For each tape visible, extract:
-- title: movie or show title (required)
-- year: release year if visible (string, optional)
-- label: studio or distributor (e.g. "Paramount", "Orion", "Warner") (optional)
-- format: "VHS", "Beta", or other format if identifiable (default "VHS")
-
-Return ONLY a raw JSON array, one object per tape detected. No prose, no markdown fences.
+VHS spines are often printed vertically — mentally rotate vertical text before reading.
+For each tape visible extract:
+- title (required), year (string, optional), label (studio/distributor, optional), format (default "VHS")
+Return ONLY a raw JSON array, no prose, no markdown.
 Example: [{"title":"The Terminator","year":"1984","label":"Orion","format":"VHS"}]
 If no readable tapes: []`;
 
-// ── MOCK DATA ─────────────────────────────────────────────────────────────
-const MOCKS = [
-  [{ title:'The Terminator', year:'1984', label:'Orion', format:'VHS' }],
-  [{ title:'Back to the Future', year:'1985', label:'MCA/Universal', format:'VHS' }],
-  [{ title:'Ghostbusters', year:'1984', label:'RCA/Columbia', format:'VHS' }],
-  [{ title:'E.T. the Extra-Terrestrial', year:'1982', label:'MCA', format:'VHS' }],
-  [{ title:'Raiders of the Lost Ark', year:'1981', label:'Paramount', format:'VHS' }],
-  [{ title:'Beverly Hills Cop', year:'1984', label:'Paramount', format:'VHS' },
-   { title:'Top Gun', year:'1986', label:'Paramount', format:'VHS' }],
-  [{ title:'RoboCop', year:'1987', label:'Orion', format:'VHS' }],
-  [{ title:'Predator', year:'1987', label:'Fox', format:'VHS' }],
-];
-
-// ── STATE ─────────────────────────────────────────────────────────────────
-let apiKey       = localStorage.getItem('vhs-apikey')     || '';
-let ollamaUrl    = localStorage.getItem('vhs-ollama-url') || defaultOllamaUrl();
-let ollamaModel  = localStorage.getItem('vhs-ollama-model') || 'llava:7b';
-let fastMode     = localStorage.getItem('vhs-fast-mode') !== 'false'; // default on
-let ollamaAvail  = false;
-let inventory    = [];
-let pending = [], pendIdx = 0, pendThumb = null;
-let isCapturing  = false;
-let cropFrac     = { x:.12, y:.08, w:.76, h:.84 };
-let dragging = false, resizing = false, dragOrig = {};
-let selectedId   = null;
+// ── STATE ────────────────────────────────────────────────────────────────
+let apiKey      = localStorage.getItem('vhs-apikey')       || '';
+let ollamaUrl   = localStorage.getItem('vhs-ollama-url')   || defaultOllamaUrl();
+let ollamaModel = localStorage.getItem('vhs-ollama-model') || 'llava:7b';
+let fastMode    = localStorage.getItem('vhs-fast-mode') !== 'false';
+let ollamaAvail = false;
+let inventory   = [];
+let cards       = [];   // pending review: [{uid, data, thumb, expanded, source}]
+let uidSeq      = 0;
+let isCapturing = false;
+let barcodeMode = false;
+let barcodeRdr  = null;
+let lastCode    = { val:'', t:0 };
+let wallViewOn  = false;
+let selectedId  = null;
+let cropFrac    = { x:.12, y:.08, w:.76, h:.84 };
+let dragging=false, resizing=false, dragOrig={};
 
 function defaultOllamaUrl() {
-  // When served via http(s), use the nginx proxy path; file:// goes direct
-  return location.protocol === 'file:' ? 'http://localhost:11434' : '/api/ollama';
+  return location.protocol==='file:' ? 'http://localhost:11434' : '/api/ollama';
 }
 
-// ── INDEXEDDB ─────────────────────────────────────────────────────────────
+// ── INDEXEDDB ────────────────────────────────────────────────────────────
 const DB_NAME='vhs-scanner', DB_VER=1, STORE='tapes';
 let db;
 function openDB() {
-  return new Promise((res,rej) => {
-    const r = indexedDB.open(DB_NAME, DB_VER);
-    r.onupgradeneeded = e => {
-      const d = e.target.result;
-      if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE, { keyPath:'id' });
-    };
-    r.onsuccess = e => { db = e.target.result; res(); };
-    r.onerror   = e => rej(e.target.error);
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,DB_VER);
+    r.onupgradeneeded=e=>{ const d=e.target.result; if(!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE,{keyPath:'id'}); };
+    r.onsuccess=e=>{ db=e.target.result; res(); };
+    r.onerror=e=>rej(e.target.error);
   });
 }
-const tx    = mode => db.transaction(STORE, mode).objectStore(STORE);
-const dbAll = () => new Promise((res,rej) => { const r=tx('readonly').getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
-const dbAdd = rec  => new Promise((res,rej) => { const r=tx('readwrite').add(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
-const dbPut = rec  => new Promise((res,rej) => { const r=tx('readwrite').put(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+const tx    = m=>db.transaction(STORE,m).objectStore(STORE);
+const dbAll = ()=>new Promise((r,j)=>{const q=tx('readonly').getAll();q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});
+const dbAdd = v=>new Promise((r,j)=>{const q=tx('readwrite').add(v);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
+const dbPut = v=>new Promise((r,j)=>{const q=tx('readwrite').put(v);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
+const dbDel = k=>new Promise((r,j)=>{const q=tx('readwrite').delete(k);q.onsuccess=()=>r();q.onerror=()=>j(q.error);});
 
 async function nextId() {
-  if (!inventory.length) return 'VHS-0001';
-  const max = Math.max(...inventory.map(t => parseInt(t.id.slice(4), 10)).filter(n => !isNaN(n)));
+  if(!inventory.length) return 'VHS-0001';
+  const max=Math.max(...inventory.map(t=>parseInt(t.id.slice(4),10)).filter(n=>!isNaN(n)));
   return `VHS-${String(max+1).padStart(4,'0')}`;
 }
 
-// ── DEDUP ─────────────────────────────────────────────────────────────────
-function lev(a, b) {
-  const m=a.length, n=b.length;
-  const d=Array.from({length:m+1},(_,i)=>Array(n+1).fill(0));
-  for(let i=0;i<=m;i++) d[i][0]=i;
-  for(let j=0;j<=n;j++) d[0][j]=j;
-  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
-    d[i][j]=a[i-1]===b[j-1]?d[i-1][j-1]:1+Math.min(d[i-1][j],d[i][j-1],d[i-1][j-1]);
+// ── DEDUP ────────────────────────────────────────────────────────────────
+function lev(a,b){
+  const m=a.length,n=b.length,d=Array.from({length:m+1},(_,i)=>Array(n+1).fill(0));
+  for(let i=0;i<=m;i++)d[i][0]=i; for(let j=0;j<=n;j++)d[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=a[i-1]===b[j-1]?d[i-1][j-1]:1+Math.min(d[i-1][j],d[i][j-1],d[i-1][j-1]);
   return d[m][n];
 }
-const norm = t => t.toLowerCase().replace(/^(the |a |an )/i,'').trim();
-function findDup(title) {
+const norm=t=>t.toLowerCase().replace(/^(the |a |an )/i,'').trim();
+function findDup(title){
   const n=norm(title);
-  for (const tape of inventory) {
-    const e=norm(tape.title), maxL=Math.max(n.length,e.length);
-    if (maxL && 1-lev(n,e)/maxL >= 0.85) return tape;
-  }
+  for(const t of inventory){const e=norm(t.title),L=Math.max(n.length,e.length);if(L&&1-lev(n,e)/L>=0.85)return t;}
   return null;
 }
 
-// ── CAMERA ────────────────────────────────────────────────────────────────
-const video  = document.getElementById('video');
-const camSel = document.getElementById('camera-select');
+// ── CAMERA ───────────────────────────────────────────────────────────────
+const video=document.getElementById('video');
+const camSel=document.getElementById('camera-select');
 
-async function initCamera() {
-  try {
-    const s = await navigator.mediaDevices.getUserMedia({ video:true });
+async function initCamera(){
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({video:true});
     s.getTracks().forEach(t=>t.stop());
-    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
-    camSel.innerHTML = devs.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
-    if (devs.length > 1) camSel.style.display='';
+    const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+    camSel.innerHTML=devs.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
+    if(devs.length>1)camSel.style.display='';
     await startStream(devs[0]?.deviceId);
-  } catch(e) {
-    console.warn('Camera unavailable:', e.message);
+  }catch(e){
+    console.warn('Camera:',e.message);
     document.getElementById('no-cam').style.display='flex';
     video.style.display='none';
     document.getElementById('crop').style.display='none';
   }
 }
-async function startStream(deviceId) {
-  if (video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
-  try {
-    video.srcObject = await navigator.mediaDevices.getUserMedia({
-      video: deviceId ? { deviceId:{exact:deviceId} } : true, audio:false
-    });
+async function startStream(deviceId){
+  if(video.srcObject)video.srcObject.getTracks().forEach(t=>t.stop());
+  try{
+    video.srcObject=await navigator.mediaDevices.getUserMedia({video:deviceId?{deviceId:{exact:deviceId}}:true,audio:false});
     await video.play();
     document.getElementById('no-cam').style.display='none';
     video.style.display='';
     updateCrop();
-  } catch {
+    if(barcodeMode&&barcodeRdr)startBarcodeLoop();
+  }catch{
     document.getElementById('no-cam').style.display='flex';
     video.style.display='none';
-    document.getElementById('crop').style.display='none';
   }
 }
-camSel.addEventListener('change', ()=>startStream(camSel.value));
+camSel.addEventListener('change',()=>startStream(camSel.value));
 
-// ── CROP BOX ──────────────────────────────────────────────────────────────
-const vidWrap    = document.getElementById('vid-wrap');
-const cropEl     = document.getElementById('crop');
-const cropHandle = document.getElementById('crop-handle');
-
-function updateCrop() {
+// ── CROP BOX ─────────────────────────────────────────────────────────────
+const vidWrap=document.getElementById('vid-wrap');
+const cropEl=document.getElementById('crop');
+const cropHandle=document.getElementById('crop-handle');
+function updateCrop(){
   const r=vidWrap.getBoundingClientRect();
-  cropEl.style.left   = cropFrac.x*r.width  +'px';
-  cropEl.style.top    = cropFrac.y*r.height +'px';
-  cropEl.style.width  = cropFrac.w*r.width  +'px';
-  cropEl.style.height = cropFrac.h*r.height +'px';
+  cropEl.style.left=cropFrac.x*r.width+'px'; cropEl.style.top=cropFrac.y*r.height+'px';
+  cropEl.style.width=cropFrac.w*r.width+'px'; cropEl.style.height=cropFrac.h*r.height+'px';
 }
-cropEl.addEventListener('mousedown', e => {
-  if (e.target===cropHandle) return;
-  dragging=true;
-  const r=vidWrap.getBoundingClientRect();
+cropEl.addEventListener('mousedown',e=>{
+  if(e.target===cropHandle)return;
+  dragging=true; const r=vidWrap.getBoundingClientRect();
   dragOrig={mx:e.clientX,my:e.clientY,fx:cropFrac.x,fy:cropFrac.y,rw:r.width,rh:r.height};
   e.preventDefault();
 });
-cropHandle.addEventListener('mousedown', e => {
-  resizing=true;
-  const r=vidWrap.getBoundingClientRect();
+cropHandle.addEventListener('mousedown',e=>{
+  resizing=true; const r=vidWrap.getBoundingClientRect();
   dragOrig={mx:e.clientX,my:e.clientY,fw:cropFrac.w,fh:cropFrac.h,rw:r.width,rh:r.height};
   e.stopPropagation(); e.preventDefault();
 });
-document.addEventListener('mousemove', e => {
-  if (dragging) {
-    const dx=(e.clientX-dragOrig.mx)/dragOrig.rw, dy=(e.clientY-dragOrig.my)/dragOrig.rh;
+document.addEventListener('mousemove',e=>{
+  if(dragging){
+    const dx=(e.clientX-dragOrig.mx)/dragOrig.rw,dy=(e.clientY-dragOrig.my)/dragOrig.rh;
     cropFrac.x=Math.max(0,Math.min(dragOrig.fx+dx,1-cropFrac.w));
     cropFrac.y=Math.max(0,Math.min(dragOrig.fy+dy,1-cropFrac.h));
     updateCrop();
   }
-  if (resizing) {
-    const dx=(e.clientX-dragOrig.mx)/dragOrig.rw, dy=(e.clientY-dragOrig.my)/dragOrig.rh;
+  if(resizing){
+    const dx=(e.clientX-dragOrig.mx)/dragOrig.rw,dy=(e.clientY-dragOrig.my)/dragOrig.rh;
     cropFrac.w=Math.max(0.1,Math.min(dragOrig.fw+dx,1-cropFrac.x));
     cropFrac.h=Math.max(0.08,Math.min(dragOrig.fh+dy,1-cropFrac.y));
     updateCrop();
   }
 });
-document.addEventListener('mouseup', ()=>{ dragging=false; resizing=false; });
-window.addEventListener('resize', updateCrop);
+document.addEventListener('mouseup',()=>{dragging=false;resizing=false;});
+window.addEventListener('resize',updateCrop);
 
-// ── AI BADGE ──────────────────────────────────────────────────────────────
-function setAiBadge(mode, label) {
-  const el = document.getElementById('ai-badge');
-  el.className = mode;
-  el.textContent = label;
+// ── BARCODE ──────────────────────────────────────────────────────────────
+const barcodeOverlay=document.getElementById('barcode-overlay');
+const btnBarcode=document.getElementById('btn-barcode');
+const btnCap=document.getElementById('btn-cap');
+
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    if(document.querySelector(`script[src="${src}"]`))return res();
+    const s=document.createElement('script');
+    s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s);
+  });
+}
+function beep(){
+  try{
+    const ctx=new AudioContext(),osc=ctx.createOscillator(),g=ctx.createGain();
+    osc.connect(g);g.connect(ctx.destination);
+    osc.frequency.value=1200;g.gain.setValueAtTime(.3,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.15);
+    osc.start();osc.stop(ctx.currentTime+.15);
+  }catch{}
 }
 
-async function checkOllama(silent=false) {
-  if (!silent) {
-    document.getElementById('ollama-dot').className='ai-dot spin2';
-    document.getElementById('ollama-status-text').textContent='Checking…';
+async function toggleBarcodeMode(){
+  if(barcodeMode){
+    barcodeMode=false;
+    btnBarcode.classList.remove('active');btnBarcode.textContent='⬡ Barcode';
+    barcodeOverlay.classList.remove('on');cropEl.style.display='';btnCap.disabled=false;
+    if(barcodeRdr){try{barcodeRdr.reset();}catch{}barcodeRdr=null;}
+  }else{
+    btnBarcode.textContent='⟳ Loading…';btnBarcode.disabled=true;
+    try{await loadScript('https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js');}
+    catch{btnBarcode.textContent='⬡ Barcode';btnBarcode.disabled=false;return;}
+    barcodeMode=true;
+    btnBarcode.classList.add('active');btnBarcode.textContent='⬡ Barcode ON';btnBarcode.disabled=false;
+    barcodeOverlay.classList.add('on');cropEl.style.display='none';btnCap.disabled=true;
+    startBarcodeLoop();
   }
-  try {
-    const res = await fetch(`${ollamaUrl}/api/tags`, { signal:AbortSignal.timeout(3000) });
-    if (!res.ok) throw new Error('not ok');
-    const data = await res.json();
-    const models = (data.models||[]).map(m=>m.name);
-    const hasModel = models.some(m => m.startsWith(ollamaModel.split(':')[0]));
-    ollamaAvail = true;
-    if (!silent) {
+}
+function startBarcodeLoop(){
+  if(!window.ZXing)return;
+  try{
+    barcodeRdr=new ZXing.BrowserMultiFormatReader();
+    barcodeRdr.decodeFromVideoElement(video,(result)=>{
+      if(!result)return;
+      const code=result.getText(),now=Date.now();
+      if(code===lastCode.val&&now-lastCode.t<3000)return;
+      lastCode={val:code,t:now};
+      beep();
+      addCard({title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},'barcode',null);
+    });
+  }catch(e){console.warn('Barcode:',e);}
+}
+btnBarcode.addEventListener('click',toggleBarcodeMode);
+
+// ── BATCH UPLOAD ─────────────────────────────────────────────────────────
+const fileInput=document.getElementById('file-input');
+const uploadProg=document.getElementById('upload-prog');
+
+document.getElementById('btn-upload').addEventListener('click',()=>fileInput.click());
+fileInput.addEventListener('change',async()=>{
+  if(!fileInput.files.length)return;
+  const files=[...fileInput.files]; fileInput.value='';
+  showRevPanel(); setRevLoading(true);
+  for(let i=0;i<files.length;i++){
+    uploadProg.style.display='';uploadProg.textContent=`Processing ${i+1}/${files.length}…`;
+    setRevMsg(`Processing image ${i+1}/${files.length}…`);
+    try{
+      const [b64,thumb]=await Promise.all([fileToB64(files[i]),fileToThumb(files[i])]);
+      const results=await callAI(b64);
+      results.forEach(d=>addCard({...d,condition:'great',status:'in_collection',notes:''},null,thumb));
+    }catch(e){console.warn('Upload error:',e);}
+  }
+  setRevLoading(false); uploadProg.style.display='none';
+  if(!cards.length)showRevErr("Couldn't find any tapes in the uploaded images.");
+  else if(cards.length)cards[0].expanded=true;
+  renderCards();
+});
+
+function fileToB64(f){
+  return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(',')[1]);fr.onerror=j;fr.readAsDataURL(f);});
+}
+function fileToThumb(f){
+  return new Promise(r=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const sc=Math.min(1,200/Math.max(img.width,img.height));
+        const c=document.createElement('canvas');
+        c.width=img.width*sc;c.height=img.height*sc;
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        r(c.toDataURL('image/jpeg',.6));
+      };
+      img.src=fr.result;
+    };
+    fr.readAsDataURL(f);
+  });
+}
+
+// ── AI BADGE ─────────────────────────────────────────────────────────────
+function setAiBadge(mode,label){const el=document.getElementById('ai-badge');el.className=mode;el.textContent=label;}
+
+async function checkOllama(silent=false){
+  if(!silent){document.getElementById('ollama-dot').className='ai-dot spin2';document.getElementById('ollama-status-text').textContent='Checking…';}
+  try{
+    const res=await fetch(`${ollamaUrl}/api/tags`,{signal:AbortSignal.timeout(3000)});
+    if(!res.ok)throw new Error();
+    const data=await res.json();
+    const models=(data.models||[]).map(m=>m.name);
+    const has=models.some(m=>m.startsWith(ollamaModel.split(':')[0]));
+    ollamaAvail=true;
+    if(!silent){
       document.getElementById('ollama-dot').className='ai-dot ok';
-      document.getElementById('ollama-status-text').textContent =
-        hasModel ? `Connected · ${ollamaModel} ready` : `Connected · model not pulled yet (will pull on first use)`;
+      document.getElementById('ollama-status-text').textContent=has?`Connected · ${ollamaModel} ready`:`Connected · model not yet pulled`;
     }
-  } catch {
-    ollamaAvail = false;
-    if (!silent) {
-      document.getElementById('ollama-dot').className='ai-dot off';
-      document.getElementById('ollama-status-text').textContent='Ollama not reachable at '+ollamaUrl;
-    }
+  }catch{
+    ollamaAvail=false;
+    if(!silent){document.getElementById('ollama-dot').className='ai-dot off';document.getElementById('ollama-status-text').textContent='Ollama not reachable at '+ollamaUrl;}
   }
   updateAiBadge();
 }
-
-function updateAiBadge() {
-  if (apiKey)        setAiBadge('claude',  'CLAUDE');
-  else if (ollamaAvail) setAiBadge('ollama', `OLLAMA · ${ollamaModel}`);
-  else               setAiBadge('stub',    'STUB MODE');
+function updateAiBadge(){
+  if(apiKey)setAiBadge('claude','CLAUDE');
+  else if(ollamaAvail)setAiBadge('ollama',`OLLAMA · ${ollamaModel}`);
+  else setAiBadge('noai','NO AI');
 }
 
-// ── CAPTURE ───────────────────────────────────────────────────────────────
-async function capture() {
-  if (isCapturing) return;
-  isCapturing=true;
-  document.getElementById('btn-cap').disabled=true;
-
-  let base64=null, thumb=null;
-
-  if (video.srcObject && video.readyState >= 2) {
-    const vw=video.videoWidth||640, vh=video.videoHeight||480;
+// ── CAPTURE ──────────────────────────────────────────────────────────────
+async function capture(){
+  if(isCapturing||barcodeMode)return;
+  isCapturing=true; btnCap.disabled=true;
+  let base64=null,thumb=null;
+  if(video.srcObject&&video.readyState>=2){
+    const vw=video.videoWidth||640,vh=video.videoHeight||480;
     const cr=vidWrap.getBoundingClientRect();
-    const vAR=vw/vh, cAR=cr.width/cr.height;
+    const vAR=vw/vh,cAR=cr.width/cr.height;
     let dw,dh,dx,dy;
-    if (vAR>cAR) { dw=cr.width; dh=cr.width/vAR; dx=0; dy=(cr.height-dh)/2; }
-    else          { dh=cr.height; dw=cr.height*vAR; dx=(cr.width-dw)/2; dy=0; }
-    const bx=cropFrac.x*cr.width, by=cropFrac.y*cr.height;
-    const bw=cropFrac.w*cr.width, bh=cropFrac.h*cr.height;
-    const sx=Math.max(0,(bx-dx)/dw*vw), sy=Math.max(0,(by-dy)/dh*vh);
-    const sw=Math.min(vw-sx,bw/dw*vw), sh=Math.min(vh-sy,bh/dh*vh);
-    const canvas=document.createElement('canvas');
-    canvas.width=Math.round(sw); canvas.height=Math.round(sh);
-    canvas.getContext('2d').drawImage(video,Math.round(sx),Math.round(sy),Math.round(sw),Math.round(sh),0,0,canvas.width,canvas.height);
-    base64=canvas.toDataURL('image/jpeg',.9).split(',')[1];
-    thumb =canvas.toDataURL('image/jpeg',.6);
+    if(vAR>cAR){dw=cr.width;dh=cr.width/vAR;dx=0;dy=(cr.height-dh)/2;}
+    else{dh=cr.height;dw=cr.height*vAR;dx=(cr.width-dw)/2;dy=0;}
+    const bx=cropFrac.x*cr.width,by=cropFrac.y*cr.height,bw=cropFrac.w*cr.width,bh=cropFrac.h*cr.height;
+    const sx=Math.max(0,(bx-dx)/dw*vw),sy=Math.max(0,(by-dy)/dh*vh);
+    const sw=Math.min(vw-sx,bw/dw*vw),sh=Math.min(vh-sy,bh/dh*vh);
+    const c=document.createElement('canvas');
+    c.width=Math.round(sw);c.height=Math.round(sh);
+    c.getContext('2d').drawImage(video,Math.round(sx),Math.round(sy),Math.round(sw),Math.round(sh),0,0,c.width,c.height);
+    base64=c.toDataURL('image/jpeg',.9).split(',')[1];
+    thumb=c.toDataURL('image/jpeg',.6);
   }
-
-  pendThumb=thumb;
-  if (thumb) { document.getElementById('thumb-img').src=thumb; document.getElementById('thumb-wrap').style.display='flex'; }
-
-  showRev('loading');
-  try {
-    const results = await callAI(base64);
-    if (!results.length) showRev('error','No tapes detected — try adjusting the crop box.');
-    else { pending=results; pendIdx=0; showRev('form'); }
-  } catch(e) {
-    showRev('error', e.message);
-  } finally {
-    isCapturing=false;
-    document.getElementById('btn-cap').disabled=false;
-  }
+  if(thumb){document.getElementById('thumb-img').src=thumb;document.getElementById('thumb-wrap').style.display='flex';}
+  showRevPanel(); setRevLoading(true); setRevMsg('Analyzing…');
+  try{
+    const results=await callAI(base64);
+    if(!results.length)showRevErr("Couldn't find any tapes in this image — try adjusting the crop box.");
+    else{
+      const wasEmpty=!cards.length;
+      results.forEach((d,i)=>addCard({...d,condition:'great',status:'in_collection',notes:''},null,thumb,wasEmpty&&i===0));
+      renderCards();
+    }
+  }catch(e){showRevErr(e.message);}
+  finally{setRevLoading(false);isCapturing=false;btnCap.disabled=false;}
 }
+btnCap.addEventListener('click',capture);
 
-// ── THREE-TIER AI DISPATCH ────────────────────────────────────────────────
-async function callAI(base64) {
-  // Tier 1: Claude API
-  if (apiKey && base64) {
-    try {
-      setLoadingMsg('Analyzing with Claude…');
-      return await callClaude(base64);
-    } catch(e) {
-      console.warn('Claude failed, trying Ollama:', e.message);
+// ── AI DISPATCH ──────────────────────────────────────────────────────────
+async function callAI(base64){
+  if(apiKey&&base64){
+    try{setRevMsg('Analyzing with Claude…');return await callClaude(base64);}
+    catch(e){console.warn('Claude failed:',e.message);}
+  }
+  if(base64){
+    const ok=await pingOllama();
+    if(ok){
+      try{setRevMsg(`Analyzing with ${ollamaModel}…`);return await callOllama(base64);}
+      catch(e){console.warn('Ollama failed:',e.message);}
     }
   }
-
-  // Tier 2: Local Ollama
-  if (base64) {
-    const avail = await pingOllama();
-    if (avail) {
-      try {
-        setLoadingMsg(`Analyzing with ${ollamaModel}…`);
-        return await callOllama(base64);
-      } catch(e) {
-        console.warn('Ollama failed, falling back to stub:', e.message);
-      }
-    }
-  }
-
-  // Tier 3: Stub
-  setLoadingMsg('Generating mock data (stub mode)…');
-  await new Promise(r=>setTimeout(r, 800));
-  return MOCKS[Math.floor(Math.random()*MOCKS.length)];
+  setRevMsg('No AI available');
+  return [];
 }
-
-function setLoadingMsg(msg) { document.getElementById('rev-loading-msg').textContent = msg; }
-
-// Tier 1: Claude claude-sonnet-4-6
-async function callClaude(base64) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+async function callClaude(base64){
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
-    headers:{
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model:'claude-sonnet-4-6', max_tokens:1024,
-      messages:[{ role:'user', content:[
-        { type:'image', source:{ type:'base64', media_type:'image/jpeg', data:base64 }},
-        { type:'text', text: fastMode ? VISION_PROMPT_FAST : VISION_PROMPT_FULL }
-      ]}]
-    })
+    headers:{'x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,messages:[{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
+      {type:'text',text:fastMode?VISION_PROMPT_FAST:VISION_PROMPT_FULL}
+    ]}]})
   });
-  if (!res.ok) {
-    const err=await res.json().catch(()=>({}));
-    throw new Error(err.error?.message || `Claude API error ${res.status}`);
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`Claude ${res.status}`);}
+  const d=await res.json();return parseJson(d.content?.[0]?.text||'[]');
+}
+async function callOllama(base64){
+  const res=await fetch(`${ollamaUrl}/api/generate`,{
+    method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({model:ollamaModel,prompt:fastMode?VISION_PROMPT_FAST:VISION_PROMPT_FULL,images:[base64],stream:false,options:{num_predict:fastMode?60:150}})
+  });
+  if(!res.ok)throw new Error(`Ollama ${res.status}`);
+  const d=await res.json();return parseJson(d.response||'[]');
+}
+async function pingOllama(){
+  try{const r=await fetch(`${ollamaUrl}/api/tags`,{signal:AbortSignal.timeout(2000)});ollamaAvail=r.ok;updateAiBadge();return r.ok;}
+  catch{ollamaAvail=false;updateAiBadge();return false;}
+}
+function parseJson(txt){const m=txt.trim().match(/\[[\s\S]*\]/);if(!m)return[];try{return JSON.parse(m[0]);}catch{return[];}}
+
+// ── REVIEW CARDS ─────────────────────────────────────────────────────────
+const revPanel=document.getElementById('review');
+const revLoading=document.getElementById('rev-loading');
+const revCardsEl=document.getElementById('rev-cards');
+const revErr=document.getElementById('rev-err');
+const revBulk=document.getElementById('rev-bulk');
+
+function addCard(data,source=null,thumb=null,expanded=false){
+  cards.push({uid:++uidSeq,data:{...data},source,thumb,expanded});
+}
+function showRevPanel(){revPanel.classList.add('on');revErr.style.display='none';}
+function hideRevPanel(){revPanel.classList.remove('on');cards=[];renderCards();}
+function setRevLoading(on){revLoading.style.display=on?'flex':'none';}
+function setRevMsg(m){const el=document.getElementById('rev-msg');if(el)el.textContent=m;}
+function showRevErr(m){revErr.style.display='block';revErr.textContent=m;revCardsEl.innerHTML='';revBulk.classList.remove('on');}
+
+function renderCards(){
+  revBulk.classList.toggle('on',cards.length>1);
+  document.getElementById('rev-title').textContent=cards.length?`Pending Review (${cards.length})`:'Pending Review';
+  if(!cards.length){revCardsEl.innerHTML='';if(!revPanel.classList.contains('on')||!revErr.style.display||revErr.style.display==='none')hideRevPanel();return;}
+
+  revCardsEl.innerHTML=cards.map((card,idx)=>{
+    const title=card.data.title||(card.source==='barcode'?`Barcode: ${card.data.barcode}`:'');
+    const empty=!card.data.title;
+    const thumbHtml=card.thumb?`<img class="card-thumb" src="${card.thumb}" alt="">`:''
+    const barcodeHtml=card.data.barcode?`<div class="fg full"><label>Barcode</label><input type="text" value="${esc(card.data.barcode)}" readonly style="font-family:monospace;color:var(--text3)"></div>`:''
+    return `<div class="rev-card${card.expanded?' expanded':''}" data-uid="${card.uid}">
+      <div class="card-hdr">
+        <span class="card-num">#${idx+1}</span>
+        <span class="card-title-txt${empty?' empty':''}">${esc(title||'(click to edit)')}</span>
+        <span class="card-chev">▼</span>
+      </div>
+      <div class="card-body">
+        ${thumbHtml}
+        <div class="rev-grid">
+          <div class="fg full"><label>Title</label><input type="text" class="c-f" data-f="title" data-uid="${card.uid}" value="${esc(card.data.title||'')}" placeholder="Title"></div>
+          <div class="fg"><label>Year</label><input type="text" class="c-f" data-f="year" data-uid="${card.uid}" value="${esc(card.data.year||'')}" placeholder="1984"></div>
+          <div class="fg"><label>Label / Studio</label><input type="text" class="c-f" data-f="label" data-uid="${card.uid}" value="${esc(card.data.label||'')}" placeholder="Orion"></div>
+          <div class="fg"><label>Format</label><input type="text" class="c-f" data-f="format" data-uid="${card.uid}" value="${esc(card.data.format||'VHS')}"></div>
+          <div class="fg"><label>Condition</label>
+            <select class="c-f" data-f="condition" data-uid="${card.uid}">
+              ${['great','good','fair','poor'].map(v=>`<option value="${v}"${card.data.condition===v?' selected':''}>${v[0].toUpperCase()+v.slice(1)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="fg"><label>Status</label>
+            <select class="c-f" data-f="status" data-uid="${card.uid}">
+              <option value="in_collection"${card.data.status==='in_collection'?' selected':''}>In Collection</option>
+              <option value="for_sale"${card.data.status==='for_sale'?' selected':''}>For Sale</option>
+              <option value="sold"${card.data.status==='sold'?' selected':''}>Sold</option>
+              <option value="donated"${card.data.status==='donated'?' selected':''}>Donated</option>
+              <option value="missing"${card.data.status==='missing'?' selected':''}>Missing</option>
+            </select>
+          </div>
+          <div class="fg full"><label>Notes</label><textarea class="c-f" data-f="notes" data-uid="${card.uid}" placeholder="Condition notes…">${esc(card.data.notes||'')}</textarea></div>
+          ${barcodeHtml}
+        </div>
+        <div class="card-acts">
+          <button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}">✓ Confirm</button>
+          <button class="btn btn-sm btn-x c-discard" data-uid="${card.uid}">✕ Discard</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  revCardsEl.querySelectorAll('.card-hdr').forEach(hdr=>{
+    hdr.addEventListener('click',()=>{
+      const uid=+hdr.closest('.rev-card').dataset.uid;
+      const c=cards.find(x=>x.uid===uid);
+      if(c){syncCard(uid);c.expanded=!c.expanded;renderCards();}
+    });
+  });
+  revCardsEl.querySelectorAll('.c-confirm').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.stopPropagation();confirmCard(+btn.dataset.uid);});
+  });
+  revCardsEl.querySelectorAll('.c-discard').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.stopPropagation();discardCard(+btn.dataset.uid);});
+  });
+  revCardsEl.querySelectorAll('.c-f').forEach(el=>{
+    el.addEventListener('input',()=>syncCard(+el.dataset.uid));
+    el.addEventListener('change',()=>syncCard(+el.dataset.uid));
+  });
+}
+
+function syncCard(uid){
+  const card=cards.find(c=>c.uid===uid);if(!card)return;
+  revCardsEl.querySelectorAll(`[data-uid="${uid}"].c-f`).forEach(el=>{
+    card.data[el.dataset.f]=el.value;
+  });
+}
+
+async function confirmCard(uid){
+  syncCard(uid);
+  const card=cards.find(c=>c.uid===uid);if(!card)return;
+  const title=card.data.title.trim();
+  if(!title){
+    const el=revCardsEl.querySelector(`[data-uid="${uid}"][data-f="title"]`);
+    if(el){el.style.borderColor='var(--red)';el.focus();}
+    return;
   }
-  const data=await res.json();
-  return parseJsonResult(data.content?.[0]?.text || '[]');
-}
-
-// Tier 2: Ollama (local vision model)
-async function callOllama(base64) {
-  const prompt = fastMode ? VISION_PROMPT_FAST : VISION_PROMPT_FULL;
-  // num_predict caps output tokens — keeps responses tight and cuts CPU time
-  const num_predict = fastMode ? 60 : 150;
-  const res = await fetch(`${ollamaUrl}/api/generate`, {
-    method:'POST',
-    headers:{ 'content-type':'application/json' },
-    body: JSON.stringify({
-      model: ollamaModel,
-      prompt,
-      images: [base64],
-      stream: false,
-      options: { num_predict },
-    })
-  });
-  if (!res.ok) throw new Error(`Ollama error ${res.status}`);
-  const data = await res.json();
-  return parseJsonResult(data.response || '[]');
-}
-
-async function pingOllama() {
-  try {
-    const res=await fetch(`${ollamaUrl}/api/tags`,{signal:AbortSignal.timeout(2000)});
-    ollamaAvail=res.ok;
-    updateAiBadge();
-    return res.ok;
-  } catch { ollamaAvail=false; updateAiBadge(); return false; }
-}
-
-function parseJsonResult(text) {
-  const m=text.trim().match(/\[[\s\S]*\]/);
-  if (!m) return [];
-  try { return JSON.parse(m[0]); } catch { return []; }
-}
-
-// ── REVIEW PANEL ──────────────────────────────────────────────────────────
-const revPanel = document.getElementById('review');
-const revLoad  = document.getElementById('rev-loading');
-const revForm  = document.getElementById('rev-form');
-const revErr   = document.getElementById('rev-err');
-
-function showRev(mode, msg='') {
-  revPanel.classList.add('on');
-  revLoad.style.display = mode==='loading' ? 'flex' : 'none';
-  revForm.style.display = mode==='form'    ? 'block' : 'none';
-  revErr.style.display  = mode==='error'   ? 'block' : 'none';
-  if (mode==='error') revErr.textContent=msg;
-  if (mode==='form')  fillRevForm();
-}
-function hideRev() { revPanel.classList.remove('on'); pending=[]; pendIdx=0; }
-function fillRevForm() {
-  const it=pending[pendIdx]||{};
-  document.getElementById('f-title').value  = it.title ||'';
-  document.getElementById('f-year').value   = it.year  ||'';
-  document.getElementById('f-label').value  = it.label ||'';
-  document.getElementById('f-format').value = it.format||'VHS';
-  document.getElementById('f-cond').value   = 'great';
-  document.getElementById('f-status').value = 'in_collection';
-  document.getElementById('f-notes').value  = '';
-  document.getElementById('rev-nav').textContent = pending.length>1 ? `${pendIdx+1} / ${pending.length}` : '';
-  setTimeout(()=>document.getElementById('f-title').focus(), 40);
-}
-
-async function confirmItem() {
-  const title=document.getElementById('f-title').value.trim();
-  if (!title) { document.getElementById('f-title').style.borderColor='var(--red)'; document.getElementById('f-title').focus(); return; }
-  document.getElementById('f-title').style.borderColor='';
   const dup=findDup(title);
-  if (dup && !(await askDup(dup))) return;
-  const rec = {
-    id: await nextId(), title,
-    year:            document.getElementById('f-year').value.trim(),
-    label:           document.getElementById('f-label').value.trim(),
-    format:          document.getElementById('f-format').value.trim()||'VHS',
-    condition:       document.getElementById('f-cond').value,
-    condition_notes: document.getElementById('f-notes').value.trim(),
-    status:          document.getElementById('f-status').value,
-    tags:[], scanned_at:new Date().toISOString(), photo_thumbnail:pendThumb||'',
+  if(dup&&!(await askDup(dup)))return;
+  const rec={
+    id:await nextId(),title,
+    year:card.data.year||'',label:card.data.label||'',
+    format:card.data.format||'VHS',condition:card.data.condition||'great',
+    condition_notes:card.data.notes||'',status:card.data.status||'in_collection',
+    barcode:card.data.barcode||'',tags:[],
+    photos:card.thumb?[card.thumb]:[],
+    scanned_at:new Date().toISOString(),photo_thumbnail:card.thumb||'',
   };
-  await dbAdd(rec);
-  inventory.push(rec);
-  renderInv(); updateCount();
-  pendIdx++;
-  if (pendIdx<pending.length) fillRevForm(); else hideRev();
+  await dbAdd(rec);inventory.push(rec);renderInv();updateCount();
+  cards=cards.filter(c=>c.uid!==uid);
+  if(!cards.length)hideRevPanel();else renderCards();
 }
-function discardItem() {
-  pendIdx++;
-  if (pendIdx<pending.length) fillRevForm(); else hideRev();
+
+function discardCard(uid){
+  cards=cards.filter(c=>c.uid!==uid);
+  if(!cards.length)hideRevPanel();else renderCards();
 }
-async function rescan() { hideRev(); await capture(); }
 
-document.getElementById('btn-cap').addEventListener('click', capture);
-document.getElementById('btn-confirm').addEventListener('click', confirmItem);
-document.getElementById('btn-discard').addEventListener('click', discardItem);
-document.getElementById('btn-rescan').addEventListener('click', rescan);
+document.getElementById('btn-confirm-all').addEventListener('click',async()=>{
+  for(const card of [...cards]){syncCard(card.uid);if(card.data.title.trim())await confirmCard(card.uid);}
+});
+document.getElementById('btn-discard-all').addEventListener('click',hideRevPanel);
 
-// ── DUPLICATE MODAL ───────────────────────────────────────────────────────
-function askDup(existing) {
-  return new Promise(res => {
+// ── DUPLICATE MODAL ──────────────────────────────────────────────────────
+function askDup(existing){
+  return new Promise(res=>{
     const m=document.getElementById('m-dup');
-    document.getElementById('dup-info').innerHTML=
-      `<strong>${esc(existing.title)}</strong><br><span style="font-size:11px;color:var(--text3)">${existing.id} · ${existing.year||''} · ${existing.label||''}</span>`;
+    document.getElementById('dup-info').innerHTML=`<strong>${esc(existing.title)}</strong><br><span style="font-size:11px;color:var(--text3)">${existing.id} · ${existing.year||''} · ${existing.label||''}</span>`;
     m.style.display='flex';
-    const add=()=>{ cleanup(); res(true); };
-    const cancel=()=>{ cleanup(); res(false); };
-    function cleanup(){
-      m.style.display='none';
-      document.getElementById('dup-add').removeEventListener('click',add);
-      document.getElementById('dup-cancel').removeEventListener('click',cancel);
-    }
+    const add=()=>{cleanup();res(true);};const cancel=()=>{cleanup();res(false);};
+    function cleanup(){m.style.display='none';document.getElementById('dup-add').removeEventListener('click',add);document.getElementById('dup-cancel').removeEventListener('click',cancel);}
     document.getElementById('dup-add').addEventListener('click',add);
     document.getElementById('dup-cancel').addEventListener('click',cancel);
   });
 }
 
 // ── INVENTORY ─────────────────────────────────────────────────────────────
-function getFiltered() {
+function getFiltered(){
   const q=document.getElementById('search').value.toLowerCase();
   const stat=document.getElementById('f-stat-filter').value;
   const cond=document.getElementById('f-cond-filter').value;
@@ -820,28 +882,41 @@ function getFiltered() {
   const yto=document.getElementById('f-yr-to').value;
   const sort=document.getElementById('sort-sel').value;
   let items=inventory.filter(t=>{
-    if(q    && !t.title.toLowerCase().includes(q)) return false;
-    if(stat && t.status!==stat) return false;
-    if(cond && t.condition!==cond) return false;
-    if(lbl  && !(t.label||'').toLowerCase().includes(lbl)) return false;
-    if(yfr  && t.year && +t.year< +yfr) return false;
-    if(yto  && t.year && +t.year> +yto) return false;
+    if(q&&!t.title.toLowerCase().includes(q))return false;
+    if(stat&&t.status!==stat)return false;
+    if(cond&&t.condition!==cond)return false;
+    if(lbl&&!(t.label||'').toLowerCase().includes(lbl))return false;
+    if(yfr&&t.year&&+t.year<+yfr)return false;
+    if(yto&&t.year&&+t.year>+yto)return false;
     return true;
   });
   items.sort((a,b)=>{
-    if(sort==='title_asc')   return norm(a.title).localeCompare(norm(b.title));
-    if(sort==='title_desc')  return norm(b.title).localeCompare(norm(a.title));
-    if(sort==='scanned_asc') return a.scanned_at.localeCompare(b.scanned_at);
-    if(sort==='id_asc')      return a.id.localeCompare(b.id);
+    if(sort==='title_asc')return norm(a.title).localeCompare(norm(b.title));
+    if(sort==='title_desc')return norm(b.title).localeCompare(norm(a.title));
+    if(sort==='scanned_asc')return a.scanned_at.localeCompare(b.scanned_at);
+    if(sort==='id_asc')return a.id.localeCompare(b.id);
     return b.scanned_at.localeCompare(a.scanned_at);
   });
   return items;
 }
-function renderInv() {
+
+function renderInv(){
   const list=document.getElementById('inv-list');
+  const wall=document.getElementById('wall-view');
   const items=getFiltered();
   const empty=document.getElementById('empty-state');
-  if(!items.length){ list.innerHTML=''; list.appendChild(empty); empty.style.display='flex'; return; }
+  if(wallViewOn){
+    list.style.display='none';wall.classList.add('on');
+    if(!items.length){wall.innerHTML='<div class="empty">No tapes match.</div>';return;}
+    wall.innerHTML=items.map(t=>{
+      const img=t.photo_thumbnail?`<img class="wall-img" src="${t.photo_thumbnail}" alt="">`:`<div class="wall-ph">📼</div>`;
+      return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div></div>`;
+    }).join('');
+    wall.querySelectorAll('.wall-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
+    return;
+  }
+  wall.classList.remove('on');list.style.display='';
+  if(!items.length){list.innerHTML='';list.appendChild(empty);empty.style.display='flex';return;}
   empty.style.display='none';
   list.innerHTML=items.map(t=>{
     const meta=[t.year,t.label,t.format].filter(Boolean).join(' · ');
@@ -854,113 +929,125 @@ function renderInv() {
   list.querySelectorAll('.tape-row').forEach(row=>row.addEventListener('click',()=>openDetail(row.dataset.id)));
 }
 const statusLbl=s=>({in_collection:'In Coll.',for_sale:'For Sale',sold:'Sold',donated:'Donated',missing:'Missing'}[s]||s);
-const updateCount=()=>{ document.getElementById('count-badge').textContent=`${inventory.length} tape${inventory.length!==1?'s':''}`; };
+const updateCount=()=>{document.getElementById('count-badge').textContent=`${inventory.length} tape${inventory.length!==1?'s':''}`;};
+
 ['search','f-stat-filter','f-cond-filter','f-label-filter','f-yr-from','f-yr-to','sort-sel']
   .forEach(id=>document.getElementById(id).addEventListener('input',renderInv));
 
-// ── DETAIL MODAL ──────────────────────────────────────────────────────────
-function openDetail(id) {
-  const t=inventory.find(x=>x.id===id); if(!t) return;
+document.getElementById('btn-wall').addEventListener('click',()=>{
+  wallViewOn=!wallViewOn;
+  document.getElementById('btn-wall').classList.toggle('active',wallViewOn);
+  renderInv();
+});
+
+// ── DETAIL MODAL ─────────────────────────────────────────────────────────
+function openDetail(id){
+  const t=inventory.find(x=>x.id===id);if(!t)return;
   selectedId=id;
   document.getElementById('d-heading').textContent=t.title;
-  document.getElementById('d-title').value   = t.title;
-  document.getElementById('d-year').value    = t.year||'';
-  document.getElementById('d-label').value   = t.label||'';
-  document.getElementById('d-format').value  = t.format||'VHS';
-  document.getElementById('d-cond').value    = t.condition||'great';
-  document.getElementById('d-status').value  = t.status||'in_collection';
-  document.getElementById('d-notes').value   = t.condition_notes||'';
-  document.getElementById('d-id').value      = t.id;
-  document.getElementById('d-scanned').value = new Date(t.scanned_at).toLocaleString();
+  document.getElementById('d-title').value=t.title;
+  document.getElementById('d-year').value=t.year||'';
+  document.getElementById('d-label').value=t.label||'';
+  document.getElementById('d-format').value=t.format||'VHS';
+  document.getElementById('d-cond').value=t.condition||'great';
+  document.getElementById('d-status').value=t.status||'in_collection';
+  document.getElementById('d-notes').value=t.condition_notes||'';
+  document.getElementById('d-id').value=t.id;
+  document.getElementById('d-scanned').value=new Date(t.scanned_at).toLocaleString();
   const th=document.getElementById('detail-thumb');
-  if(t.photo_thumbnail){ th.src=t.photo_thumbnail; th.style.display='block'; } else th.style.display='none';
+  if(t.photo_thumbnail){th.src=t.photo_thumbnail;th.style.display='block';}else th.style.display='none';
   document.getElementById('m-detail').style.display='flex';
 }
 document.getElementById('d-cancel').addEventListener('click',()=>document.getElementById('m-detail').style.display='none');
-document.getElementById('d-save').addEventListener('click', async ()=>{
-  const t=inventory.find(x=>x.id===selectedId); if(!t) return;
-  t.title          = document.getElementById('d-title').value.trim()||t.title;
-  t.year           = document.getElementById('d-year').value.trim();
-  t.label          = document.getElementById('d-label').value.trim();
-  t.format         = document.getElementById('d-format').value.trim()||'VHS';
-  t.condition      = document.getElementById('d-cond').value;
-  t.status         = document.getElementById('d-status').value;
-  t.condition_notes= document.getElementById('d-notes').value.trim();
-  await dbPut(t); renderInv();
+document.getElementById('d-save').addEventListener('click',async()=>{
+  const t=inventory.find(x=>x.id===selectedId);if(!t)return;
+  t.title=document.getElementById('d-title').value.trim()||t.title;
+  t.year=document.getElementById('d-year').value.trim();
+  t.label=document.getElementById('d-label').value.trim();
+  t.format=document.getElementById('d-format').value.trim()||'VHS';
+  t.condition=document.getElementById('d-cond').value;
+  t.status=document.getElementById('d-status').value;
+  t.condition_notes=document.getElementById('d-notes').value.trim();
+  await dbPut(t);renderInv();
+  document.getElementById('m-detail').style.display='none';
+});
+document.getElementById('d-delete').addEventListener('click',()=>{
+  const t=inventory.find(x=>x.id===selectedId);if(!t)return;
+  document.getElementById('del-text').textContent=`Delete "${t.title}"? This cannot be undone.`;
+  document.getElementById('m-del-confirm').style.display='flex';
+});
+document.getElementById('del-cancel').addEventListener('click',()=>document.getElementById('m-del-confirm').style.display='none');
+document.getElementById('del-ok').addEventListener('click',async()=>{
+  await dbDel(selectedId);
+  inventory=inventory.filter(x=>x.id!==selectedId);
+  renderInv();updateCount();
+  document.getElementById('m-del-confirm').style.display='none';
   document.getElementById('m-detail').style.display='none';
 });
 
-// ── SETTINGS ──────────────────────────────────────────────────────────────
-document.getElementById('btn-settings').addEventListener('click', ()=>{
-  document.getElementById('s-apikey').value        = apiKey;
-  document.getElementById('s-ollama-url').value    = ollamaUrl;
-  document.getElementById('s-ollama-model').value  = ollamaModel;
-  document.getElementById('s-fast-mode').checked   = fastMode;
-  checkOllama(); // refresh status
+// ── SETTINGS ─────────────────────────────────────────────────────────────
+document.getElementById('btn-settings').addEventListener('click',()=>{
+  document.getElementById('s-apikey').value=apiKey;
+  document.getElementById('s-ollama-url').value=ollamaUrl;
+  document.getElementById('s-ollama-model').value=ollamaModel;
+  document.getElementById('s-fast-mode').checked=fastMode;
+  checkOllama();
   document.getElementById('m-settings').style.display='flex';
 });
 document.getElementById('s-cancel').addEventListener('click',()=>document.getElementById('m-settings').style.display='none');
 document.getElementById('s-save').addEventListener('click',()=>{
-  apiKey      = document.getElementById('s-apikey').value.trim();
-  ollamaUrl   = document.getElementById('s-ollama-url').value.trim() || defaultOllamaUrl();
-  ollamaModel = document.getElementById('s-ollama-model').value;
-  fastMode    = document.getElementById('s-fast-mode').checked;
-  apiKey      ? localStorage.setItem('vhs-apikey',apiKey)           : localStorage.removeItem('vhs-apikey');
-  localStorage.setItem('vhs-ollama-url',   ollamaUrl);
-  localStorage.setItem('vhs-ollama-model', ollamaModel);
-  localStorage.setItem('vhs-fast-mode',    String(fastMode));
+  apiKey=document.getElementById('s-apikey').value.trim();
+  ollamaUrl=document.getElementById('s-ollama-url').value.trim()||defaultOllamaUrl();
+  ollamaModel=document.getElementById('s-ollama-model').value;
+  fastMode=document.getElementById('s-fast-mode').checked;
+  apiKey?localStorage.setItem('vhs-apikey',apiKey):localStorage.removeItem('vhs-apikey');
+  localStorage.setItem('vhs-ollama-url',ollamaUrl);
+  localStorage.setItem('vhs-ollama-model',ollamaModel);
+  localStorage.setItem('vhs-fast-mode',String(fastMode));
   updateAiBadge();
   document.getElementById('m-settings').style.display='none';
 });
 
-// ── EXPORT ────────────────────────────────────────────────────────────────
-document.getElementById('btn-export').addEventListener('click',e=>{ e.stopPropagation(); document.getElementById('exp-dd').classList.toggle('on'); });
+// ── EXPORT ───────────────────────────────────────────────────────────────
+document.getElementById('btn-export').addEventListener('click',e=>{e.stopPropagation();document.getElementById('exp-dd').classList.toggle('on');});
 document.addEventListener('click',()=>document.getElementById('exp-dd').classList.remove('on'));
 document.getElementById('exp-json').addEventListener('click',()=>{
-  const data=inventory.map(({id,title,year,label,format,condition,condition_notes,tags,status,scanned_at})=>
-    ({id,title,year,label,format,condition,condition_notes,tags:tags||[],status,scanned_at}));
+  const data=inventory.map(({id,title,year,label,format,condition,condition_notes,barcode,tags,status,scanned_at})=>({id,title,year,label,format,condition,condition_notes,barcode:barcode||'',tags:tags||[],status,scanned_at}));
   dl(JSON.stringify(data,null,2),'vhs-inventory.json','application/json');
   document.getElementById('exp-dd').classList.remove('on');
 });
 document.getElementById('exp-csv').addEventListener('click',()=>{
-  const cols=['id','title','year','label','format','condition','condition_notes','status','scanned_at'];
+  const cols=['id','title','year','label','format','condition','condition_notes','barcode','status','scanned_at'];
   const csv=[cols.join(','),...inventory.map(t=>cols.map(c=>`"${String(t[c]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
   dl(csv,'vhs-inventory.csv','text/csv');
   document.getElementById('exp-dd').classList.remove('on');
 });
-function dl(content,name,type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); }
+function dl(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
 
-// ── KEYBOARD ──────────────────────────────────────────────────────────────
-document.addEventListener('keydown', e=>{
+// ── KEYBOARD ─────────────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
   const tag=document.activeElement?.tagName;
-  const inInput=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
-  if(e.code==='Space'&&!inInput){ e.preventDefault(); capture(); }
-  if(e.code==='Enter'&&!inInput){
-    e.preventDefault();
-    if(revPanel.classList.contains('on')&&revForm.style.display!=='none') confirmItem();
-  }
+  const inp=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
+  if(e.code==='Space'&&!inp&&!barcodeMode){e.preventDefault();capture();}
   if(e.code==='Escape'){
-    if(document.getElementById('m-detail').style.display!=='none')   { document.getElementById('m-detail').style.display='none';   return; }
-    if(document.getElementById('m-settings').style.display!=='none') { document.getElementById('m-settings').style.display='none'; return; }
-    if(revPanel.classList.contains('on')&&revForm.style.display!=='none') discardItem();
+    if(document.getElementById('m-del-confirm').style.display!=='none'){document.getElementById('m-del-confirm').style.display='none';return;}
+    if(document.getElementById('m-detail').style.display!=='none'){document.getElementById('m-detail').style.display='none';return;}
+    if(document.getElementById('m-settings').style.display!=='none'){document.getElementById('m-settings').style.display='none';return;}
+    if(document.getElementById('m-dup').style.display!=='none'){document.getElementById('m-dup').style.display='none';return;}
   }
 });
 
-// ── UTILS ─────────────────────────────────────────────────────────────────
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-// ── INIT ──────────────────────────────────────────────────────────────────
-async function init() {
+async function init(){
   await openDB();
   inventory=await dbAll();
-  renderInv(); updateCount();
-  // Check Ollama silently on load, update badge when done
+  renderInv();updateCount();
   setAiBadge('loading','⟳ CHECKING');
   checkOllama(true).then(updateAiBadge);
   await initCamera();
   updateCrop();
 }
-
 init().catch(console.error);
 </script>
 </body>
