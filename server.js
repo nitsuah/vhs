@@ -3,10 +3,16 @@ const express = require('express');
 const { Pool } = require('pg');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
+const https = require('https');
+const fs = require('fs');
+const { execSync } = require('child_process');
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '8080', 10);
-const OLLAMA = process.env.OLLAMA_UPSTREAM || 'http://ollama:11434';
+const PORT      = parseInt(process.env.PORT       || '8080', 10);
+const HTTPS_PORT= parseInt(process.env.HTTPS_PORT || '8443', 10);
+const OLLAMA    = process.env.OLLAMA_UPSTREAM || 'http://ollama:11434';
+const HOST_IP   = (process.env.HOST_IP || '').trim();
+const CERT_DIR  = '/app/certs';
 
 app.use(express.json({ limit: '50mb' }));
 
@@ -27,6 +33,38 @@ async function initDb() {
     )
   `);
   console.log('✓ Database ready');
+}
+
+// ── TLS cert generation ───────────────────────────────────────────────────────
+function ensureCerts() {
+  const caKey  = path.join(CERT_DIR, 'ca.key');
+  const caCert = path.join(CERT_DIR, 'ca.crt');
+  const srvKey = path.join(CERT_DIR, 'server.key');
+  const srvCrt = path.join(CERT_DIR, 'server.crt');
+
+  if (fs.existsSync(srvCrt) && fs.existsSync(srvKey) && fs.existsSync(caCert)) {
+    console.log('✓ TLS certs loaded from', CERT_DIR);
+    return;
+  }
+
+  console.log('⟳ Generating self-signed CA + server cert…');
+  fs.mkdirSync(CERT_DIR, { recursive: true });
+
+  // Build SAN list — always include localhost; add HOST_IP if provided
+  const sanParts = ['DNS:localhost', 'IP:127.0.0.1'];
+  if (HOST_IP) sanParts.push(`IP:${HOST_IP}`);
+  const san = sanParts.join(',');
+
+  const extFile = path.join(CERT_DIR, 'ext.cnf');
+  fs.writeFileSync(extFile, `[SAN]\nsubjectAltName=${san}\n`);
+
+  execSync(`openssl genrsa -out "${caKey}" 2048`);
+  execSync(`openssl req -new -x509 -days 3650 -key "${caKey}" -out "${caCert}" -subj "/CN=VHS Scanner Local CA/O=VHS Scanner"`);
+  execSync(`openssl genrsa -out "${srvKey}" 2048`);
+  execSync(`openssl req -new -key "${srvKey}" -out "${CERT_DIR}/server.csr" -subj "/CN=VHS Scanner/O=VHS Scanner"`);
+  execSync(`openssl x509 -req -days 3650 -in "${CERT_DIR}/server.csr" -CA "${caCert}" -CAkey "${caKey}" -CAcreateserial -out "${srvCrt}" -extensions SAN -extfile "${extFile}"`);
+
+  console.log(`✓ TLS certs generated (SAN: ${san})`);
 }
 
 // ── REST API ──────────────────────────────────────────────────────────────────
@@ -75,6 +113,17 @@ app.delete('/api/tapes/:id', async (req, res) => {
   }
 });
 
+// ── CA cert download (Android/iOS trust install) ──────────────────────────────
+// Open http://<host>:8082/ca.crt on your phone → tap Install → trust it
+// Then use https://<host>:8443 for camera access
+app.get('/ca.crt', (_req, res) => {
+  const caCert = path.join(CERT_DIR, 'ca.crt');
+  if (!fs.existsSync(caCert)) return res.status(404).send('Cert not yet generated — restart the container.');
+  res.setHeader('Content-Type', 'application/x-x509-ca-cert');
+  res.setHeader('Content-Disposition', 'attachment; filename="vhs-scanner-ca.crt"');
+  res.sendFile(caCert);
+});
+
 // ── Ollama proxy ──────────────────────────────────────────────────────────────
 app.use(
   '/api/ollama',
@@ -102,6 +151,22 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+ensureCerts();
+
 initDb()
-  .then(() => app.listen(PORT, () => console.log(`✓ VHS Scanner on :${PORT}`)))
+  .then(() => {
+    app.listen(PORT, () => console.log(`✓ VHS Scanner HTTP  on :${PORT}`));
+
+    const tlsOpts = {
+      key:  fs.readFileSync(path.join(CERT_DIR, 'server.key')),
+      cert: fs.readFileSync(path.join(CERT_DIR, 'server.crt')),
+    };
+    https.createServer(tlsOpts, app).listen(HTTPS_PORT, () => {
+      console.log(`✓ VHS Scanner HTTPS on :${HTTPS_PORT}`);
+      if (HOST_IP) {
+        console.log(`  → Install CA : http://${HOST_IP}:${PORT}/ca.crt`);
+        console.log(`  → App (HTTPS): https://${HOST_IP}:${HTTPS_PORT}`);
+      }
+    });
+  })
   .catch(err => { console.error('DB init failed:', err.message); process.exit(1); });
