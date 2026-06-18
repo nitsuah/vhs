@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # start.sh — port-adaptive launcher for VHS Shelf Scanner
 # Skips 3000, 7000, and any port already in use; tries 8080+ by default.
+#
+# GPU mode (native Windows Ollama with AMD DirectML or NVIDIA):
+#   Install Ollama, pull the model, then:
+#   OLLAMA_UPSTREAM=http://host.docker.internal:11434 ./start.sh --profile gpu --scale ollama=0 --scale ollama-pull=0
+#   or simply:  docker compose --profile gpu up web-gpu --build
 set -e
 
 SKIP_PORTS=(3000 7000)

@@ -1,7 +1,12 @@
 # start.ps1 — port-adaptive launcher for VHS Shelf Scanner (PowerShell / Windows)
+#
+# GPU mode (native Windows Ollama with AMD DirectML or NVIDIA):
+#   Install Ollama, run: ollama pull llava:7b
+#   Then: docker compose --profile gpu up web-gpu --build
 param(
-    [string]$Model = $env:OLLAMA_MODEL ?? "llava:7b",
-    [switch]$Detach
+    [string]$Model  = $env:OLLAMA_MODEL ?? "llava:7b",
+    [switch]$Detach,
+    [switch]$Gpu
 )
 
 $SkipPorts = @(3000, 7000)
@@ -34,7 +39,13 @@ Write-Host "  First run: Ollama will download ~4.7 GB for llava:7b" -ForegroundC
 Write-Host "  Subsequent runs: model is cached, starts in seconds."  -ForegroundColor Yellow
 Write-Host ""
 
-$flags = @("up", "--build")
+if ($Gpu) {
+    $env:OLLAMA_UPSTREAM = $env:OLLAMA_UPSTREAM ?? "http://host.docker.internal:11434"
+    Write-Host "  GPU mode : $env:OLLAMA_UPSTREAM" -ForegroundColor Green
+    $flags = @("--profile", "gpu", "up", "web-gpu", "--build")
+} else {
+    $flags = @("up", "--build")
+}
 if ($Detach) { $flags += "-d" }
 
 docker compose @flags

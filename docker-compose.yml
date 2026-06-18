@@ -5,13 +5,24 @@ services:
     ports:
       - "${APP_PORT:-8080}:80"
     environment:
-      # Point at native Windows Ollama (GPU) instead of the Docker sidecar:
-      #   OLLAMA_UPSTREAM=http://host.docker.internal:11434
       - OLLAMA_UPSTREAM=${OLLAMA_UPSTREAM:-http://ollama:11434}
       - NGINX_ENVSUBST_TEMPLATE_VARS=OLLAMA_UPSTREAM
     depends_on:
       ollama:
         condition: service_healthy
+    restart: unless-stopped
+
+  # ── GPU / native-Windows Ollama variant ────────────────────────────────
+  # Run only this service when using native Windows Ollama (DirectML/CUDA):
+  #   OLLAMA_UPSTREAM=http://host.docker.internal:11434 docker compose up web-gpu
+  web-gpu:
+    build: .
+    profiles: [gpu]
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      - OLLAMA_UPSTREAM=${OLLAMA_UPSTREAM:-http://host.docker.internal:11434}
+      - NGINX_ENVSUBST_TEMPLATE_VARS=OLLAMA_UPSTREAM
     restart: unless-stopped
 
   ollama:
@@ -21,7 +32,7 @@ services:
     volumes:
       - ollama_models:/root/.ollama
     environment:
-      - OLLAMA_ORIGINS=*          # allow direct browser access if needed
+      - OLLAMA_ORIGINS=*
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "ollama list > /dev/null 2>&1 || exit 1"]
@@ -29,7 +40,7 @@ services:
       timeout: 5s
       retries: 20
       start_period: 15s
-    # Uncomment if you have an NVIDIA GPU:
+    # Uncomment for NVIDIA GPU:
     # deploy:
     #   resources:
     #     reservations:
@@ -38,8 +49,7 @@ services:
     #           count: all
     #           capabilities: [gpu]
 
-  # One-shot service: pulls the vision model into the shared volume on first run.
-  # Subsequent starts skip this instantly because the model is already cached.
+  # One-shot: pulls the vision model on first run, skips if already cached.
   ollama-pull:
     image: ollama/ollama:latest
     volumes:
