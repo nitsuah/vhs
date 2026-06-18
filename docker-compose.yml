@@ -49,6 +49,17 @@ services:
     #           count: all
     #           capabilities: [gpu]
 
+  # ── HTTPS tunnel (mobile camera access) ───────────────────────────────────
+  # Exposes the app at a random *.trycloudflare.com HTTPS URL.
+  # URL is printed in logs: docker compose logs cloudflared | grep trycloudflare
+  # For a stable URL, replace with a named Cloudflare Tunnel (needs CF account).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://web:8080
+    depends_on:
+      - web
+    restart: unless-stopped
+
   # One-shot: pulls the vision model on first run, skips if already cached.
   ollama-pull:
     image: ollama/ollama:latest
