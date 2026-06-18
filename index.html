@@ -250,6 +250,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     </div>
     <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ Import</button>
     <input type="file" id="import-input" accept=".json" style="display:none">
+    <button class="hbtn" id="btn-fill-data" title="AI fills missing year, label, and value for incomplete tapes">⚡ Fill Data</button>
     <button class="hbtn" id="btn-settings">⚙ Settings</button>
     <button class="hbtn" id="btn-help" title="Keyboard shortcuts (?)">?</button>
   </div>
@@ -479,6 +480,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
           <option value="missing">Missing</option><option value="wanted">Wanted</option>
         </select>
       </div>
+      <div class="dfield"><label>Sold For ($)</label><input id="d-sold-price" type="text" placeholder="actual sale price"></div>
       <div class="dfield full"><label>Notes</label><textarea id="d-notes"></textarea></div>
       <div class="dfield full"><label>Genres / Tags</label><div class="tag-wrap" id="d-tag-chips"></div></div>
       <div class="dfield"><label>ID</label><input id="d-id" type="text" readonly></div>
@@ -1351,7 +1353,8 @@ function getFiltered(){
   const yto=document.getElementById('f-yr-to').value;
   const sort=document.getElementById('sort-sel').value;
   let items=inventory.filter(t=>{
-    if(q&&!t.title.toLowerCase().includes(q))return false;
+    if(q&&![t.title,t.label||'',t.barcode||'',t.condition_notes||''].some(s=>s.toLowerCase().includes(q))
+      &&!(t.tags||[]).some(tag=>tag.toLowerCase().includes(q)))return false;
     if(stat&&t.status!==stat)return false;
     if(cond&&t.condition!==cond)return false;
     if(lbl&&!(t.label||'').toLowerCase().includes(lbl))return false;
@@ -1383,7 +1386,7 @@ function renderInv(){
     wall.innerHTML=items.map(t=>{
       const img=t.photo_thumbnail?`<img class="wall-img" src="${t.photo_thumbnail}" alt="">`:`<div class="wall-ph">📼</div>`;
       const meta=[t.year,t.label].filter(Boolean).join(' · ');
-      const val=(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
+      const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
       return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
     }).join('');
     wall.querySelectorAll('.wall-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
@@ -1395,7 +1398,7 @@ function renderInv(){
   const condColor={'great':'#3dbb3d','good':'#4488ff','fair':'#f0c040','poor':'#e84040'};
   list.innerHTML=items.map(t=>{
     const meta=[t.year,t.label,t.format].filter(Boolean).join(' · ');
-    const val=(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
+    const val=t.sold_price?`<span style="color:var(--text3)">Sold $${esc(t.sold_price)}</span>`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
     const condBit=t.condition&&t.condition!=='great'?`<span style="font-size:9px;font-weight:700;color:${condColor[t.condition]||'var(--text3)'}">${t.condition}</span>`:'';
     const tagBit=(t.tags||[]).slice(0,3).map(tag=>`<span style="font-size:9px;padding:1px 5px;border-radius:10px;background:rgba(68,136,255,.12);color:var(--blue);border:1px solid rgba(68,136,255,.25)">${esc(tag)}</span>`).join(' ');
     const checked=selectedIds.has(t.id);
@@ -1517,6 +1520,7 @@ function openDetail(id){
   document.getElementById('d-value-high').value=t.value_high||'';
   document.getElementById('d-cond').value=t.condition||'great';
   document.getElementById('d-status').value=t.status||'in_collection';
+  document.getElementById('d-sold-price').value=t.sold_price||'';
   document.getElementById('d-notes').value=t.condition_notes||'';
   document.getElementById('d-id').value=t.id;
   document.getElementById('d-scanned').value=new Date(t.scanned_at).toLocaleString();
@@ -1593,6 +1597,7 @@ document.getElementById('d-save').addEventListener('click',async()=>{
   t.value_high=document.getElementById('d-value-high').value.trim();
   t.condition=document.getElementById('d-cond').value;
   t.status=document.getElementById('d-status').value;
+  t.sold_price=document.getElementById('d-sold-price').value.trim();
   t.condition_notes=document.getElementById('d-notes').value.trim();
   // tags are mutated in-place by initTagChips; just ensure the field exists
   if(!t.tags)t.tags=[];
@@ -1615,6 +1620,28 @@ document.getElementById('del-ok').addEventListener('click',async()=>{
 });
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────
+document.getElementById('btn-fill-data').addEventListener('click',async()=>{
+  const targets=inventory.filter(t=>t.title&&(!t.year||(!t.value_low&&!t.value_high)));
+  if(!targets.length){toast('All tapes already have complete data','');return;}
+  const btn=document.getElementById('btn-fill-data');
+  btn.disabled=true;
+  let done=0;
+  for(const t of targets){
+    btn.textContent=`⚡ ${done}/${targets.length}`;
+    const meta=await lookupMetadata(t.title);
+    if(!meta){continue;}
+    let changed=false;
+    if(meta.year&&!t.year){t.year=meta.year;changed=true;}
+    if(meta.label&&!t.label){t.label=meta.label;changed=true;}
+    if(meta.value_low&&!t.value_low){t.value_low=meta.value_low;changed=true;}
+    if(meta.value_high&&!t.value_high){t.value_high=meta.value_high;changed=true;}
+    if(meta.format&&!t.format){t.format=meta.format;changed=true;}
+    if(changed){await dbPut(t);done++;}
+  }
+  btn.disabled=false;btn.textContent='⚡ Fill Data';
+  renderInv();updateCount();
+  toast(`Filled data for ${done} of ${targets.length} tape${targets.length!==1?'s':''}`,done?'ok':'',4000);
+});
 document.getElementById('btn-help').addEventListener('click',()=>document.getElementById('m-help').style.display='flex');
 document.getElementById('help-close').addEventListener('click',()=>document.getElementById('m-help').style.display='none');
 document.getElementById('btn-settings').addEventListener('click',()=>{
