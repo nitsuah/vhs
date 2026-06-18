@@ -123,6 +123,9 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .btn-x{background:var(--bg4);color:var(--text2);border:1px solid var(--border2)}
 .btn-del{background:rgba(232,64,64,.15);color:var(--red);border:1px solid rgba(232,64,64,.3)}
 .btn:hover{filter:brightness(1.12)}
+.btn-lookup{background:var(--bg4);border:1px solid var(--border2);color:var(--blue);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;flex-shrink:0;line-height:1}
+.btn-lookup:hover{border-color:var(--blue);background:rgba(68,136,255,.1)}
+.btn-lookup:disabled{opacity:.4;cursor:not-allowed}
 #rev-err{color:var(--red);font-size:12px;padding:4px 0}
 
 #inv-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -364,7 +367,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     <h2 id="d-heading">Tape Details</h2>
     <img id="detail-thumb" src="" alt="">
     <div class="dgrid">
-      <div class="dfield full"><label>Title</label><input id="d-title" type="text"></div>
+      <div class="dfield full"><label>Title</label><div style="display:flex;gap:6px;align-items:center"><input id="d-title" type="text" style="flex:1"><button class="btn-lookup" id="d-lookup" title="Look up metadata by title">🔍 Lookup</button></div></div>
       <div class="dfield"><label>Year</label><input id="d-year" type="text"></div>
       <div class="dfield"><label>Label</label><input id="d-label" type="text"></div>
       <div class="dfield"><label>Format</label><input id="d-format" type="text"></div>
@@ -840,6 +843,35 @@ async function pingOllama(){
   catch{ollamaAvail=false;updateAiBadge();return false;}
 }
 function parseJson(txt){const m=txt.trim().match(/\[[\s\S]*\]/);if(!m)return[];try{return JSON.parse(m[0]);}catch{return[];}}
+function parseJsonObj(txt){const m=txt.trim().match(/\{[\s\S]*\}/);if(!m)return null;try{return JSON.parse(m[0]);}catch{return null;}}
+
+async function lookupMetadata(title){
+  const prompt=`You are a movie and TV database. For the title: "${title.replace(/"/g,'\\"')}"
+Return ONLY a JSON object with these fields (omit any you are unsure about):
+{"year":"1984","label":"Orion Pictures","format":"VHS"}
+The label should be the original VHS distributor or studio name. Return {} if completely unknown.`;
+  if(apiKey){
+    try{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'},
+        body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:100,messages:[{role:'user',content:prompt}]})
+      });
+      if(res.ok){const d=await res.json();const r=parseJsonObj(d.content?.[0]?.text||'{}');if(r)return r;}
+    }catch(e){console.warn('Lookup (Claude):',e);}
+  }
+  const ok=await pingOllama();
+  if(ok){
+    try{
+      const res=await fetch(`${ollamaUrl}/api/generate`,{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({model:ollamaModel,prompt,stream:false,options:{num_predict:80}})
+      });
+      if(res.ok){const d=await res.json();const r=parseJsonObj(d.response||'{}');if(r)return r;}
+    }catch(e){console.warn('Lookup (Ollama):',e);}
+  }
+  return null;
+}
 
 // ── REVIEW CARDS ─────────────────────────────────────────────────────────
 const revPanel=document.getElementById('review');
@@ -852,7 +884,7 @@ function addCard(data,source=null,thumb=null,expanded=false){
   cards.push({uid:++uidSeq,data:{...data},source,thumb,expanded});
 }
 function showRevPanel(){revPanel.classList.add('on');revErr.style.display='none';}
-function hideRevPanel(){revPanel.classList.remove('on');cards=[];renderCards();}
+function hideRevPanel(){revPanel.classList.remove('on');cards=[];revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';}
 function setRevLoading(on){revLoading.style.display=on?'flex':'none';}
 function setRevMsg(m){const el=document.getElementById('rev-msg');if(el)el.textContent=m;}
 function showRevErr(m){revErr.style.display='block';revErr.textContent=m;revCardsEl.innerHTML='';revBulk.classList.remove('on');}
@@ -860,7 +892,7 @@ function showRevErr(m){revErr.style.display='block';revErr.textContent=m;revCard
 function renderCards(){
   revBulk.classList.toggle('on',cards.length>1);
   document.getElementById('rev-title').textContent=cards.length?`Pending Review (${cards.length})`:'Pending Review';
-  if(!cards.length){revCardsEl.innerHTML='';if(!revPanel.classList.contains('on')||!revErr.style.display||revErr.style.display==='none')hideRevPanel();return;}
+  if(!cards.length){revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';if(!revErr.style.display||revErr.style.display==='none')revPanel.classList.remove('on');return;}
 
   revCardsEl.innerHTML=cards.map((card,idx)=>{
     const title=card.data.title||(card.source==='barcode'?`Barcode: ${card.data.barcode}`:'');
@@ -876,7 +908,7 @@ function renderCards(){
       <div class="card-body">
         ${thumbHtml}
         <div class="rev-grid">
-          <div class="fg full"><label>Title</label><input type="text" class="c-f" data-f="title" data-uid="${card.uid}" value="${esc(card.data.title||'')}" placeholder="Title"></div>
+          <div class="fg full"><label>Title</label><div style="display:flex;gap:6px;align-items:center"><input type="text" class="c-f" data-f="title" data-uid="${card.uid}" value="${esc(card.data.title||'')}" placeholder="Title" style="flex:1"><button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata by title">🔍</button></div></div>
           <div class="fg"><label>Year</label><input type="text" class="c-f" data-f="year" data-uid="${card.uid}" value="${esc(card.data.year||'')}" placeholder="1984"></div>
           <div class="fg"><label>Label / Studio</label><input type="text" class="c-f" data-f="label" data-uid="${card.uid}" value="${esc(card.data.label||'')}" placeholder="Orion"></div>
           <div class="fg"><label>Format</label><input type="text" class="c-f" data-f="format" data-uid="${card.uid}" value="${esc(card.data.format||'VHS')}"></div>
@@ -921,6 +953,23 @@ function renderCards(){
   revCardsEl.querySelectorAll('.c-f').forEach(el=>{
     el.addEventListener('input',()=>syncCard(+el.dataset.uid));
     el.addEventListener('change',()=>syncCard(+el.dataset.uid));
+  });
+  revCardsEl.querySelectorAll('.c-lookup').forEach(btn=>{
+    btn.addEventListener('click',async e=>{
+      e.stopPropagation();
+      const uid=+btn.dataset.uid;
+      syncCard(uid);
+      const card=cards.find(c=>c.uid===uid);if(!card)return;
+      const title=card.data.title.trim();if(!title)return;
+      btn.disabled=true;btn.textContent='…';
+      const meta=await lookupMetadata(title);
+      btn.disabled=false;btn.textContent='🔍';
+      if(!meta)return;
+      if(meta.year)card.data.year=meta.year;
+      if(meta.label)card.data.label=meta.label;
+      if(meta.format)card.data.format=meta.format;
+      renderCards();
+    });
   });
 }
 
@@ -1066,6 +1115,17 @@ function openDetail(id){
   document.getElementById('m-detail').style.display='flex';
 }
 document.getElementById('d-cancel').addEventListener('click',()=>document.getElementById('m-detail').style.display='none');
+document.getElementById('d-lookup').addEventListener('click',async()=>{
+  const title=document.getElementById('d-title').value.trim();if(!title)return;
+  const btn=document.getElementById('d-lookup');
+  btn.disabled=true;btn.textContent='…';
+  const meta=await lookupMetadata(title);
+  btn.disabled=false;btn.textContent='🔍 Lookup';
+  if(!meta)return;
+  if(meta.year)document.getElementById('d-year').value=meta.year;
+  if(meta.label)document.getElementById('d-label').value=meta.label;
+  if(meta.format)document.getElementById('d-format').value=meta.format;
+});
 document.getElementById('d-save').addEventListener('click',async()=>{
   const t=inventory.find(x=>x.id===selectedId);if(!t)return;
   t.title=document.getElementById('d-title').value.trim()||t.title;
