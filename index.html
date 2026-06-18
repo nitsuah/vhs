@@ -1452,12 +1452,46 @@ function toast(msg,type='',ms=3000){
 
 // ── IMPORT ────────────────────────────────────────────────────────────────
 document.getElementById('btn-import').addEventListener('click',()=>document.getElementById('import-input').click());
+document.getElementById('import-input').setAttribute('accept','.json,.csv');
+function parseImportCsv(text){
+  const lines=text.trim().split(/\r?\n/);if(lines.length<2)return[];
+  const headers=lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
+  return lines.slice(1).map(line=>{
+    const vals=[];let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+      else if(c===','&&!inQ){vals.push(cur);cur='';}
+      else cur+=c;
+    }
+    vals.push(cur);
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=vals[i]||'');
+    return {
+      id:obj['id']||obj['ID']||'',title:obj['title']||obj['Title']||'',
+      year:obj['year']||obj['Year']||'',label:obj['label']||obj['Label']||'',
+      format:obj['format']||obj['Format']||'VHS',condition:obj['condition']||obj['Condition']||'great',
+      condition_notes:obj['condition_notes']||obj['Notes']||'',
+      status:(obj['status']||obj['Status']||'in_collection').toLowerCase().replace(/\s+/g,'_'),
+      barcode:obj['barcode']||obj['Barcode']||'',
+      value_low:obj['value_low']||obj['Est. Low ($)']||'',
+      value_high:obj['value_high']||obj['Est. High ($)']||'',
+      tags:[],photos:[],photo_thumbnail:'',
+      scanned_at:obj['scanned_at']||new Date().toISOString(),
+    };
+  }).filter(r=>r.title);
+}
 document.getElementById('import-input').addEventListener('change',async e=>{
   const file=e.target.files[0];if(!file)return;
   try{
     const text=await file.text();
-    const data=JSON.parse(text);
-    if(!Array.isArray(data))throw new Error('Expected a JSON array');
+    let data;
+    if(file.name.endsWith('.csv')){
+      data=parseImportCsv(text);
+    }else{
+      data=JSON.parse(text);
+      if(!Array.isArray(data))throw new Error('Expected a JSON array');
+    }
     const existingIds=new Set(inventory.map(t=>t.id));
     let added=0,skipped=0;
     for(const item of data){
