@@ -251,6 +251,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
         <button id="exp-print">Printable List</button>
       </div>
     </div>
+    <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700">+ Add</button>
     <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ Import</button>
     <input type="file" id="import-input" accept=".json" style="display:none">
     <button class="hbtn" id="btn-fill-data" title="AI fills missing year, label, and value for incomplete tapes">⚡ Fill Data</button>
@@ -375,6 +376,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   <div class="modal" style="max-width:380px">
     <h2>Keyboard Shortcuts</h2>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <tr><td style="padding:5px 0;color:var(--text3);width:90px"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">N</kbd></td><td style="padding:5px 0">Add tape manually (no photo)</td></tr>
       <tr><td style="padding:5px 0;color:var(--text3);width:90px"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Space</kbd></td><td style="padding:5px 0">Stage frame to capture queue</td></tr>
       <tr><td style="padding:5px 0"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Enter</kbd></td><td style="padding:5px 0">Process queue with AI</td></tr>
       <tr><td style="padding:5px 0"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Esc</kbd></td><td style="padding:5px 0">Close modal / review panel / clear selection</td></tr>
@@ -539,6 +541,7 @@ let barcodeRdr  = null;
 let lastCode    = { val:'', t:0 };
 let wallViewOn  = false;
 let selectedId  = null;
+let isNewTape   = false;
 let selectedIds = new Set();
 let cropFrac    = { x:.12, y:.08, w:.76, h:.84 };
 let bcZoom      = 0.7;
@@ -1553,6 +1556,34 @@ function openDetail(id){
   initTagChips(tagWrap,getTags,tags=>{const rec=inventory.find(x=>x.id===selectedId);if(rec)rec.tags=tags;});
   document.getElementById('m-detail').style.display='flex';
 }
+async function openNewTapeModal(){
+  isNewTape=true;
+  selectedId=await nextId();
+  document.getElementById('d-heading').textContent='New Tape';
+  document.getElementById('d-title').value='';
+  document.getElementById('d-year').value='';
+  document.getElementById('d-label').value='';
+  document.getElementById('d-format').value='VHS';
+  document.getElementById('d-barcode').value='';
+  document.getElementById('d-value-low').value='';
+  document.getElementById('d-value-high').value='';
+  document.getElementById('d-cond').value='great';
+  document.getElementById('d-status').value='in_collection';
+  document.getElementById('d-sold-price').value='';
+  document.getElementById('d-notes').value='';
+  document.getElementById('d-id').value=selectedId;
+  document.getElementById('d-scanned').value=new Date().toLocaleString();
+  const th=document.getElementById('detail-thumb');th.style.display='none';
+  document.getElementById('detail-photos').style.display='none';
+  document.getElementById('d-photo-count').textContent='No photos';
+  document.getElementById('d-delete').style.display='none';
+  const newTapeTags=[];
+  const tagWrap=document.getElementById('d-tag-chips');
+  tagWrap.innerHTML=renderTagChips([]);
+  initTagChips(tagWrap,()=>newTapeTags,tags=>{newTapeTags.length=0;tags.forEach(t=>newTapeTags.push(t));});
+  document.getElementById('m-detail').style.display='flex';
+  setTimeout(()=>document.getElementById('d-title').focus(),50);
+}
 function renderDetailPhotos(t){
   const wrap=document.getElementById('detail-photos');
   const count=document.getElementById('d-photo-count');
@@ -1588,7 +1619,11 @@ document.getElementById('d-photo-input').addEventListener('change',async e=>{
   if(t.photo_thumbnail){th.src=t.photo_thumbnail;th.style.display='block';}
   e.target.value='';
 });
-document.getElementById('d-cancel').addEventListener('click',()=>document.getElementById('m-detail').style.display='none');
+document.getElementById('d-cancel').addEventListener('click',()=>{
+  isNewTape=false;
+  document.getElementById('d-delete').style.display='';
+  document.getElementById('m-detail').style.display='none';
+});
 document.getElementById('d-ebay').addEventListener('click',()=>{
   const title=document.getElementById('d-title').value.trim()||document.getElementById('d-heading').textContent;
   const q=encodeURIComponent(title+' VHS');
@@ -1608,8 +1643,34 @@ document.getElementById('d-lookup').addEventListener('click',async()=>{
   if(meta.value_high)document.getElementById('d-value-high').value=meta.value_high;
 });
 document.getElementById('d-save').addEventListener('click',async()=>{
+  const titleVal=document.getElementById('d-title').value.trim();
+  if(isNewTape){
+    if(!titleVal){document.getElementById('d-title').style.borderColor='var(--red)';document.getElementById('d-title').focus();return;}
+    const rec={
+      id:selectedId,title:titleVal,
+      year:document.getElementById('d-year').value.trim(),
+      label:document.getElementById('d-label').value.trim(),
+      format:document.getElementById('d-format').value.trim()||'VHS',
+      barcode:document.getElementById('d-barcode').value.trim(),
+      value_low:document.getElementById('d-value-low').value.trim(),
+      value_high:document.getElementById('d-value-high').value.trim(),
+      condition:document.getElementById('d-cond').value,
+      status:document.getElementById('d-status').value,
+      sold_price:document.getElementById('d-sold-price').value.trim(),
+      condition_notes:document.getElementById('d-notes').value.trim(),
+      tags:[...document.getElementById('d-tag-chips').querySelectorAll('.tag-chip.on')].map(c=>c.dataset.tag),
+      photos:[],photo_thumbnail:'',
+      scanned_at:new Date().toISOString(),
+    };
+    await dbAdd(rec);inventory.push(rec);renderInv();updateCount();
+    toast(`Added: ${rec.title}`,'ok');
+    isNewTape=false;
+    document.getElementById('d-delete').style.display='';
+    document.getElementById('m-detail').style.display='none';
+    return;
+  }
   const t=inventory.find(x=>x.id===selectedId);if(!t)return;
-  t.title=document.getElementById('d-title').value.trim()||t.title;
+  t.title=titleVal||t.title;
   t.year=document.getElementById('d-year').value.trim();
   t.label=document.getElementById('d-label').value.trim();
   t.format=document.getElementById('d-format').value.trim()||'VHS';
@@ -1620,7 +1681,6 @@ document.getElementById('d-save').addEventListener('click',async()=>{
   t.status=document.getElementById('d-status').value;
   t.sold_price=document.getElementById('d-sold-price').value.trim();
   t.condition_notes=document.getElementById('d-notes').value.trim();
-  // tags are mutated in-place by initTagChips; just ensure the field exists
   if(!t.tags)t.tags=[];
   await dbPut(t);renderInv();
   toast(`Saved: ${t.title}`,'ok');
@@ -1663,6 +1723,7 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
   renderInv();updateCount();
   toast(`Filled data for ${done} of ${targets.length} tape${targets.length!==1?'s':''}`,done?'ok':'',4000);
 });
+document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModal);
 document.getElementById('btn-help').addEventListener('click',()=>document.getElementById('m-help').style.display='flex');
 document.getElementById('help-close').addEventListener('click',()=>document.getElementById('m-help').style.display='none');
 document.getElementById('btn-settings').addEventListener('click',()=>{
@@ -1844,11 +1905,12 @@ document.addEventListener('keydown',e=>{
   if(e.code==='Escape'){
     if(document.getElementById('m-del-confirm').style.display!=='none'){document.getElementById('m-del-confirm').style.display='none';return;}
     if(document.getElementById('m-help').style.display!=='none'){document.getElementById('m-help').style.display='none';return;}
-    if(document.getElementById('m-detail').style.display!=='none'){document.getElementById('m-detail').style.display='none';return;}
+    if(document.getElementById('m-detail').style.display!=='none'){isNewTape=false;document.getElementById('d-delete').style.display='';document.getElementById('m-detail').style.display='none';return;}
     if(document.getElementById('m-settings').style.display!=='none'){document.getElementById('m-settings').style.display='none';return;}
     if(document.getElementById('m-dup').style.display!=='none'){document.getElementById('m-dup').style.display='none';return;}
   }
   if(e.key==='?'&&!inp){document.getElementById('m-help').style.display='flex';}
+  if(e.key==='n'&&!inp){openNewTapeModal();}
   if(e.code==='Escape'&&selectedIds.size){selectedIds.clear();renderInv();updateBulkBar();return;}
 });
 
