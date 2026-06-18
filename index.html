@@ -166,6 +166,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .b-sold{background:rgba(100,100,100,.15);color:#777}
 .b-donated{background:rgba(68,136,255,.15);color:#4488ff}
 .b-missing{background:rgba(232,64,64,.15);color:#e84040}
+.b-wanted{background:rgba(153,102,255,.15);color:#9966ff}
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--text3);padding:40px;text-align:center;font-size:13px;line-height:1.6}
 
 #wall-view{flex:1;overflow-y:auto;display:none;padding:10px;gap:10px;flex-wrap:wrap;align-content:flex-start}
@@ -243,6 +244,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
         <button id="exp-json">Export JSON</button>
         <button id="exp-csv">Export CSV</button>
         <button id="exp-sell">For Sale Export</button>
+        <button id="exp-tags">Print Price Tags</button>
         <button id="exp-print">Printable List</button>
       </div>
     </div>
@@ -321,7 +323,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
         <div class="frow">
           <select id="f-stat-filter"><option value="">All statuses</option>
             <option value="in_collection">In Collection</option><option value="for_sale">For Sale</option>
-            <option value="sold">Sold</option><option value="donated">Donated</option><option value="missing">Missing</option>
+            <option value="sold">Sold</option><option value="donated">Donated</option>
+            <option value="missing">Missing</option><option value="wanted">Wanted</option>
           </select>
           <select id="f-cond-filter"><option value="">All conditions</option>
             <option value="great">Great</option><option value="good">Good</option>
@@ -348,7 +351,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
           <option value="">Change status…</option>
           <option value="in_collection">In Collection</option>
           <option value="for_sale">For Sale</option>
-          <option value="sold">Sold</option><option value="donated">Donated</option><option value="missing">Missing</option>
+          <option value="sold">Sold</option><option value="donated">Donated</option>
+          <option value="missing">Missing</option><option value="wanted">Wanted</option>
         </select>
         <button class="ctrl-btn" id="bulk-apply">Apply</button>
         <button class="ctrl-btn" id="bulk-del" style="color:var(--red);border-color:rgba(232,64,64,.3)">Delete</button>
@@ -471,7 +475,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
       <div class="dfield"><label>Status</label>
         <select id="d-status">
           <option value="in_collection">In Collection</option><option value="for_sale">For Sale</option>
-          <option value="sold">Sold</option><option value="donated">Donated</option><option value="missing">Missing</option>
+          <option value="sold">Sold</option><option value="donated">Donated</option>
+          <option value="missing">Missing</option><option value="wanted">Wanted</option>
         </select>
       </div>
       <div class="dfield full"><label>Notes</label><textarea id="d-notes"></textarea></div>
@@ -1219,6 +1224,7 @@ function renderCards(){
               <option value="sold"${card.data.status==='sold'?' selected':''}>Sold</option>
               <option value="donated"${card.data.status==='donated'?' selected':''}>Donated</option>
               <option value="missing"${card.data.status==='missing'?' selected':''}>Missing</option>
+              <option value="wanted"${card.data.status==='wanted'?' selected':''}>Wanted</option>
             </select>
           </div>
           <div class="fg full"><label>Notes</label><textarea class="c-f" data-f="notes" data-uid="${card.uid}" placeholder="Condition notes…">${esc(card.data.notes||'')}</textarea></div>
@@ -1411,7 +1417,7 @@ function renderInv(){
     updateBulkBar();
   }));
 }
-const statusLbl=s=>({in_collection:'In Coll.',for_sale:'For Sale',sold:'Sold',donated:'Donated',missing:'Missing'}[s]||s);
+const statusLbl=s=>({in_collection:'In Coll.',for_sale:'For Sale',sold:'Sold',donated:'Donated',missing:'Missing',wanted:'Wanted'}[s]||s);
 window.quickFilter=function(status,cond){
   if(status!==undefined&&status!==null)document.getElementById('f-stat-filter').value=status;
   if(cond!==undefined&&cond!==null)document.getElementById('f-cond-filter').value=cond;
@@ -1428,7 +1434,7 @@ const updateCount=()=>{
     document.getElementById('count-badge').textContent='0 tapes';
     statsEl.style.display='none';return;
   }
-  const byStat={in_collection:0,for_sale:0,sold:0,donated:0,missing:0};
+  const byStat={in_collection:0,for_sale:0,sold:0,donated:0,missing:0,wanted:0};
   const byCond={great:0,good:0,fair:0,poor:0};
   let totalLo=0,totalHi=0,valCount=0;
   for(const t of inventory){
@@ -1446,6 +1452,7 @@ const updateCount=()=>{
   if(byStat.sold)parts.push(sc(`${byStat.sold} sold`,'sold','var(--text3)'));
   if(byStat.donated)parts.push(sc(`${byStat.donated} donated`,'donated','var(--blue)'));
   if(byStat.missing)parts.push(sc(`${byStat.missing} missing`,'missing','var(--red)'));
+  if(byStat.wanted)parts.push(sc(`${byStat.wanted} wanted`,'wanted','#9966ff'));
   const badCond=byCond.fair+byCond.poor;
   if(badCond)parts.push(`<span class="stat-chip" onclick="quickFilter('','fair')" style="color:var(--yellow)">${badCond} fair/poor</span>`);
   statsEl.style.display=parts.length?'flex':'none';
@@ -1734,6 +1741,26 @@ document.getElementById('exp-sell').addEventListener('click',()=>{
     condMap[t.condition]||''
   ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   dl([cols.map(c=>`"${c}"`).join(','),...rows].join('\n'),'vhs-for-sale.csv','text/csv');
+  document.getElementById('exp-dd').classList.remove('on');
+});
+document.getElementById('exp-tags').addEventListener('click',()=>{
+  const e=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const items=inventory.filter(t=>t.status==='for_sale');
+  if(!items.length){toast('No tapes marked For Sale','err');document.getElementById('exp-dd').classList.remove('on');return;}
+  const tags=items.map(t=>{
+    const price=t.value_low&&t.value_high?`$${t.value_low}–$${t.value_high}`:t.value_low?`$${t.value_low}`:t.value_high?`$${t.value_high}`:'$________';
+    const meta=[t.year,t.label,t.condition].filter(Boolean).join(' · ');
+    return `<div class="tag"><div class="t-title">${e(t.title)}</div>${meta?`<div class="t-meta">${e(meta)}</div>`:''}<div class="t-price">${price}</div><div class="t-id">${e(t.id)}</div></div>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Price Tags</title>
+<style>@page{size:letter;margin:.4in}body{font-family:Arial,sans-serif;margin:0}
+button{margin-bottom:12px;padding:7px 18px;background:#222;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:13px}
+.grid{display:flex;flex-wrap:wrap;gap:8px}.tag{width:2.4in;border:1.5px dashed #aaa;padding:9px 11px;box-sizing:border-box;break-inside:avoid}
+.t-title{font-size:13px;font-weight:700;line-height:1.3;margin-bottom:3px}.t-meta{font-size:10px;color:#666;margin-bottom:6px}
+.t-price{font-size:22px;font-weight:900;color:#111}.t-id{font-size:9px;color:#bbb;margin-top:4px}
+@media print{button{display:none}}</style></head>
+<body><button onclick="window.print()">🖨 Print</button><div class="grid">${tags}</div></body></html>`;
+  const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();}
   document.getElementById('exp-dd').classList.remove('on');
 });
 document.getElementById('exp-print').addEventListener('click',()=>{
