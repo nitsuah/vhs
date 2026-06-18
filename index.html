@@ -152,13 +152,15 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .b-missing{background:rgba(232,64,64,.15);color:#e84040}
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--text3);padding:40px;text-align:center;font-size:13px;line-height:1.6}
 
-#wall-view{flex:1;overflow-y:auto;display:none;padding:10px;gap:8px;flex-wrap:wrap;align-content:flex-start}
+#wall-view{flex:1;overflow-y:auto;display:none;padding:10px;gap:10px;flex-wrap:wrap;align-content:flex-start}
 #wall-view.on{display:flex}
-.wall-card{width:100px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;border-radius:6px;border:1px solid var(--border)}
-.wall-card:hover{background:var(--bg3);border-color:var(--border2)}
-.wall-img{width:90px;height:64px;object-fit:cover;border-radius:4px;background:var(--bg4)}
-.wall-ph{width:90px;height:64px;border-radius:4px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:22px}
-.wall-lbl{font-size:10px;text-align:center;color:var(--text2);line-height:1.3;max-width:90px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.wall-card{width:130px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;padding:7px;border-radius:8px;border:1px solid var(--border);transition:border-color .15s,background .15s}
+.wall-card:hover{background:var(--bg3);border-color:var(--accent2);transform:translateY(-1px)}
+.wall-img{width:116px;height:82px;object-fit:cover;border-radius:5px;background:var(--bg4)}
+.wall-ph{width:116px;height:82px;border-radius:5px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:26px}
+.wall-lbl{font-size:10px;text-align:center;color:var(--text2);line-height:1.3;max-width:116px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-weight:600}
+.wall-meta{font-size:9px;color:var(--text3);text-align:center;max-width:116px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wall-val{font-size:9px;color:var(--green);text-align:center}
 
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:200}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:22px;width:90%;max-width:480px;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
@@ -217,6 +219,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
       </div>
     </div>
     <button class="hbtn" id="btn-settings">⚙ Settings</button>
+    <button class="hbtn" id="btn-help" title="Keyboard shortcuts (?)">?</button>
   </div>
 </header>
 
@@ -306,6 +309,26 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     </div>
   </section>
 </main>
+
+<!-- HELP MODAL -->
+<div class="backdrop" id="m-help" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <h2>Keyboard Shortcuts</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <tr><td style="padding:5px 0;color:var(--text3);width:90px"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Space</kbd></td><td style="padding:5px 0">Stage frame to capture queue</td></tr>
+      <tr><td style="padding:5px 0"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Enter</kbd></td><td style="padding:5px 0">Process queue with AI</td></tr>
+      <tr><td style="padding:5px 0"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Esc</kbd></td><td style="padding:5px 0">Close modal / review panel</td></tr>
+      <tr><td style="padding:5px 0"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">?</kbd></td><td style="padding:5px 0">Show this help</td></tr>
+    </table>
+    <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
+    <p style="font-size:12px;color:var(--text3);line-height:1.6">
+      <strong style="color:var(--text2)">Capture flow:</strong> aim camera → Space to queue frames → Enter to send all to AI → review cards → ✓ Confirm each.<br><br>
+      <strong style="color:var(--text2)">Barcode mode:</strong> toggle with the Barcode button. Tapes are auto-added on scan; UPC lookup runs in the background.<br><br>
+      <strong style="color:var(--text2)">🔍 Lookup:</strong> edit a title and click 🔍 to auto-fill year, label, format, and estimated value.
+    </p>
+    <div class="modal-acts"><button class="btn btn-ok" id="help-close">Got it</button></div>
+  </div>
+</div>
 
 <!-- SETTINGS MODAL -->
 <div class="backdrop" id="m-settings" style="display:none">
@@ -648,8 +671,16 @@ function startBarcodeLoop(){
           if(code!==lastCode.val||now-lastCode.t>3000){
             lastCode={val:code,t:now};
             beep();
-            addCard({title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},'barcode',null,true);
+            const uid=++uidSeq;
+            cards.push({uid,data:{title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
             renderCards();showRevPanel();
+            lookupBarcode(code).then(meta=>{
+              if(!meta)return;
+              const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
+              card.data.title=meta.title;
+              if(meta.label)card.data.label=meta.label;
+              renderCards();
+            });
           }
         }
       }catch{}// NotFoundError = no barcode this frame — expected, not an error
@@ -887,6 +918,19 @@ Return {} if completely unknown.`;
   return null;
 }
 
+async function lookupBarcode(code){
+  try{
+    const res=await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`,
+      {signal:AbortSignal.timeout(4000)});
+    if(!res.ok)return null;
+    const d=await res.json();
+    const item=d.items?.[0];if(!item)return null;
+    const title=item.title||item.description||'';
+    if(!title.trim())return null;
+    return {title:title.trim(),label:item.brand||''};
+  }catch{return null;}
+}
+
 // ── REVIEW CARDS ─────────────────────────────────────────────────────────
 const revPanel=document.getElementById('review');
 const revLoading=document.getElementById('rev-loading');
@@ -1085,7 +1129,9 @@ function renderInv(){
     if(!items.length){wall.innerHTML='<div class="empty">No tapes match.</div>';return;}
     wall.innerHTML=items.map(t=>{
       const img=t.photo_thumbnail?`<img class="wall-img" src="${t.photo_thumbnail}" alt="">`:`<div class="wall-ph">📼</div>`;
-      return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div></div>`;
+      const meta=[t.year,t.label].filter(Boolean).join(' · ');
+      const val=(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
+      return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
     }).join('');
     wall.querySelectorAll('.wall-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
     return;
@@ -1232,6 +1278,8 @@ document.getElementById('del-ok').addEventListener('click',async()=>{
 });
 
 // ── SETTINGS ─────────────────────────────────────────────────────────────
+document.getElementById('btn-help').addEventListener('click',()=>document.getElementById('m-help').style.display='flex');
+document.getElementById('help-close').addEventListener('click',()=>document.getElementById('m-help').style.display='none');
 document.getElementById('btn-settings').addEventListener('click',()=>{
   document.getElementById('s-apikey').value=apiKey;
   document.getElementById('s-ollama-url').value=ollamaUrl;
@@ -1291,10 +1339,12 @@ document.addEventListener('keydown',e=>{
   if(e.code==='Enter'&&!inp&&!barcodeMode&&captureQueue.length){e.preventDefault();processQueue();}
   if(e.code==='Escape'){
     if(document.getElementById('m-del-confirm').style.display!=='none'){document.getElementById('m-del-confirm').style.display='none';return;}
+    if(document.getElementById('m-help').style.display!=='none'){document.getElementById('m-help').style.display='none';return;}
     if(document.getElementById('m-detail').style.display!=='none'){document.getElementById('m-detail').style.display='none';return;}
     if(document.getElementById('m-settings').style.display!=='none'){document.getElementById('m-settings').style.display='none';return;}
     if(document.getElementById('m-dup').style.display!=='none'){document.getElementById('m-dup').style.display='none';return;}
   }
+  if(e.key==='?'&&!inp){document.getElementById('m-help').style.display='flex';}
 });
 
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
