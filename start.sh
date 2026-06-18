@@ -8,7 +8,6 @@
 #   or simply:  docker compose --profile gpu up web-gpu --build
 set -e
 
-SKIP_PORTS=(3000 7000)
 MODEL="${OLLAMA_MODEL:-llava:7b}"
 
 find_port() {
