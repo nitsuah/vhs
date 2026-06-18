@@ -666,12 +666,25 @@ function hideNoCam(){
   document.getElementById('crop').style.display='';
 }
 
+const btnEnableCam=document.getElementById('btn-enable-cam');
+
+function camApiBlocked(){
+  // getUserMedia requires HTTPS (or localhost) — HTTP on LAN won't work
+  return location.protocol!=='https:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1';
+}
+
 async function initCamera(){
-  if(!navigator.mediaDevices?.getUserMedia){
-    showNoCam('Camera API not supported in this browser.');return;
+  if(camApiBlocked()){
+    showNoCam('Camera requires HTTPS.\nOpen this app via https:// or from localhost.');
+    return;
   }
+  if(!navigator.mediaDevices?.getUserMedia){
+    showNoCam('Camera not available in this browser.\nTry Chrome or Safari over HTTPS.');
+    return;
+  }
+  btnEnableCam.disabled=true;
+  btnEnableCam.textContent='Requesting…';
   try{
-    // Probe with rear-camera preference on mobile
     const probe=await navigator.mediaDevices.getUserMedia({
       video: isMobile ? {facingMode:{ideal:'environment'}} : true
     });
@@ -679,17 +692,23 @@ async function initCamera(){
     const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
     camSel.innerHTML=devs.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
     if(devs.length>1)camSel.style.display='';
-    // On mobile default to last camera (usually rear)
     const defaultDev=isMobile?(devs[devs.length-1]?.deviceId):devs[0]?.deviceId;
     await startStream(defaultDev);
   }catch(e){
-    console.warn('Camera:',e.message);
-    if(e.name==='NotAllowedError'||e.name==='PermissionDeniedError')
-      showNoCam('Camera permission denied.\nAllow access in browser settings and tap Enable.');
-    else if(e.name==='NotFoundError')
+    console.warn('Camera:',e.name,e.message);
+    if(e.name==='NotAllowedError'||e.name==='PermissionDeniedError'){
+      const hint=isMobile
+        ?'Tap the lock/info icon in your browser address bar to allow camera, then tap Enable again.'
+        :'Allow camera access in your browser and click Enable again.';
+      showNoCam('Camera permission denied.\n'+hint);
+    }else if(e.name==='NotFoundError'){
       showNoCam('No camera found on this device.');
-    else
+    }else{
       showNoCam('Could not start camera: '+e.message);
+    }
+  }finally{
+    btnEnableCam.disabled=false;
+    btnEnableCam.textContent='📷 Enable Camera';
   }
 }
 async function startStream(deviceId){
@@ -709,11 +728,11 @@ async function startStream(deviceId){
     updateCrop();
     if(barcodeMode&&barcodeRdr)startBarcodeLoop();
   }catch(e){
-    showNoCam(e.name==='NotAllowedError'?'Camera permission denied.\nTap Enable to retry.':'Could not start camera.');
+    showNoCam(e.name==='NotAllowedError'?'Camera permission denied.\nTap Enable to retry.':'Could not start camera: '+e.message);
   }
 }
 camSel.addEventListener('change',()=>startStream(camSel.value));
-document.getElementById('btn-enable-cam').addEventListener('click',()=>initCamera());
+btnEnableCam.addEventListener('click',()=>initCamera());
 
 // ── CROP BOX ─────────────────────────────────────────────────────────────
 const vidWrap=document.getElementById('vid-wrap');
