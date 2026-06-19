@@ -139,6 +139,17 @@ app.get('/api/jobs/ready', async (_req, res) => {
   }
 });
 
+app.get('/api/jobs/status', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT status, COUNT(*) as count FROM upload_jobs GROUP BY status`);
+    const counts = { pending: 0, processing: 0, done: 0, failed: 0 };
+    rows.forEach(r => { counts[r.status] = parseInt(r.count, 10); });
+    res.json(counts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/jobs/:id', async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -147,17 +158,6 @@ app.get('/api/jobs/:id', async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'not found' });
     res.json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/jobs/status', async (_req, res) => {
-  try {
-    const { rows } = await pool.query(`SELECT status, COUNT(*) as count FROM upload_jobs GROUP BY status`);
-    const counts = { pending: 0, processing: 0, done: 0, failed: 0 };
-    rows.forEach(r => { counts[r.status] = parseInt(r.count, 10); });
-    res.json(counts);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -346,31 +346,34 @@ const indexHtml = path.join(__dirname, 'index.html');
 app.get('*', (_req, res) => res.sendFile(indexHtml));
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-if (!process.env.DATABASE_URL) {
-  console.error('ERROR: DATABASE_URL is not set. Copy .env.example to .env and add your Neon connection string.');
-  process.exit(1);
+if (require.main === module) {
+  if (!process.env.DATABASE_URL) {
+    console.error('ERROR: DATABASE_URL is not set. Copy .env.example to .env and add your Neon connection string.');
+    process.exit(1);
+  }
+
+  ensureCerts();
+
+  initDb()
+    .then(() => {
+      setInterval(processJobs, 5000);
+      processJobs();
+
+      app.listen(PORT, () => console.log(`✓ VHS Scanner HTTP  on :${PORT}`));
+
+      const tlsOpts = {
+        key:  fs.readFileSync(path.join(CERT_DIR, 'server.key')),
+        cert: fs.readFileSync(path.join(CERT_DIR, 'server.crt')),
+      };
+      https.createServer(tlsOpts, app).listen(HTTPS_PORT, () => {
+        console.log(`✓ VHS Scanner HTTPS on :${HTTPS_PORT}`);
+        if (HOST_IP) {
+          console.log(`  → Install CA : http://${HOST_IP}:${PORT}/ca.crt`);
+          console.log(`  → App (HTTPS): https://${HOST_IP}:${HTTPS_PORT}`);
+        }
+      });
+    })
+    .catch(err => { console.error('DB init failed:', err.message); process.exit(1); });
 }
 
-ensureCerts();
-
-initDb()
-  .then(() => {
-    // Start job worker — runs every 5s
-    setInterval(processJobs, 5000);
-    processJobs(); // immediate first pass
-
-    app.listen(PORT, () => console.log(`✓ VHS Scanner HTTP  on :${PORT}`));
-
-    const tlsOpts = {
-      key:  fs.readFileSync(path.join(CERT_DIR, 'server.key')),
-      cert: fs.readFileSync(path.join(CERT_DIR, 'server.crt')),
-    };
-    https.createServer(tlsOpts, app).listen(HTTPS_PORT, () => {
-      console.log(`✓ VHS Scanner HTTPS on :${HTTPS_PORT}`);
-      if (HOST_IP) {
-        console.log(`  → Install CA : http://${HOST_IP}:${PORT}/ca.crt`);
-        console.log(`  → App (HTTPS): https://${HOST_IP}:${HTTPS_PORT}`);
-      }
-    });
-  })
-  .catch(err => { console.error('DB init failed:', err.message); process.exit(1); });
+module.exports = { app, pool };
