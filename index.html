@@ -1424,9 +1424,14 @@ async function pollReadyJobs(){
     showRevPanel();
     let added=0;
     for(const job of jobs){
-      if(seenJobIds.has(job.id))continue; // already showing this job's cards
+      if(seenJobIds.has(job.id))continue;
       seenJobIds.add(job.id);
       const results=Array.isArray(job.result)?job.result:[];
+      if(!results.length){
+        // Nothing found — auto-delete so it doesn't accumulate
+        fetch(`/api/jobs/${encodeURIComponent(job.id)}`,{method:'DELETE'}).catch(()=>{});
+        continue;
+      }
       const wasEmpty=!cards.length&&added===0;
       results.forEach((d,j)=>addCard({...d,condition:'great',status:'in_collection',notes:''},null,job.thumb,wasEmpty&&j===0,job.id));
       added+=results.length;
