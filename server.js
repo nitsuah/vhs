@@ -35,16 +35,19 @@ async function initDb() {
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS upload_jobs (
-      id         TEXT PRIMARY KEY,
-      image_data TEXT NOT NULL,
-      thumb      TEXT,
-      status     TEXT NOT NULL DEFAULT 'pending',
-      result     JSONB,
-      error      TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      id          TEXT PRIMARY KEY,
+      image_data  TEXT NOT NULL,
+      thumb       TEXT,
+      status      TEXT NOT NULL DEFAULT 'pending',
+      result      JSONB,
+      error       TEXT,
+      retry_count INT NOT NULL DEFAULT 0,
+      created_at  TEXT NOT NULL,
+      updated_at  TEXT NOT NULL
     )
   `);
+  // Non-destructive migration: add retry_count if table already existed without it
+  await pool.query(`ALTER TABLE upload_jobs ADD COLUMN IF NOT EXISTS retry_count INT NOT NULL DEFAULT 0`).catch(() => {});
   console.log('✓ Database ready');
 }
 
@@ -136,6 +139,41 @@ app.get('/api/jobs/ready', async (_req, res) => {
   }
 });
 
+app.get('/api/jobs/status', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT status, COUNT(*) as count FROM upload_jobs GROUP BY status`);
+    const counts = { pending: 0, processing: 0, done: 0, failed: 0 };
+    rows.forEach(r => { counts[r.status] = parseInt(r.count, 10); });
+    res.json(counts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/lookup', async (req, res) => {
+  const title = (req.query.title || '').trim();
+  if (!title) return res.status(400).json({ error: 'title required' });
+  const prompt = `You are a VHS collectibles expert. For the title: "${title.replace(/"/g, '\\"')}"
+Return ONLY a JSON object — no other text:
+{"year":"1984","label":"Orion Pictures","format":"VHS","value_low":"8","value_high":"25"}
+Rules: year=4-digit release year, label=VHS distributor/studio, value_low/value_high=USD resale range in good condition.
+Omit fields you are unsure about. Return {} if completely unknown.`;
+  try {
+    const r = await fetch(`${OLLAMA}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: OLLAMA_MODEL, prompt, stream: false, options: { num_predict: 200 } }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!r.ok) return res.status(502).json({ error: `Ollama ${r.status}` });
+    const data = await r.json();
+    const m = (data.response || '').match(/\{[\s\S]*?\}/);
+    try { res.json(m ? JSON.parse(m[0]) : {}); } catch { res.json({}); }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/jobs/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
@@ -145,19 +183,33 @@ app.delete('/api/jobs/:id', async (req, res) => {
   }
 });
 
-// Background worker — picks pending jobs, calls Ollama, saves results
+// Background worker — picks pending jobs, calls Ollama, saves results; retries failures up to 3×
+const MAX_RETRIES = 3;
 let workerBusy = false;
 async function processJobs() {
   if (workerBusy) return;
   workerBusy = true;
   try {
+    const now = new Date().toISOString();
+    // Reset jobs stuck in 'processing' for >10 min (server restart or crash)
+    const stuckCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    await pool.query(
+      "UPDATE upload_jobs SET status='pending', updated_at=$1 WHERE status='processing' AND updated_at<$2",
+      [now, stuckCutoff]
+    );
+    // Re-queue failed jobs with retries remaining (wait at least 60s between attempts)
+    const retryCutoff = new Date(Date.now() - 60 * 1000).toISOString();
+    await pool.query(
+      "UPDATE upload_jobs SET status='pending', updated_at=$1 WHERE status='failed' AND retry_count<$2 AND updated_at<$3",
+      [now, MAX_RETRIES, retryCutoff]
+    );
+
     const { rows } = await pool.query(
       "SELECT id, image_data, thumb FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
     );
     if (!rows.length) return;
     const job = rows[0];
-    const now = new Date().toISOString();
-    await pool.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [now, job.id]);
+    await pool.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [new Date().toISOString(), job.id]);
     try {
       const result = await callOllamaServer(job.image_data);
       await pool.query(
@@ -167,10 +219,10 @@ async function processJobs() {
       console.log(`✓ Job ${job.id}: ${result.length} tape(s) found`);
     } catch (err) {
       await pool.query(
-        "UPDATE upload_jobs SET status='failed', error=$1, updated_at=$2 WHERE id=$3",
+        "UPDATE upload_jobs SET status='failed', error=$1, updated_at=$2, retry_count=retry_count+1 WHERE id=$3",
         [err.message, new Date().toISOString(), job.id]
       );
-      console.warn(`✗ Job ${job.id} failed:`, err.message);
+      console.warn(`✗ Job ${job.id} failed (will retry):`, err.message);
     }
   } catch (err) {
     console.warn('Worker error:', err.message);

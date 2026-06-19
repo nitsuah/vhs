@@ -237,27 +237,64 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 #db-dot.ok{background:var(--green)}
 #db-dot.err{background:var(--red);cursor:pointer;box-shadow:0 0 4px var(--red)}
 @keyframes toastin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes card-confirm-out{0%{opacity:1;transform:translateY(0)}20%{background:rgba(61,187,61,.18)}100%{opacity:0;transform:translateY(-8px)}}
+.rev-card.confirming{animation:card-confirm-out .28s ease-out forwards;pointer-events:none}
+@keyframes row-flash-in{0%{background:rgba(61,187,61,.28);outline:2px solid rgba(61,187,61,.5)}80%{background:rgba(61,187,61,.06)}100%{background:transparent;outline:none}}
+.tape-row.just-added{animation:row-flash-in 1.5s ease-out}
 
 /* ── NO-CAM permission UI ───────────────────────────────────────── */
 #btn-enable-cam{background:var(--accent);color:#fff;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;margin-top:4px}
 #btn-enable-cam:hover{background:var(--accent2)}
 
+/* ── CROP PRESETS ────────────────────────────────────────────────── */
+#crop-presets{display:flex;gap:3px;align-items:center;margin-left:4px}
+.preset-btn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);border-radius:5px;padding:5px 8px;cursor:pointer;font-size:11px;line-height:1;white-space:nowrap}
+.preset-btn:hover{border-color:var(--accent);color:var(--accent)}
+.preset-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(90,80,255,.12)}
+
+/* ── QUEUE STATUS ────────────────────────────────────────────────── */
+#queue-status{padding:5px 12px;font-size:11px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);background:var(--bg2)}
+.qs-badge{padding:2px 7px;border-radius:10px;font-weight:700;font-size:10px}
+.qs-pending{background:rgba(240,192,64,.15);color:var(--yellow);border:1px solid rgba(240,192,64,.3)}
+.qs-proc{background:rgba(153,102,255,.15);color:var(--purple);border:1px solid rgba(153,102,255,.3)}
+.qs-failed{background:rgba(232,64,64,.15);color:var(--red);border:1px solid rgba(232,64,64,.3)}
+
+/* ── MOBILE HAMBURGER ────────────────────────────────────────────── */
+.hdr-right-mob{display:none;align-items:center;gap:8px;margin-left:auto}
+#btn-menu{background:var(--bg4);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:16px;line-height:1}
+#btn-cam-flip{background:var(--bg4);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:14px;line-height:1;font-weight:700}
+#hbr-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199}
+#hbr-drawer{display:none;position:fixed;top:0;right:0;bottom:0;width:240px;background:var(--bg2);border-left:1px solid var(--border);z-index:200;flex-direction:column;padding:16px 12px;gap:6px;overflow-y:auto}
+#hbr-drawer.open,#hbr-backdrop.open{display:flex}
+.hbr-section{display:flex;flex-direction:column;gap:6px;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.hbr-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:2px 0}
+#hbr-drawer .hbtn{width:100%;text-align:left;padding:8px 10px;font-size:13px}
+#hbr-drawer .exp-dd{position:static;margin-top:2px;display:none;flex-direction:column}
+#hbr-drawer .exp-dd.open{display:flex}
+#hbr-drawer .exp-dd button{width:100%;text-align:left;padding:7px 12px;font-size:12px}
+
+/* ── SEARCH / FILTER BAR ─────────────────────────────────────────── */
+#inv-ctrl-bar{display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--bg2)}
+#inv-ctrl-bar input{flex:1;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;min-width:0}
+#btn-filter-tray{flex-shrink:0;font-size:11px;padding:6px 10px;display:none}
+#inv-ctrl.tray-hidden{display:none}
+
 /* ── RESPONSIVE ─────────────────────────────────────────────────── */
 @media (max-width:700px){
   body{overflow:auto;height:auto;min-height:100dvh}
   #main{flex-direction:column;overflow:visible;height:auto}
-  #header{height:auto;flex-wrap:wrap;padding:8px 10px;gap:6px}
-  #header h1{font-size:14px}
-  #ai-badge{font-size:9px;padding:2px 6px}
-  #camera-select{max-width:130px;font-size:11px}
-  .hdr-right{width:100%;overflow-x:auto;padding-bottom:2px;gap:5px}
-  .hdr-right::-webkit-scrollbar{height:0}
-  .hbtn{padding:4px 8px;font-size:11px}
-  #count-badge{font-size:11px}
+  #header{height:auto;flex-wrap:nowrap;padding:8px 10px;gap:6px}
+  #header h1{font-size:14px;white-space:nowrap}
+  #ai-badge{font-size:9px;padding:2px 6px;white-space:nowrap}
+  #hdr-right-desktop{display:none}
+  .hdr-right-mob{display:flex}
+  #btn-filter-tray{display:flex}
+  #inv-ctrl{display:none}
+  #inv-ctrl.tray-open{display:block;position:fixed;bottom:0;left:0;right:0;z-index:150;background:var(--bg2);border-top:2px solid var(--accent);border-radius:16px 16px 0 0;padding:12px;max-height:60vh;overflow-y:auto;box-shadow:0 -8px 32px rgba(0,0,0,.5)}
   #cam-panel{flex:0 0 auto;height:280px;border-right:none;border-bottom:1px solid var(--border)}
-  #cam-ctrl{padding:7px 10px;gap:5px}
-  #btn-cap{padding:10px 16px;font-size:13px}
-  .ctrl-btn{padding:8px 10px;font-size:11px}
+  #cam-ctrl{padding:7px 10px;gap:5px;flex-wrap:nowrap}
+  #btn-cap{padding:10px 14px;font-size:12px}
+  .ctrl-btn{padding:7px 9px;font-size:11px}
   .key-hint{display:none}
   #thumb-wrap{display:none!important}
   #right{flex:1;min-height:0}
@@ -272,6 +309,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   .dfield.full{grid-column:1}
   .rev-grid{grid-template-columns:1fr}
   .rev-grid .full{grid-column:1}
+  #crop-presets{display:none}
 }
 @media (max-width:700px) and (orientation:landscape){
   #cam-panel{height:160px}
@@ -284,7 +322,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   <h1>VHS <span>Shelf Scanner</span></h1>
   <span id="ai-badge" class="loading">⟳ CHECKING</span>
   <select id="camera-select" style="display:none"></select>
-  <div class="hdr-right">
+  <div class="hdr-right" id="hdr-right-desktop">
     <span id="count-badge">0 tapes</span><span id="db-dot" title="Connecting to database…"></span>
     <div class="exp-wrap">
       <button class="hbtn" id="btn-export">↓ Export</button>
@@ -303,7 +341,38 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     <button class="hbtn" id="btn-settings">⚙ Settings</button>
     <button class="hbtn" id="btn-help" title="Keyboard shortcuts (?)">?</button>
   </div>
+  <!-- Mobile-only right side -->
+  <div class="hdr-right-mob" id="hdr-right-mob">
+    <span id="count-badge-mob" style="font-size:11px;color:var(--text2)"></span>
+    <span id="db-dot-mob"></span>
+    <button id="btn-cam-flip" title="Flip camera" style="display:none">⇅</button>
+    <button id="btn-menu">☰</button>
+  </div>
 </header>
+<!-- Mobile hamburger drawer -->
+<div id="hbr-backdrop" onclick="closeDrawer()"></div>
+<div id="hbr-drawer">
+  <div class="hbr-section">
+    <span class="hbr-label">Collection</span>
+    <button class="hbtn" id="btn-add-tape-mob" style="font-weight:700">+ Add Tape</button>
+    <button class="hbtn" id="btn-import-mob">↑ Import</button>
+    <div class="exp-wrap">
+      <button class="hbtn" id="btn-export-mob">↓ Export ▸</button>
+      <div class="exp-dd exp-dd-mob" id="exp-dd-mob">
+        <button id="exp-json-mob">Export JSON</button>
+        <button id="exp-csv-mob">Export CSV</button>
+        <button id="exp-sell-mob">For Sale Export</button>
+        <button id="exp-print-mob">Printable List</button>
+      </div>
+    </div>
+    <button class="hbtn" id="btn-fill-data-mob">⚡ Fill Data</button>
+  </div>
+  <div class="hbr-section">
+    <span class="hbr-label">App</span>
+    <button class="hbtn" id="btn-settings-mob">⚙ Settings</button>
+    <button class="hbtn" id="btn-help-mob">? Help</button>
+  </div>
+</div>
 
 <main id="main">
   <section id="cam-panel">
@@ -338,10 +407,16 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     <div id="cam-ctrl">
       <button id="btn-cap">⬤ Stage</button>
       <button class="ctrl-btn" id="btn-barcode">⬡ Barcode</button>
-      <button class="ctrl-btn" id="btn-torch" style="display:none">🔦 Torch</button>
+      <button class="ctrl-btn" id="btn-torch" style="display:none">🔦</button>
       <button class="ctrl-btn" id="btn-snap" style="display:none">📷 Snap</button>
       <button class="ctrl-btn" id="btn-upload">⬆ Upload</button>
       <input type="file" id="file-input" accept="image/*" multiple>
+      <div id="crop-presets">
+        <button class="preset-btn active" data-preset="default" title="Default crop">▣</button>
+        <button class="preset-btn" data-preset="cover" title="VHS cover (portrait)">▯</button>
+        <button class="preset-btn" data-preset="spine" title="Single spine">▮</button>
+        <button class="preset-btn" data-preset="multispine" title="Multi-spine (3-4 tapes)">⬜▮▮▮</button>
+      </div>
       <span class="key-hint">Space to stage · Enter to analyze</span>
       <span id="upload-prog"></span>
       <div id="thumb-wrap">
@@ -349,6 +424,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
         <img id="thumb-img" src="" alt="">
       </div>
     </div>
+    <div id="queue-status" style="display:none"></div>
     <div id="queue-strip"></div>
   </section>
 
@@ -369,8 +445,11 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     </div>
 
     <div id="inv-panel">
+      <div id="inv-ctrl-bar">
+        <input id="search" type="text" placeholder="🔍 Search titles…" style="flex:1">
+        <button id="btn-filter-tray" class="ctrl-btn" title="Filters &amp; Sort">⚙ Filter</button>
+      </div>
       <div id="inv-ctrl">
-        <input id="search" type="text" placeholder="Search titles…">
         <div class="frow">
           <select id="f-stat-filter"><option value="">All statuses</option>
             <option value="in_collection">In Collection</option><option value="for_sale">For Sale</option>
@@ -694,11 +773,10 @@ async function initCamera(){
       video: isMobile ? {facingMode:{ideal:'environment'}} : true
     });
     probe.getTracks().forEach(t=>t.stop());
-    const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
-    camSel.innerHTML=devs.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
-    if(devs.length>1)camSel.style.display='';
-    const defaultDev=isMobile?(devs[devs.length-1]?.deviceId):devs[0]?.deviceId;
+    await populateCameras();
+    const defaultDev=isMobile?(cameraDevices[cameraDevices.length-1]?.deviceId):cameraDevices[0]?.deviceId;
     await startStream(defaultDev);
+    checkTorch();
   }catch(e){
     console.warn('Camera:',e.name,e.message);
     if(e.name==='NotAllowedError'||e.name==='PermissionDeniedError'){
@@ -729,6 +807,7 @@ async function startStream(deviceId){
     await video.play();
     hideNoCam();
     updateCrop();
+    if(!barcodeMode)checkTorch();
     if(barcodeMode&&barcodeRdr)startBarcodeLoop();
   }catch(e){
     showNoCam(e.name==='NotAllowedError'?'Camera permission denied.\nTap Enable to retry.':'Could not start camera: '+e.message);
@@ -834,11 +913,7 @@ async function toggleBarcodeMode(){
     barcodeOverlay.classList.add('on');cropEl.style.display='none';btnCap.disabled=true;
     btnSnap.style.display='';
     await startBarcodeStream();
-    // Show torch button only if the track supports it
-    try{
-      const track=video.srcObject?.getVideoTracks()[0];
-      if(track?.getCapabilities?.()?.torch)btnTorch.style.display='';
-    }catch{}
+    checkTorch();
     startBarcodeLoop();
   }
 }
@@ -1219,6 +1294,7 @@ async function processQueue(){
 
 // Poll server for completed analysis jobs every 5s
 let jobPollTimer=null;
+let seenJobIds=new Set();
 async function pollReadyJobs(){
   try{
     const jobs=await fetch('/api/jobs/ready').then(r=>r.json());
@@ -1229,20 +1305,22 @@ async function pollReadyJobs(){
     showRevPanel();
     let added=0;
     for(const job of jobs){
+      if(seenJobIds.has(job.id))continue; // already showing this job's cards
+      seenJobIds.add(job.id);
       const results=Array.isArray(job.result)?job.result:[];
       const wasEmpty=!cards.length&&added===0;
-      results.forEach((d,j)=>addCard({...d,condition:'great',status:'in_collection',notes:''},null,job.thumb,wasEmpty&&j===0));
+      results.forEach((d,j)=>addCard({...d,condition:'great',status:'in_collection',notes:''},null,job.thumb,wasEmpty&&j===0,job.id));
       added+=results.length;
-      // claim the job so it doesn't reappear
-      fetch(`/api/jobs/${encodeURIComponent(job.id)}`,{method:'DELETE'}).catch(()=>{});
+      // job stays in DB as 'done' until user confirms or discards the card
     }
     if(added){renderCards();setRevLoading(false);toast(`${added} tape${added>1?'s':''} ready for review`,'ok');}
   }catch(e){console.warn('Job poll error:',e);}
 }
 function startJobPoller(){
   if(jobPollTimer)return;
-  jobPollTimer=setInterval(pollReadyJobs,5000);
-  pollReadyJobs(); // immediate check on load (picks up results from previous sessions)
+  jobPollTimer=setInterval(()=>{pollReadyJobs();updateQueueStatus();},5000);
+  pollReadyJobs();
+  updateQueueStatus();
 }
 
 // ── AI DISPATCH ──────────────────────────────────────────────────────────
@@ -1324,16 +1402,10 @@ Return {} if completely unknown.`;
       if(res.ok){const d=await res.json();const r=parseJsonObj(d.content?.[0]?.text||'{}');if(r)return r;}
     }catch(e){console.warn('Lookup (Claude):',e);}
   }
-  const ok=await pingOllama();
-  if(ok){
-    try{
-      const res=await fetch(`${ollamaUrl}/api/generate`,{
-        method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({model:ollamaModel,prompt,stream:false,options:{num_predict:80}})
-      });
-      if(res.ok){const d=await res.json();const r=parseJsonObj(d.response||'{}');if(r)return r;}
-    }catch(e){console.warn('Lookup (Ollama):',e);}
-  }
+  try{
+    const r=await fetch(`/api/lookup?title=${encodeURIComponent(title)}`,{signal:AbortSignal.timeout(35000)});
+    if(r.ok){const d=await r.json();if(d&&!d.error&&Object.keys(d).length)return d;}
+  }catch(e){console.warn('Lookup (server):',e);}
   return null;
 }
 
@@ -1393,11 +1465,16 @@ const revCardsEl=document.getElementById('rev-cards');
 const revErr=document.getElementById('rev-err');
 const revBulk=document.getElementById('rev-bulk');
 
-function addCard(data,source=null,thumb=null,expanded=false){
-  cards.push({uid:++uidSeq,data:{...data},source,thumb,expanded});
+function addCard(data,source=null,thumb=null,expanded=false,jobId=null){
+  cards.push({uid:++uidSeq,data:{...data},source,thumb,expanded,jobId});
+}
+function _claimJob(jobId){
+  if(!jobId)return;
+  seenJobIds.delete(jobId);
+  fetch(`/api/jobs/${encodeURIComponent(jobId)}`,{method:'DELETE'}).catch(()=>{});
 }
 function showRevPanel(){revPanel.classList.add('on');revErr.style.display='none';}
-function hideRevPanel(){revPanel.classList.remove('on');cards=[];revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';}
+function hideRevPanel(){cards.forEach(c=>_claimJob(c.jobId));seenJobIds.clear();revPanel.classList.remove('on');cards=[];revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';}
 function setRevLoading(on){revLoading.style.display=on?'flex':'none';}
 function setRevMsg(m){const el=document.getElementById('rev-msg');if(el)el.textContent=m;}
 function showRevErr(m){revErr.style.display='block';revErr.textContent=m;revCardsEl.innerHTML='';revBulk.classList.remove('on');}
@@ -1540,6 +1617,9 @@ async function confirmCard(uid){
   }
   const dup=findDup(title);
   if(dup&&!(await askDup(dup)))return;
+  // Animate card out while save is in-flight
+  const cardEl=revCardsEl.querySelector(`.rev-card[data-uid="${uid}"]`);
+  if(cardEl)cardEl.classList.add('confirming');
   const rec={
     id:await nextId(),title,
     year:card.data.year||'',label:card.data.label||'',
@@ -1550,20 +1630,31 @@ async function confirmCard(uid){
     photos:card.thumb?[card.thumb]:[],
     scanned_at:new Date().toISOString(),photo_thumbnail:card.thumb||'',
   };
-  await dbAdd(rec);inventory.push(rec);renderInv();updateCount();
+  await Promise.all([dbAdd(rec),new Promise(r=>setTimeout(r,280))]);
+  _claimJob(card.jobId);
+  inventory.push(rec);renderInv();updateCount();
   toast(`Saved: ${rec.title}`,'ok');
   const confirmedIdx=cards.findIndex(c=>c.uid===uid);
   cards=cards.filter(c=>c.uid!==uid);
-  if(!cards.length){hideRevPanel();return;}
+  if(!cards.length){hideRevPanel();_flashInvRow(rec.id);return;}
   // auto-expand and scroll to the next card
   const nextCard=cards[confirmedIdx]||cards[confirmedIdx-1];
   if(nextCard){nextCard.expanded=true;}
   renderCards();
   const nextEl=revCardsEl.querySelectorAll('.rev-card')[Math.min(confirmedIdx,cards.length-1)];
   if(nextEl)nextEl.scrollIntoView({behavior:'smooth',block:'nearest'});
+  _flashInvRow(rec.id);
+}
+function _flashInvRow(id){
+  setTimeout(()=>{
+    const row=document.querySelector(`#inv-list [data-id="${id}"]`);
+    if(row){row.classList.add('just-added');row.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  },60);
 }
 
 function discardCard(uid){
+  const card=cards.find(c=>c.uid===uid);
+  _claimJob(card?.jobId);
   cards=cards.filter(c=>c.uid!==uid);
   if(!cards.length)hideRevPanel();else renderCards();
 }
@@ -1686,6 +1777,7 @@ const updateCount=()=>{
   const statsEl=document.getElementById('inv-stats');
   if(!inventory.length){
     document.getElementById('count-badge').textContent='0 tapes';
+    const mob=document.getElementById('count-badge-mob');if(mob)mob.textContent='';
     statsEl.style.display='none';return;
   }
   const byStat={in_collection:0,for_sale:0,sold:0,donated:0,missing:0,wanted:0};
@@ -1698,7 +1790,9 @@ const updateCount=()=>{
   }
   const n=inventory.length;
   const valStr=valCount?` · <span style="color:var(--green)">$${totalLo.toFixed(0)}–$${totalHi.toFixed(0)}</span>`:'';
-  document.getElementById('count-badge').innerHTML=`${n} tape${n!==1?'s':''}${valStr}`;
+  const badge=`${n} tape${n!==1?'s':''}`;
+  document.getElementById('count-badge').innerHTML=badge+(valStr||'');
+  const mob=document.getElementById('count-badge-mob');if(mob)mob.textContent=badge;
   const parts=[];
   const sc=(label,status,color)=>`<span class="stat-chip" onclick="quickFilter('${status}')" style="color:${color}">${label}</span>`;
   if(byStat.in_collection)parts.push(sc(`${byStat.in_collection} in coll.`,'in_collection','var(--green)'));
@@ -2238,6 +2332,153 @@ function setDbDot(state){
   dbDot.title={ok:'Neon DB connected',err:'Database error — click to retry','':'Connecting to database…'}[state]||'';
 }
 dbDot.addEventListener('click',()=>{if(dbDot.className==='err')init();});
+
+// ── HAMBURGER MENU ────────────────────────────────────────────────────────
+function openDrawer(){document.getElementById('hbr-drawer').classList.add('open');document.getElementById('hbr-backdrop').classList.add('open');}
+function closeDrawer(){document.getElementById('hbr-drawer').classList.remove('open');document.getElementById('hbr-backdrop').classList.remove('open');}
+document.getElementById('btn-menu').addEventListener('click',openDrawer);
+// Proxy mobile drawer buttons to existing desktop handlers
+[['btn-add-tape-mob','btn-add-tape'],['btn-settings-mob','btn-settings'],['btn-help-mob','btn-help'],
+ ['btn-fill-data-mob','btn-fill-data']].forEach(([mob,desk])=>{
+  const m=document.getElementById(mob),d=document.getElementById(desk);
+  if(m&&d)m.addEventListener('click',()=>{closeDrawer();d.click();});
+});
+document.getElementById('btn-import-mob')?.addEventListener('click',()=>{closeDrawer();document.getElementById('import-input').click();});
+// Drawer export sub-menu
+document.getElementById('btn-export-mob')?.addEventListener('click',e=>{
+  e.stopPropagation();
+  document.getElementById('exp-dd-mob').classList.toggle('open');
+});
+[['exp-json-mob','exp-json'],['exp-csv-mob','exp-csv'],['exp-sell-mob','exp-sell'],['exp-print-mob','exp-print']].forEach(([mob,desk])=>{
+  document.getElementById(mob)?.addEventListener('click',()=>{closeDrawer();document.getElementById(desk)?.click();});
+});
+
+// ── CAMERA FLIP (MOBILE) ──────────────────────────────────────────────────
+let cameraDevices=[];
+let camIdx=0;
+const btnCamFlip=document.getElementById('btn-cam-flip');
+async function populateCameras(){
+  cameraDevices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+  camSel.innerHTML=cameraDevices.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
+  if(cameraDevices.length>1){
+    if(isMobile){btnCamFlip.style.display='';} else {camSel.style.display='';}
+    camIdx=isMobile?Math.max(0,cameraDevices.length-1):0;
+  }
+}
+btnCamFlip?.addEventListener('click',async()=>{
+  if(cameraDevices.length<2)return;
+  camIdx=(camIdx+1)%cameraDevices.length;
+  const id=cameraDevices[camIdx]?.deviceId;
+  camSel.value=id;
+  await startStream(id);
+});
+
+// ── CROP PRESETS ─────────────────────────────────────────────────────────
+const CROP_PRESETS={
+  default:{x:.12,y:.08,w:.76,h:.84},
+  cover:{x:.2,y:.04,w:.6,h:.92},    // VHS cover art – portrait
+  spine:{x:.38,y:.05,w:.24,h:.9},   // single spine – tall & thin
+  multispine:{x:.04,y:.12,w:.92,h:.76}, // multi-spine – wide band
+};
+document.querySelectorAll('.preset-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const p=btn.dataset.preset;
+    if(!CROP_PRESETS[p])return;
+    cropFrac={...CROP_PRESETS[p]};
+    updateCrop();
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',b.dataset.preset===p));
+  });
+});
+
+// ── TAP-TO-SNAP ───────────────────────────────────────────────────────────
+const vidWrapEl=document.getElementById('vid-wrap');
+vidWrapEl.addEventListener('click',e=>{
+  if(!video.srcObject)return;
+  if(e.target.id==='crop'||e.target.closest('#barcode-overlay')||e.target.id==='crop-handle')return;
+  if(barcodeMode){
+    // In barcode mode, tap = manual barcode scan attempt
+    if(lastBarcodeResult)return; // already have a result
+    manualBarcodeSnap();
+  } else {
+    document.getElementById('btn-cap').click();
+  }
+});
+
+function manualBarcodeSnap(){
+  if(!barcodeRdr||!video.srcObject)return;
+  const canvas=document.createElement('canvas');
+  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  canvas.getContext('2d').drawImage(video,0,0);
+  try{
+    const result=barcodeRdr.decodeFromCanvas(canvas);
+    if(result){
+      const code=result.getText();
+      // Inject into the candidate loop as a confirmed scan
+      lastCode={val:code,t:0}; // set t:0 so next scan re-fires
+      const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
+      if(bcDup){toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);return;}
+      const uid=++uidSeq;
+      cards.push({uid,data:{title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
+      renderCards();showRevPanel();beep();flashBcTarget();
+      lookupBarcode(code).then(meta=>{
+        if(!meta)return;
+        const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
+        card.data.title=meta.title;if(meta.label)card.data.label=meta.label;
+        renderCards();
+      });
+    } else {toast('No barcode detected — try again','warn',2000);}
+  }catch{toast('No barcode detected','warn',2000);}
+}
+
+// ── QUEUE STATUS ─────────────────────────────────────────────────────────
+const queueStatusEl=document.getElementById('queue-status');
+let queueBusy=false;
+async function updateQueueStatus(){
+  if(queueBusy)return;queueBusy=true;
+  try{
+    const s=await fetch('/api/jobs/status').then(r=>r.json());
+    const active=(s.pending||0)+(s.processing||0);
+    const failed=s.failed||0;
+    const done=s.done||0;
+    if(!active&&!failed&&!done){queueStatusEl.style.display='none';return;}
+    queueStatusEl.style.display='flex';
+    const parts=[];
+    if(s.pending)parts.push(`<span class="qs-badge qs-pending">⏳ ${s.pending} queued</span>`);
+    if(s.processing)parts.push(`<span class="qs-badge qs-proc">⟳ ${s.processing} analyzing</span>`);
+    if(done)parts.push(`<span class="qs-badge" style="background:rgba(61,187,61,.15);color:var(--green);border:1px solid rgba(61,187,61,.3)">✓ ${done} ready</span>`);
+    if(failed)parts.push(`<span class="qs-badge qs-failed">⚠ ${failed} failed</span>`);
+    queueStatusEl.innerHTML=`<span style="font-size:10px;color:var(--text3)">Queue:</span>${parts.join('')}`;
+  }catch{}finally{queueBusy=false;}
+}
+
+// ── MOBILE FILTER TRAY ───────────────────────────────────────────────────
+const btnFilterTray=document.getElementById('btn-filter-tray');
+const invCtrl=document.getElementById('inv-ctrl');
+let trayOpen=false;
+btnFilterTray?.addEventListener('click',()=>{
+  trayOpen=!trayOpen;
+  invCtrl.classList.toggle('tray-open',trayOpen);
+  btnFilterTray.textContent=trayOpen?'✕ Close':'⚙ Filter';
+  if(trayOpen){
+    const backdrop=document.createElement('div');
+    backdrop.id='filter-backdrop';
+    backdrop.style.cssText='position:fixed;inset:0;z-index:149;';
+    backdrop.addEventListener('click',()=>{trayOpen=false;invCtrl.classList.remove('tray-open');btnFilterTray.textContent='⚙ Filter';backdrop.remove();});
+    document.body.appendChild(backdrop);
+  }else{
+    document.getElementById('filter-backdrop')?.remove();
+  }
+});
+
+// ── TORCH IN PHOTO MODE ───────────────────────────────────────────────────
+function checkTorch(){
+  setTimeout(()=>{
+    const track=video.srcObject?.getVideoTracks()[0];
+    const btnTorch=document.getElementById('btn-torch');
+    if(track?.getCapabilities?.()?.torch)btnTorch.style.display='';
+    else btnTorch.style.display='none';
+  },400);
+}
 
 async function init(){
   setDbDot('');
