@@ -63,6 +63,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .bc-zoom-ctrl{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.75);border-radius:20px;padding:4px 12px;pointer-events:auto;white-space:nowrap}
 .bc-zoom-btn{background:none;border:1px solid rgba(61,187,61,.6);color:var(--green);width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:15px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
 .bc-zoom-btn:hover{background:rgba(61,187,61,.2)}
+.bc-photo-btn{width:auto!important;padding:0 8px!important;font-size:14px!important}
 #bc-zoom-label{color:var(--green);font-size:11px;min-width:32px;text-align:center;font-weight:700}
 
 #cam-ctrl{background:var(--bg2);border-top:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
@@ -400,8 +401,10 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
           <button class="bc-zoom-btn" id="bc-zoom-out">-</button>
           <span id="bc-zoom-label">70%</span>
           <button class="bc-zoom-btn" id="bc-zoom-in">+</button>
+          <button class="bc-zoom-btn bc-photo-btn" id="btn-bc-photo" title="Snap photo to scan barcode">📷</button>
         </div>
-        <div class="bc-label">Hold barcode inside box</div>
+        <div class="bc-label" id="bc-label">Tap · or hold barcode in box</div>
+        <input type="file" id="bc-native-input" accept="image/*" capture="environment" style="display:none">
       </div>
     </div>
     <div id="cam-ctrl">
@@ -1048,6 +1051,9 @@ function startBarcodeLoop(){
               lastCode={val:code,t:now};
               candidates.clear();
               beep();flashBcTarget();
+              const bcLabelEl=document.getElementById('bc-label');
+              if(bcLabelEl)bcLabelEl.textContent=`✓ ${code}`;
+              setTimeout(()=>{if(bcLabelEl)bcLabelEl.textContent='Tap · or hold barcode in box';},3500);
               const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
               if(bcDup)toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);
               const uid=++uidSeq;
@@ -1099,6 +1105,8 @@ async function snapAndDecode(){
     if(code!==lastCode.val||now-lastCode.t>3000){
       lastCode={val:code,t:now};
       beep();flashBcTarget();
+      const bcLbl2=document.getElementById('bc-label');
+      if(bcLbl2){bcLbl2.textContent=`✓ ${code}`;setTimeout(()=>{bcLbl2.textContent='Tap · or hold barcode in box';},3500);}
       const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
       if(bcDup)toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);
       const uid=++uidSeq;
@@ -1122,6 +1130,94 @@ async function snapAndDecode(){
 document.getElementById('btn-torch').addEventListener('click',toggleTorch);
 document.getElementById('btn-snap').addEventListener('click',snapAndDecode);
 btnBarcode.addEventListener('click',toggleBarcodeMode);
+
+// ── NATIVE CAMERA BARCODE FALLBACK ────────────────────────────────────────
+// Builds preprocessing variants from an arbitrary canvas/image source
+function buildBcVariantFromSrc(src,vw,vh,v){
+  const scale=v===1?2:1;
+  const c=document.createElement('canvas');
+  c.width=vw*scale;c.height=vh*scale;
+  const ctx=c.getContext('2d');
+  if(v===0){
+    ctx.filter='grayscale(100%) contrast(220%) brightness(110%)';
+    ctx.drawImage(src,0,0,c.width,c.height);
+  }else if(v===1){
+    ctx.filter='grayscale(100%) contrast(300%) brightness(108%)';
+    ctx.drawImage(src,0,0,c.width,c.height);
+  }else if(v===2){
+    ctx.filter='grayscale(100%)';
+    ctx.drawImage(src,0,0,c.width,c.height);
+    ctx.putImageData(bcAdaptiveThreshold(ctx.getImageData(0,0,c.width,c.height)),0,0);
+  }else{
+    ctx.filter='grayscale(100%)';
+    ctx.drawImage(src,0,0,c.width,c.height);
+    ctx.putImageData(bcAdaptiveThreshold(bcSharpen(ctx.getImageData(0,0,c.width,c.height))),0,0);
+  }
+  return c;
+}
+
+async function decodeBarcodeFromFile(file){
+  const url=URL.createObjectURL(file);
+  try{
+    await loadScript('https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js');
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url;});
+    // Try multiple preprocessing passes and crop strips
+    const hints=new Map([[ZXing.DecodeHintType.POSSIBLE_FORMATS,[
+      ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.CODE_39,
+    ]]]);
+    const rdr=new ZXing.BrowserMultiFormatReader(hints);
+    let result=null;
+    // Full image (4 variants)
+    for(let v=0;v<4&&!result;v++){
+      try{result=rdr.decodeFromCanvas(buildBcVariantFromSrc(img,img.naturalWidth,img.naturalHeight,v));}catch{}
+    }
+    // Center horizontal strip at 50% height
+    if(!result){
+      const stripH=Math.round(img.naturalHeight*.15);
+      const stripY=Math.round((img.naturalHeight-stripH)/2);
+      for(let v=0;v<4&&!result;v++){
+        const strip=document.createElement('canvas');
+        strip.width=img.naturalWidth;strip.height=stripH;
+        strip.getContext('2d').drawImage(img,0,stripY,img.naturalWidth,stripH,0,0,img.naturalWidth,stripH);
+        try{result=rdr.decodeFromCanvas(buildBcVariantFromSrc(strip,img.naturalWidth,stripH,v));}catch{}
+      }
+    }
+    return result?.getText()||null;
+  }finally{URL.revokeObjectURL(url);}
+}
+
+document.getElementById('btn-bc-photo').addEventListener('click',()=>{
+  document.getElementById('bc-native-input').click();
+});
+document.getElementById('bc-native-input').addEventListener('change',async(e)=>{
+  const file=e.target.files?.[0];if(!file)return;
+  e.target.value=''; // reset so same photo can be re-selected
+  const bcLabel=document.getElementById('bc-label');
+  bcLabel.textContent='Scanning photo…';
+  try{
+    const code=await decodeBarcodeFromFile(file);
+    if(!code){bcLabel.textContent='No barcode found — try better lighting';setTimeout(()=>{bcLabel.textContent='Tap · or hold barcode in box';},3000);return;}
+    bcLabel.textContent=`Found: ${code}`;
+    beep();flashBcTarget();
+    const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
+    if(bcDup){toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);bcLabel.textContent='Tap · or hold barcode in box';return;}
+    const uid=++uidSeq;
+    cards.push({uid,data:{title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
+    renderCards();showRevPanel();
+    lookupBarcode(code).then(meta=>{
+      if(!meta)return;
+      const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
+      card.data.title=meta.title;if(meta.label)card.data.label=meta.label;
+      renderCards();toast(`UPC matched: ${meta.title}`,'ok');
+    });
+    setTimeout(()=>{bcLabel.textContent='Tap · or hold barcode in box';},4000);
+  }catch(err){
+    bcLabel.textContent='Scan failed';
+    setTimeout(()=>{bcLabel.textContent='Tap · or hold barcode in box';},3000);
+    toast('Barcode scan error: '+err.message,'err',4000);
+  }
+});
 
 // ── BATCH UPLOAD ─────────────────────────────────────────────────────────
 const fileInput=document.getElementById('file-input');
@@ -1620,8 +1716,12 @@ async function confirmCard(uid){
   // Animate card out while save is in-flight
   const cardEl=revCardsEl.querySelector(`.rev-card[data-uid="${uid}"]`);
   if(cardEl)cardEl.classList.add('confirming');
+  // Use barcode as ID if it's a valid UPC/EAN and not already taken
+  const bcode=card.data.barcode||'';
+  const useUpcId=bcode&&/^\d{8,14}$/.test(bcode)&&!inventory.find(t=>t.id===bcode);
+  const recId=useUpcId?bcode:(await nextId());
   const rec={
-    id:await nextId(),title,
+    id:recId,title,
     year:card.data.year||'',label:card.data.label||'',
     format:card.data.format||'VHS',condition:card.data.condition||'great',
     condition_notes:card.data.notes||'',status:card.data.status||'in_collection',
