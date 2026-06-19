@@ -103,7 +103,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 
 #right{flex:1;flex-direction:column}
 
-#review{background:var(--bg2);border-bottom:1px solid var(--border);display:none;flex-direction:column;padding:12px 14px;gap:8px;max-height:56%;overflow-y:auto;flex-shrink:0}
+#review{background:var(--bg2);border-bottom:1px solid var(--border);display:none;flex-direction:column;padding:12px 14px;gap:8px;max-height:56%;overflow:auto;flex-shrink:0}
 #review.on{display:flex}
 #rev-hdr{display:flex;align-items:center;gap:8px}
 #rev-hdr h2{font-size:13px;font-weight:700;color:var(--yellow);flex:1}
@@ -165,7 +165,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 #btn-wall{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0}
 #btn-wall.active{border-color:var(--accent);color:var(--accent)}
 
-#inv-list{flex:1;overflow-y:auto}
+#inv-list{flex:1;overflow-y:auto;overflow-x:auto}
 .tape-row{display:grid;grid-template-columns:28px 48px 68px 1fr auto;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center}
 .row-thumb{width:80px;height:22px;object-fit:cover;border-radius:3px;background:var(--bg4);flex-shrink:0}
 .row-thumb-ph{width:80px;height:22px;border-radius:3px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
@@ -201,6 +201,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .wall-lbl{font-size:10px;text-align:center;color:var(--text2);line-height:1.3;max-width:98px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-weight:600}
 .wall-meta{font-size:9px;color:var(--text3);text-align:center;max-width:98px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .wall-val{font-size:9px;color:var(--green);text-align:center}
+@media (max-width:500px){.wall-meta,.wall-val{display:none}.wall-card{width:90px;padding:5px}.wall-img,.wall-ph{width:78px;height:110px}.wall-lbl{max-width:78px}}
 
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:200}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:22px;width:90%;max-width:480px;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
@@ -321,8 +322,8 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .tbl-sel{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:3px 4px;border-radius:4px;font-size:11px;font-family:inherit;width:100%}
 .tbl-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:3px;line-height:1}
 .tbl-del:hover{color:var(--red);background:rgba(232,64,64,.12)}
-.tbl-thumb{width:80px;height:22px;object-fit:cover;border-radius:3px;display:block}
-.tbl-thumb-ph{width:80px;height:22px;border-radius:3px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:10px}
+.tbl-thumb{width:180px;height:54px;object-fit:cover;border-radius:3px;display:block}
+.tbl-thumb-ph{width:180px;height:54px;border-radius:3px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:16px}
 /* Review table */
 .rev-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
 .rev-table th{position:sticky;top:0;background:var(--bg3);border-bottom:2px solid var(--border2);padding:7px 8px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;z-index:10}
@@ -434,7 +435,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
       <button class="ctrl-btn" id="btn-snap" style="display:none">📷 Snap</button>
       <button class="ctrl-btn" id="btn-upload">⬆ Upload</button>
       <input type="file" id="file-input" accept="image/*" multiple>
-      <button id="btn-cam-flip" title="Flip camera" style="display:none">⇅</button>
+      <button id="btn-cam-flip" title="Flip camera">⇅</button>
       <div id="crop-presets">
         <button class="preset-btn active" data-preset="default" title="Default crop">▣</button>
         <button class="preset-btn" data-preset="cover" title="VHS cover (portrait)">▯</button>
@@ -757,12 +758,10 @@ async function apiReq(p,opts){
     const r=await fetch(p,opts);
     if(!r.ok){const t=await r.text();throw new Error(t||r.status);}
     const d=await r.json();
-    if(document.getElementById('db-dot')?.className==='err')
-      document.getElementById('db-dot').className='ok';
+    setDbDot('ok');
     return d;
   }catch(err){
-    const dot=document.getElementById('db-dot');
-    if(dot&&dot.className!=='')dot.className='err';
+    setDbDot('err');
     throw err;
   }
 }
@@ -1893,7 +1892,7 @@ function renderInv(){
   const statOpts=v=>[['in_collection','In Collection'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([c,l])=>`<option value="${c}"${v===c?' selected':''}>${l}</option>`).join('');
   list.innerHTML=`<table class="tape-table"><thead><tr>
     <th style="width:28px"><input type="checkbox" id="tbl-chk-all" title="Select all"></th>
-    <th style="width:88px"></th>
+    <th style="width:188px"></th>
     <th>Title</th><th style="width:55px">Year</th><th>Label</th><th style="width:60px">Format</th>
     <th style="width:80px">Cond.</th><th style="width:110px">Status</th>
     <th style="width:50px">$Lo</th><th style="width:50px">$Hi</th>
@@ -2127,7 +2126,8 @@ function renderDetailPhotos(t){
     return `<div style="position:relative;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px">
       <img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:4px;border:2px solid ${isFace?'var(--blue)':isSpine?'var(--green)':'var(--border2)'};cursor:pointer" onclick="window.open('${src}','_blank')" title="Click to view full size">
       <div style="display:flex;gap:2px">
-        <button onclick="rotateDetailPhoto(${i})" style="background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:1px 4px;border-radius:3px;cursor:pointer;font-size:10px" title="Rotate 90°">↻</button>
+        <button onclick="rotateDetailPhotoCCW(${i})" style="background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:1px 4px;border-radius:3px;cursor:pointer;font-size:10px" title="Rotate CCW">↺</button>
+        <button onclick="rotateDetailPhoto(${i})" style="background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:1px 4px;border-radius:3px;cursor:pointer;font-size:10px" title="Rotate CW">↻</button>
         <button onclick="pinDetailPhoto(${i},'face')" style="background:${isFace?'rgba(68,136,255,.25)':'var(--bg4)'};border:1px solid ${isFace?'var(--blue)':'var(--border2)'};color:${isFace?'var(--blue)':'var(--text3)'};padding:1px 4px;border-radius:3px;cursor:pointer;font-size:9px" title="Pin as face (wall view)">🖼</button>
         <button onclick="pinDetailPhoto(${i},'spine')" style="background:${isSpine?'rgba(61,187,61,.25)':'var(--bg4)'};border:1px solid ${isSpine?'var(--green)':'var(--border2)'};color:${isSpine?'var(--green)':'var(--text3)'};padding:1px 4px;border-radius:3px;cursor:pointer;font-size:9px" title="Pin as spine (list view)">▮</button>
         <button onclick="removeDetailPhoto(${i})" style="background:rgba(232,64,64,.15);border:1px solid rgba(232,64,64,.3);color:var(--red);padding:1px 4px;border-radius:3px;cursor:pointer;font-size:10px" title="Remove">×</button>
@@ -2135,31 +2135,39 @@ function renderDetailPhotos(t){
     </div>`;
   }).join('');
 }
-async function rotateImage90(dataUrl){
+function _rotateCanvas(dataUrl,angle){
   return new Promise(res=>{
     const img=new Image();
     img.onload=()=>{
-      const c=document.createElement('canvas');c.width=img.height;c.height=img.width;
+      const swap=Math.abs(angle)===Math.PI/2||Math.abs(angle)===3*Math.PI/2;
+      const c=document.createElement('canvas');
+      c.width=swap?img.height:img.width;c.height=swap?img.width:img.height;
       const ctx=c.getContext('2d');
-      ctx.translate(c.width/2,c.height/2);ctx.rotate(Math.PI/2);
+      ctx.translate(c.width/2,c.height/2);ctx.rotate(angle);
       ctx.drawImage(img,-img.width/2,-img.height/2);
       res(c.toDataURL('image/jpeg',0.85));
     };
     img.src=dataUrl;
   });
 }
-window.rotateDetailPhoto=async function(idx){
+async function rotateImage90(dataUrl){return _rotateCanvas(dataUrl,Math.PI/2);}
+async function rotateImage90CCW(dataUrl){return _rotateCanvas(dataUrl,-Math.PI/2);}
+async function _applyRotation(idx,rotateFn){
   const t=inventory.find(x=>x.id===selectedId);if(!t)return;
-  const rotated=await rotateImage90(t.photos[idx]);
   const old=t.photos[idx];
+  const rotated=await rotateFn(old);
   t.photos[idx]=rotated;
   if(t.photo_thumbnail===old)t.photo_thumbnail=rotated;
   if(t.photo_face===old)t.photo_face=rotated;
   if(t.photo_spine===old)t.photo_spine=rotated;
-  await dbPut(t);renderInv();renderDetailPhotos(t);
+  renderDetailPhotos(t);
   const th=document.getElementById('detail-thumb');
   if(t.photo_thumbnail){th.src=t.photo_thumbnail;th.style.display='block';}
-};
+  renderInv();
+  dbPut(t).catch(e=>toast('Save failed: '+e.message,'err'));
+}
+window.rotateDetailPhoto=function(idx){return _applyRotation(idx,rotateImage90);};
+window.rotateDetailPhotoCCW=function(idx){return _applyRotation(idx,rotateImage90CCW);};
 window.pinDetailPhoto=async function(idx,role){
   const t=inventory.find(x=>x.id===selectedId);if(!t)return;
   const src=t.photos[idx];
@@ -2725,10 +2733,8 @@ const btnCamFlip=document.getElementById('btn-cam-flip');
 async function populateCameras(){
   cameraDevices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
   camSel.innerHTML=cameraDevices.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
-  if(cameraDevices.length>1){
-    btnCamFlip.style.display='';
-    camSel.style.display='';
-    camIdx=isMobile?Math.max(0,cameraDevices.length-1):0;
+  if(cameraDevices.length>0){
+    if(cameraDevices.length>1){camSel.style.display='';camIdx=isMobile?Math.max(0,cameraDevices.length-1):0;}
   }
 }
 btnCamFlip?.addEventListener('click',async()=>{
