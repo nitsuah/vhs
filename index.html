@@ -764,10 +764,36 @@ async function apiReq(p,opts){
     throw err;
   }
 }
-const dbAll = ()=>apiReq('/api/tapes');
-const dbAdd = v=>apiReq('/api/tapes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});
-const dbPut = v=>apiReq(`/api/tapes/${encodeURIComponent(v.id)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});
-const dbDel = k=>apiReq(`/api/tapes/${encodeURIComponent(k)}`,{method:'DELETE'});
+// ── LOCAL CACHE (IndexedDB backup) ───────────────────────────────────────
+let _cacheDb=null;
+function _openCache(){
+  if(_cacheDb)return Promise.resolve(_cacheDb);
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('vhs-neon-cache',1);
+    r.onupgradeneeded=e=>{e.target.result.createObjectStore('tapes',{keyPath:'id'});};
+    r.onsuccess=e=>{_cacheDb=e.target.result;res(_cacheDb);};
+    r.onerror=()=>rej(r.error);
+  });
+}
+async function _cacheGetAll(){const db=await _openCache();return new Promise((res,rej)=>{const q=db.transaction('tapes','readonly').objectStore('tapes').getAll();q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
+async function _cachePut(t){const db=await _openCache();return new Promise((res,rej)=>{const tx=db.transaction('tapes','readwrite');tx.objectStore('tapes').put(t);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}
+async function _cacheDel(id){const db=await _openCache();return new Promise((res,rej)=>{const tx=db.transaction('tapes','readwrite');tx.objectStore('tapes').delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}
+async function _cacheSetAll(tapes){const db=await _openCache();return new Promise((res,rej)=>{const tx=db.transaction('tapes','readwrite');const s=tx.objectStore('tapes');s.clear();tapes.forEach(t=>s.put(t));tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});}
+
+async function dbAll(){
+  try{
+    const tapes=await apiReq('/api/tapes');
+    _cacheSetAll(tapes).catch(()=>{});
+    return tapes;
+  }catch(err){
+    const cached=await _cacheGetAll().catch(()=>[]);
+    if(cached.length)toast('Neon unavailable — showing cached data','warn',6000);
+    return cached;
+  }
+}
+async function dbAdd(v){const r=await apiReq('/api/tapes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});_cachePut(v).catch(()=>{});return r;}
+async function dbPut(v){const r=await apiReq(`/api/tapes/${encodeURIComponent(v.id)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});_cachePut(v).catch(()=>{});return r;}
+async function dbDel(k){const r=await apiReq(`/api/tapes/${encodeURIComponent(k)}`,{method:'DELETE'});_cacheDel(k).catch(()=>{});return r;}
 
 async function nextId() {
   if(!inventory.length) return 'VHS-0001';
@@ -2786,13 +2812,16 @@ function checkTorch(){
 
 async function init(){
   setDbDot('');
+  // Show cached data immediately for instant load
+  const preload=await _cacheGetAll().catch(()=>[]);
+  if(preload.length){inventory=preload;renderInv();updateCount();}
   try{
     inventory=await dbAll();
     setDbDot('ok');
   }catch(err){
     setDbDot('err');
-    toast('Database error: '+err.message,'err',8000);
-    return;
+    if(!preload.length)toast('Database error: '+err.message,'err',8000);
+    if(!preload.length)return;
   }
   renderInv();updateCount();
   setAiBadge('loading','⟳ CHECKING');
