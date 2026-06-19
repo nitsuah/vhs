@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VHS Shelf Scanner</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📼</text></svg>">
 <style>
 :root {
   --bg:#0a0a0a;--bg2:#111;--bg3:#1a1a1a;--bg4:#222;
@@ -158,8 +159,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 
 #inv-list{flex:1;overflow-y:auto}
 .tape-row{display:grid;grid-template-columns:28px 48px 68px 1fr auto;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center}
-.row-thumb{width:48px;height:34px;object-fit:cover;border-radius:4px;background:var(--bg4);flex-shrink:0}
-.row-thumb-ph{width:48px;height:34px;border-radius:4px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.row-thumb{width:22px;height:76px;object-fit:cover;border-radius:3px;background:var(--bg4);flex-shrink:0}
+.row-thumb-ph{width:22px;height:76px;border-radius:3px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
 .tape-row:hover{background:var(--bg3)}
 .tape-row.selected{background:rgba(68,136,255,.08);border-bottom-color:rgba(68,136,255,.2)}
 .tape-row input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--blue);flex-shrink:0}
@@ -185,12 +186,12 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 
 #wall-view{flex:1;overflow-y:auto;display:none;padding:10px;gap:10px;flex-wrap:wrap;align-content:flex-start}
 #wall-view.on{display:flex}
-.wall-card{width:130px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;padding:7px;border-radius:8px;border:1px solid var(--border);transition:border-color .15s,background .15s}
+.wall-card{width:112px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;padding:7px;border-radius:8px;border:1px solid var(--border);transition:border-color .15s,background .15s}
 .wall-card:hover{background:var(--bg3);border-color:var(--accent2);transform:translateY(-1px)}
-.wall-img{width:116px;height:82px;object-fit:cover;border-radius:5px;background:var(--bg4)}
-.wall-ph{width:116px;height:82px;border-radius:5px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:26px}
-.wall-lbl{font-size:10px;text-align:center;color:var(--text2);line-height:1.3;max-width:116px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-weight:600}
-.wall-meta{font-size:9px;color:var(--text3);text-align:center;max-width:116px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wall-img{width:98px;height:138px;object-fit:cover;border-radius:5px;background:var(--bg4)}
+.wall-ph{width:98px;height:138px;border-radius:5px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:32px}
+.wall-lbl{font-size:10px;text-align:center;color:var(--text2);line-height:1.3;max-width:98px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-weight:600}
+.wall-meta{font-size:9px;color:var(--text3);text-align:center;max-width:98px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .wall-val{font-size:9px;color:var(--green);text-align:center}
 
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:200}
@@ -327,8 +328,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   #thumb-wrap{display:none!important}
   .tape-row{grid-template-columns:24px 40px 1fr auto;gap:5px;padding:6px 10px}
   .tid{display:none}
-  .row-thumb{width:40px;height:28px}
-  .row-thumb-ph{width:40px;height:28px;font-size:13px}
+  .row-thumb{width:18px;height:60px}
+  .row-thumb-ph{width:18px;height:60px;font-size:11px}
   .tinfo h3{font-size:12px}
   .modal{max-height:90dvh;overflow-y:auto;width:calc(100vw - 24px)}
   .dgrid{grid-template-columns:1fr}
@@ -348,7 +349,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 <body>
 
 <header id="header">
-  <h1>VHS <span>Shelf Scanner</span></h1>
+  <h1>📼 VHS <span>Shelf Scanner</span></h1>
   <span id="ai-badge" class="loading">⟳ CHECKING</span>
   <select id="camera-select" style="display:none"></select>
   <div class="hdr-right" id="hdr-right-desktop">
@@ -1966,7 +1967,8 @@ function renderInv(){
     list.style.display='none';wall.classList.add('on');
     if(!items.length){wall.innerHTML='<div class="empty">No tapes match.</div>';return;}
     wall.innerHTML=items.map(t=>{
-      const img=t.photo_thumbnail?`<img class="wall-img" src="${t.photo_thumbnail}" alt="">`:`<div class="wall-ph">📼</div>`;
+      const wallSrc=t.photo_face||t.photo_thumbnail;
+      const img=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph">📼</div>`;
       const meta=[t.year,t.label].filter(Boolean).join(' · ');
       const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
       return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
@@ -1984,8 +1986,9 @@ function renderInv(){
     const condBit=t.condition&&t.condition!=='great'?`<span style="font-size:9px;font-weight:700;color:${condColor[t.condition]||'var(--text3)'}">${t.condition}</span>`:'';
     const tagBit=(t.tags||[]).slice(0,3).map(tag=>`<span style="font-size:9px;padding:1px 5px;border-radius:10px;background:rgba(68,136,255,.12);color:var(--blue);border:1px solid rgba(68,136,255,.25)">${esc(tag)}</span>`).join(' ');
     const checked=selectedIds.has(t.id);
-    const thumbHtml=t.photo_thumbnail
-      ?`<img class="row-thumb" src="${t.photo_thumbnail}" alt="" loading="lazy">`
+    const spineSrc=t.photo_spine||t.photo_thumbnail;
+    const thumbHtml=spineSrc
+      ?`<img class="row-thumb" src="${spineSrc}" alt="" loading="lazy">`
       :`<div class="row-thumb-ph">📼</div>`;
     return `<div class="tape-row${checked?' selected':''}" data-id="${t.id}">
       <input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''} onclick="event.stopPropagation()">
@@ -2160,15 +2163,59 @@ function renderDetailPhotos(t){
   count.textContent=photos.length?`${photos.length} photo${photos.length!==1?'s':''}` :'No photos';
   if(!photos.length){wrap.style.display='none';return;}
   wrap.style.display='flex';
-  wrap.innerHTML=photos.map((src,i)=>`<div style="position:relative;flex-shrink:0">
-    <img src="${src}" style="width:72px;height:52px;object-fit:cover;border-radius:4px;border:1px solid var(--border2);cursor:pointer" onclick="window.open(this.src,'_blank')">
-    <button onclick="removeDetailPhoto(${i})" style="position:absolute;top:-5px;right:-5px;background:var(--red);border:none;color:#fff;width:16px;height:16px;border-radius:50%;cursor:pointer;font-size:10px;line-height:16px;text-align:center;padding:0" title="Remove photo">×</button>
-  </div>`).join('');
+  wrap.innerHTML=photos.map((src,i)=>{
+    const isFace=t.photo_face===src;
+    const isSpine=t.photo_spine===src;
+    return `<div style="position:relative;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px">
+      <img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:4px;border:2px solid ${isFace?'var(--blue)':isSpine?'var(--green)':'var(--border2)'};cursor:pointer" onclick="window.open('${src}','_blank')" title="Click to view full size">
+      <div style="display:flex;gap:2px">
+        <button onclick="rotateDetailPhoto(${i})" style="background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:1px 4px;border-radius:3px;cursor:pointer;font-size:10px" title="Rotate 90°">↻</button>
+        <button onclick="pinDetailPhoto(${i},'face')" style="background:${isFace?'rgba(68,136,255,.25)':'var(--bg4)'};border:1px solid ${isFace?'var(--blue)':'var(--border2)'};color:${isFace?'var(--blue)':'var(--text3)'};padding:1px 4px;border-radius:3px;cursor:pointer;font-size:9px" title="Pin as face (wall view)">🖼</button>
+        <button onclick="pinDetailPhoto(${i},'spine')" style="background:${isSpine?'rgba(61,187,61,.25)':'var(--bg4)'};border:1px solid ${isSpine?'var(--green)':'var(--border2)'};color:${isSpine?'var(--green)':'var(--text3)'};padding:1px 4px;border-radius:3px;cursor:pointer;font-size:9px" title="Pin as spine (list view)">▮</button>
+        <button onclick="removeDetailPhoto(${i})" style="background:rgba(232,64,64,.15);border:1px solid rgba(232,64,64,.3);color:var(--red);padding:1px 4px;border-radius:3px;cursor:pointer;font-size:10px" title="Remove">×</button>
+      </div>
+    </div>`;
+  }).join('');
 }
+async function rotateImage90(dataUrl){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas');c.width=img.height;c.height=img.width;
+      const ctx=c.getContext('2d');
+      ctx.translate(c.width/2,c.height/2);ctx.rotate(Math.PI/2);
+      ctx.drawImage(img,-img.width/2,-img.height/2);
+      res(c.toDataURL('image/jpeg',0.85));
+    };
+    img.src=dataUrl;
+  });
+}
+window.rotateDetailPhoto=async function(idx){
+  const t=inventory.find(x=>x.id===selectedId);if(!t)return;
+  const rotated=await rotateImage90(t.photos[idx]);
+  const old=t.photos[idx];
+  t.photos[idx]=rotated;
+  if(t.photo_thumbnail===old)t.photo_thumbnail=rotated;
+  if(t.photo_face===old)t.photo_face=rotated;
+  if(t.photo_spine===old)t.photo_spine=rotated;
+  await dbPut(t);renderInv();renderDetailPhotos(t);
+  const th=document.getElementById('detail-thumb');
+  if(t.photo_thumbnail){th.src=t.photo_thumbnail;th.style.display='block';}
+};
+window.pinDetailPhoto=async function(idx,role){
+  const t=inventory.find(x=>x.id===selectedId);if(!t)return;
+  const src=t.photos[idx];
+  if(role==='face'){t.photo_face=(t.photo_face===src?null:src);}
+  else{t.photo_spine=(t.photo_spine===src?null:src);}
+  await dbPut(t);renderInv();renderDetailPhotos(t);
+};
 window.removeDetailPhoto=async function(idx){
   const t=inventory.find(x=>x.id===selectedId);if(!t)return;
+  const old=t.photos[idx];
   t.photos=(t.photos||[]).filter((_,i)=>i!==idx);
-  t.photo_thumbnail=t.photos.length?t.photos[0]:'';
+  if(t.photo_thumbnail===old)t.photo_thumbnail=t.photos[0]||'';
+  if(t.photo_face===old)t.photo_face=null;
+  if(t.photo_spine===old)t.photo_spine=null;
   await dbPut(t);renderInv();renderDetailPhotos(t);
   const th=document.getElementById('detail-thumb');
   if(t.photo_thumbnail){th.src=t.photo_thumbnail;th.style.display='block';}else th.style.display='none';
@@ -2269,7 +2316,7 @@ document.getElementById('d-save').addEventListener('click',async()=>{
       sold_price:document.getElementById('d-sold-price').value.trim(),
       condition_notes:document.getElementById('d-notes').value.trim(),
       tags:[...document.getElementById('d-tag-chips').querySelectorAll('.tag-chip.on')].map(c=>c.dataset.tag),
-      photos:[],photo_thumbnail:'',
+      photos:[],photo_thumbnail:'',photo_face:null,photo_spine:null,
       scanned_at:new Date().toISOString(),
     };
     await dbAdd(rec);inventory.push(rec);renderInv();updateCount();
@@ -2336,7 +2383,7 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
 document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModal);
 
 // ── RE-VALIDATE DIFF ─────────────────────────────────────────────────────
-document.getElementById('btn-revalidate').addEventListener('click',()=>{
+async function runRevalidate(){
   const targets=inventory.filter(t=>t.photo_thumbnail);
   if(!targets.length){toast('No tapes with photos to re-validate','');return;}
   const modal=document.getElementById('m-revalidate');
@@ -2347,72 +2394,98 @@ document.getElementById('btn-revalidate').addEventListener('click',()=>{
   const btnAccAll=document.getElementById('rv-accept-all');
   const btnDenyAll=document.getElementById('rv-deny-all');
   const btnApply=document.getElementById('rv-apply-selected');
-  statusEl.textContent=`Analyzing ${targets.length} tape photo${targets.length>1?'s':''}…`;
+  statusEl.textContent=`Queuing ${targets.length} photo${targets.length>1?'s':''} for analysis…`;
   progWrap.style.display='';progBar.style.width='0%';
   diffList.innerHTML='';
   btnAccAll.style.display='none';btnDenyAll.style.display='none';btnApply.style.display='none';
   modal.style.display='flex';
-
   const REVAL_FIELDS=['title','year','label','format'];
-  const diffs=[]; // [{tape, field, oldVal, newVal, id}]
 
-  (async()=>{
-    for(let i=0;i<targets.length;i++){
-      const t=targets[i];
-      progBar.style.width=`${Math.round((i/targets.length)*100)}%`;
-      statusEl.textContent=`Checking ${i+1}/${targets.length}: "${t.title||t.id}"…`;
+  // Submit each tape's photo as a job
+  const batch=[]; // [{jobId, tape}]
+  for(let i=0;i<targets.length;i++){
+    progBar.style.width=`${Math.round((i/targets.length)*40)}%`;
+    statusEl.textContent=`Submitting ${i+1}/${targets.length}…`;
+    try{
+      const {id:jobId}=await apiReq('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({image:targets[i].photo_thumbnail,thumb:null})});
+      batch.push({jobId,tape:targets[i]});
+    }catch(e){console.warn('Re-validate submit failed for',targets[i].id,e);}
+  }
+  if(!batch.length){statusEl.textContent='Failed to submit any jobs.';return;}
+
+  // Poll until all done or failed
+  statusEl.textContent=`Processing ${batch.length} photo${batch.length>1?'s':''} via AI queue…`;
+  const pending=new Set(batch.map(b=>b.jobId));
+  const results=new Map(); // jobId → result[]
+  while(pending.size>0){
+    await new Promise(r=>setTimeout(r,2000));
+    const toCheck=[...pending];
+    for(const jid of toCheck){
       try{
-        const base64=t.photo_thumbnail.split(',')[1]||t.photo_thumbnail;
-        const results=await callAI(base64);
-        if(!Array.isArray(results)||!results.length)continue;
-        const r=results[0];
-        for(const f of REVAL_FIELDS){
-          const oldVal=(t[f]||'').trim();
-          const newVal=(r[f]||'').trim();
-          if(newVal&&newVal!==oldVal){
-            diffs.push({tape:t,field:f,oldVal,newVal,id:`rv-${diffs.length}`});
-          }
+        const job=await apiReq(`/api/jobs/${encodeURIComponent(jid)}`);
+        if(job.status==='done'||job.status==='failed'){
+          results.set(jid,job.status==='done'?(job.result||[]):[]);
+          pending.delete(jid);
         }
-      }catch(e){console.warn('Re-validate error for',t.id,e);}
+      }catch{}
     }
-    progBar.style.width='100%';
-    if(!diffs.length){
-      statusEl.textContent='✓ All tapes match their photos — no differences found.';
-      progWrap.style.display='none';
-      return;
-    }
-    statusEl.textContent=`Found ${diffs.length} difference${diffs.length>1?'s':''} — review below:`;
-    progWrap.style.display='none';
-    diffList.innerHTML=diffs.map(d=>`
-      <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:9px 12px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <input type="checkbox" id="${d.id}" checked style="width:15px;height:15px;accent-color:var(--accent);flex-shrink:0">
-          <label for="${d.id}" style="font-size:12px;font-weight:700;color:var(--text);cursor:pointer;flex:1">${esc(d.tape.title||d.tape.id)}</label>
-          <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">${esc(d.field)}</span>
-        </div>
-        <div style="display:flex;gap:8px;font-size:12px;align-items:center;flex-wrap:wrap">
-          <span style="color:var(--red);background:rgba(232,64,64,.1);border:1px solid rgba(232,64,64,.2);padding:3px 8px;border-radius:4px;flex:1;min-width:80px;word-break:break-word">${esc(d.oldVal||'(empty)')}</span>
-          <span style="color:var(--text3)">→</span>
-          <span style="color:var(--green);background:rgba(61,187,61,.1);border:1px solid rgba(61,187,61,.2);padding:3px 8px;border-radius:4px;flex:1;min-width:80px;word-break:break-word">${esc(d.newVal)}</span>
-        </div>
-      </div>`).join('');
-    btnAccAll.style.display='';btnDenyAll.style.display='';btnApply.style.display='';
+    const done=batch.length-pending.size;
+    progBar.style.width=`${40+Math.round((done/batch.length)*55)}%`;
+    statusEl.textContent=`Processing… ${done}/${batch.length} complete`;
+  }
 
-    btnDenyAll.onclick=()=>{diffList.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);};
-    btnAccAll.onclick=()=>{diffList.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=true);};
-    btnApply.onclick=async()=>{
-      let applied=0;
-      const checked=diffs.filter(d=>document.getElementById(d.id)?.checked);
-      for(const d of checked){
-        d.tape[d.field]=d.newVal;
-        await dbPut(d.tape);
-        applied++;
-      }
-      if(applied){renderInv();updateCount();toast(`Applied ${applied} update${applied>1?'s':''}`, 'ok');}
-      modal.style.display='none';
-    };
-  })();
-});
+  // Clean up jobs from queue so they don't show in review panel
+  for(const {jobId} of batch){
+    apiReq(`/api/jobs/${encodeURIComponent(jobId)}`,{method:'DELETE'}).catch(()=>{});
+  }
+
+  // Build diffs
+  const diffs=[];
+  for(const {jobId,tape} of batch){
+    const aiResults=results.get(jobId)||[];
+    if(!aiResults.length)continue;
+    const r=aiResults[0];
+    for(const f of REVAL_FIELDS){
+      const oldVal=(tape[f]||'').trim();
+      const newVal=(r[f]||'').trim();
+      if(newVal&&newVal!==oldVal)diffs.push({tape,field:f,oldVal,newVal,id:`rv-${diffs.length}`});
+    }
+  }
+
+  progBar.style.width='100%';
+  if(!diffs.length){
+    statusEl.textContent='✓ All tapes match their photos — no differences found.';
+    progWrap.style.display='none';return;
+  }
+  statusEl.textContent=`Found ${diffs.length} difference${diffs.length>1?'s':''} — review below:`;
+  progWrap.style.display='none';
+  diffList.innerHTML=diffs.map(d=>`
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:9px 12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <input type="checkbox" id="${d.id}" checked style="width:15px;height:15px;accent-color:var(--accent);flex-shrink:0">
+        <label for="${d.id}" style="font-size:12px;font-weight:700;color:var(--text);cursor:pointer;flex:1">${esc(d.tape.title||d.tape.id)}</label>
+        <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">${esc(d.field)}</span>
+      </div>
+      <div style="display:flex;gap:8px;font-size:12px;align-items:center;flex-wrap:wrap">
+        <span style="color:var(--red);background:rgba(232,64,64,.1);border:1px solid rgba(232,64,64,.2);padding:3px 8px;border-radius:4px;flex:1;min-width:80px;word-break:break-word">${esc(d.oldVal||'(empty)')}</span>
+        <span style="color:var(--text3)">→</span>
+        <span style="color:var(--green);background:rgba(61,187,61,.1);border:1px solid rgba(61,187,61,.2);padding:3px 8px;border-radius:4px;flex:1;min-width:80px;word-break:break-word">${esc(d.newVal)}</span>
+      </div>
+    </div>`).join('');
+  btnAccAll.style.display='';btnDenyAll.style.display='';btnApply.style.display='';
+  btnDenyAll.onclick=()=>{diffList.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);};
+  btnAccAll.onclick=()=>{diffList.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=true);};
+  btnApply.onclick=async()=>{
+    let applied=0;
+    for(const d of diffs.filter(d=>document.getElementById(d.id)?.checked)){
+      d.tape[d.field]=d.newVal;await dbPut(d.tape);applied++;
+    }
+    if(applied){renderInv();updateCount();toast(`Applied ${applied} update${applied>1?'s':''}`, 'ok');}
+    modal.style.display='none';
+  };
+}
+document.getElementById('btn-revalidate').addEventListener('click',runRevalidate);
 document.getElementById('rv-cancel').addEventListener('click',()=>{document.getElementById('m-revalidate').style.display='none';});
 
 document.getElementById('s-migrate-idb').addEventListener('click',async()=>{
@@ -2445,6 +2518,7 @@ document.getElementById('s-migrate-idb').addEventListener('click',async()=>{
         value_low:tape.value_low||'',value_high:tape.value_high||'',
         sold_price:tape.sold_price||'',
         photos:tape.photos||[],photo_thumbnail:tape.photo_thumbnail||'',
+        photo_face:tape.photo_face||null,photo_spine:tape.photo_spine||null,
         scanned_at:tape.scanned_at||new Date().toISOString(),
       };
       await dbAdd(rec);inventory.push(rec);existingIds.add(rec.id);added++;
@@ -2518,7 +2592,7 @@ function parseImportCsv(text){
       barcode:obj['barcode']||obj['Barcode']||'',
       value_low:obj['value_low']||obj['Est. Low ($)']||'',
       value_high:obj['value_high']||obj['Est. High ($)']||'',
-      tags:[],photos:[],photo_thumbnail:'',
+      tags:[],photos:[],photo_thumbnail:'',photo_face:null,photo_spine:null,
       scanned_at:obj['scanned_at']||new Date().toISOString(),
     };
   }).filter(r=>r.title);
@@ -2547,6 +2621,7 @@ document.getElementById('import-input').addEventListener('change',async e=>{
         barcode:item.barcode||'',tags:item.tags||[],
         value_low:item.value_low||'',value_high:item.value_high||'',
         photos:item.photos||[],photo_thumbnail:item.photo_thumbnail||'',
+        photo_face:item.photo_face||null,photo_spine:item.photo_spine||null,
         scanned_at:item.scanned_at||new Date().toISOString(),
       };
       await dbAdd(rec);inventory.push(rec);existingIds.add(rec.id);added++;
