@@ -121,9 +121,11 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .card-meta-txt{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-chev{font-size:9px;color:var(--text3);flex-shrink:0;transition:transform .15s}
 .rev-card.expanded .card-chev{transform:rotate(180deg)}
-.card-body{display:none;padding:10px 12px 12px;border-top:1px solid var(--border);flex-direction:column;gap:10px}
-.rev-card.expanded .card-body{display:flex}
-.card-thumb{width:100%;max-height:80px;object-fit:contain;border-radius:4px;border:1px solid var(--border);background:#000}
+.card-body{display:none;padding:10px 12px 12px;border-top:1px solid var(--border);gap:10px}
+.rev-card.expanded .card-body{display:grid;grid-template-columns:180px 1fr}
+.rev-card.expanded .card-body.no-thumb{display:flex;flex-direction:column}
+.card-thumb{width:180px;min-height:120px;max-height:280px;object-fit:contain;border-radius:6px;border:1px solid var(--border);background:#000;align-self:start;flex-shrink:0}
+.card-body-right{display:flex;flex-direction:column;gap:10px;min-width:0}
 .rev-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .rev-grid .full{grid-column:1/-1}
 .fg{display:flex;flex-direction:column;gap:3px}
@@ -142,6 +144,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .btn-lookup:hover{border-color:var(--blue);background:rgba(68,136,255,.1)}
 .btn-lookup:disabled{opacity:.4;cursor:not-allowed}
 #rev-err{color:var(--red);font-size:12px;padding:4px 0}
+#m-revalidate .modal{gap:0}
 
 #inv-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
 #inv-ctrl{padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px;flex-shrink:0}
@@ -284,9 +287,18 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 #btn-filter-tray{flex-shrink:0;font-size:11px;padding:6px 10px;display:none}
 #inv-ctrl.tray-hidden{display:none}
 
+/* ── TAB NAV ─────────────────────────────────────────────────────── */
+#tab-nav{display:none;background:var(--bg2);border-top:1px solid var(--border);position:fixed;bottom:0;left:0;right:0;z-index:100;height:52px}
+.tab-btn{flex:1;height:100%;background:none;border:none;border-top:2px solid transparent;color:var(--text3);cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.04em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 0;transition:color .15s}
+.tab-btn .tab-ico{font-size:18px;line-height:1}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-top-color:var(--accent)}
+.tab-badge{background:var(--accent);color:#fff;border-radius:9px;font-size:8px;padding:1px 5px;min-width:14px;text-align:center;display:inline-block;margin-left:2px;vertical-align:top;line-height:14px}
+
 /* ── RESPONSIVE ─────────────────────────────────────────────────── */
 @media (max-width:700px){
-  body{overflow:auto;height:auto;min-height:100dvh}
+  body{overflow:auto;height:auto;min-height:100dvh;padding-bottom:52px}
+  #tab-nav{display:flex}
   #main{flex-direction:column;overflow:visible;height:auto}
   #header{height:auto;flex-wrap:nowrap;padding:8px 10px;gap:6px}
   #header h1{font-size:14px;white-space:nowrap}
@@ -295,15 +307,24 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   .hdr-right-mob{display:flex}
   #btn-filter-tray{display:flex}
   #inv-ctrl{display:none}
-  #inv-ctrl.tray-open{display:block;position:fixed;bottom:0;left:0;right:0;z-index:150;background:var(--bg2);border-top:2px solid var(--accent);border-radius:16px 16px 0 0;padding:12px;max-height:60vh;overflow-y:auto;box-shadow:0 -8px 32px rgba(0,0,0,.5)}
-  #cam-panel{flex:0 0 auto;height:280px;border-right:none;border-bottom:1px solid var(--border)}
+  #inv-ctrl.tray-open{display:block;position:fixed;bottom:52px;left:0;right:0;z-index:150;background:var(--bg2);border-top:2px solid var(--accent);border-radius:16px 16px 0 0;padding:12px;max-height:60vh;overflow-y:auto;box-shadow:0 -8px 32px rgba(0,0,0,.5)}
+  /* Tab-driven section visibility on mobile */
+  #cam-panel{display:none;height:auto;flex:1;border-right:none;border-bottom:none}
+  #right{display:none;flex:1;min-height:0;flex-direction:column}
+  #review{max-height:none;flex:0 0 auto}
+  #inv-panel{flex:1;overflow:hidden}
+  body[data-tab="scan"] #cam-panel{display:flex}
+  body[data-tab="review"] #right{display:flex}
+  body[data-tab="review"] #review.on{display:flex}
+  body[data-tab="review"] #inv-panel{display:none}
+  body[data-tab="index"] #right{display:flex}
+  body[data-tab="index"] #review{display:none!important}
+  body[data-tab="index"] #inv-panel{display:flex}
   #cam-ctrl{padding:7px 10px;gap:5px;flex-wrap:nowrap}
   #btn-cap{padding:10px 14px;font-size:12px}
   .ctrl-btn{padding:7px 9px;font-size:11px}
   .key-hint{display:none}
   #thumb-wrap{display:none!important}
-  #right{flex:1;min-height:0}
-  #review{max-height:50vh}
   .tape-row{grid-template-columns:24px 40px 1fr auto;gap:5px;padding:6px 10px}
   .tid{display:none}
   .row-thumb{width:40px;height:28px}
@@ -315,6 +336,9 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   .rev-grid{grid-template-columns:1fr}
   .rev-grid .full{grid-column:1}
   #crop-presets{display:none}
+  /* 2-col card: on mobile, stack vertically */
+  .rev-card.expanded .card-body{display:flex;flex-direction:column}
+  .card-thumb{width:100%;max-height:200px}
 }
 @media (max-width:700px) and (orientation:landscape){
   #cam-panel{height:160px}
@@ -343,6 +367,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ Import</button>
     <input type="file" id="import-input" accept=".json" style="display:none">
     <button class="hbtn" id="btn-fill-data" title="AI fills missing year, label, and value for incomplete tapes">⚡ Fill Data</button>
+    <button class="hbtn" id="btn-revalidate" title="Re-run AI vision on tape photos and review differences">🔄 Re-validate</button>
     <button class="hbtn" id="btn-settings">⚙ Settings</button>
     <button class="hbtn" id="btn-help" title="Keyboard shortcuts (?)">?</button>
   </div>
@@ -371,6 +396,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
       </div>
     </div>
     <button class="hbtn" id="btn-fill-data-mob">⚡ Fill Data</button>
+    <button class="hbtn" id="btn-revalidate-mob">🔄 Re-validate</button>
   </div>
   <div class="hbr-section">
     <span class="hbr-label">App</span>
@@ -513,6 +539,13 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   </section>
 </main>
 
+<!-- BOTTOM TAB NAV (mobile) -->
+<nav id="tab-nav">
+  <button class="tab-btn active" data-tab="scan" id="tab-scan"><span class="tab-ico">📷</span>Scan</button>
+  <button class="tab-btn" data-tab="review" id="tab-review"><span class="tab-ico">📋</span>Review<span class="tab-badge" id="tab-review-count" style="display:none">0</span></button>
+  <button class="tab-btn" data-tab="index" id="tab-index"><span class="tab-ico">📦</span>Index</button>
+</nav>
+
 <!-- HELP MODAL -->
 <div class="backdrop" id="m-help" style="display:none">
   <div class="modal" style="max-width:380px">
@@ -585,6 +618,22 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     <div class="modal-acts">
       <button class="btn btn-x" id="s-cancel">Cancel</button>
       <button class="btn btn-ok" id="s-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- RE-VALIDATE DIFF MODAL -->
+<div class="backdrop" id="m-revalidate" style="display:none">
+  <div class="modal" style="max-width:600px;max-height:85dvh;display:flex;flex-direction:column">
+    <h2>🔄 Re-validate Tapes</h2>
+    <p id="rv-status" style="font-size:12px;color:var(--text3);margin-bottom:8px">Analyzing photos against current data…</p>
+    <div id="rv-progress" style="height:4px;background:var(--bg4);border-radius:2px;margin-bottom:10px;display:none"><div id="rv-prog-bar" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s"></div></div>
+    <div id="rv-diff-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;min-height:0"></div>
+    <div class="modal-acts" style="margin-top:10px">
+      <button class="btn btn-x" id="rv-cancel">Close</button>
+      <button class="btn btn-x btn-sm" id="rv-deny-all" style="display:none">✕ Deny All</button>
+      <button class="btn btn-ok" id="rv-accept-all" style="display:none">✓ Accept All</button>
+      <button class="btn btn-ok" id="rv-apply-selected" style="display:none">Apply Selected</button>
     </div>
   </div>
 </div>
@@ -1598,12 +1647,13 @@ function _claimJob(jobId){
   fetch(`/api/jobs/${encodeURIComponent(jobId)}`,{method:'DELETE'}).catch(()=>{});
 }
 function showRevPanel(){revPanel.classList.add('on');revErr.style.display='none';}
-function hideRevPanel(){cards.forEach(c=>_claimJob(c.jobId));seenJobIds.clear();revPanel.classList.remove('on');cards=[];revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';}
+function hideRevPanel(){cards.forEach(c=>_claimJob(c.jobId));seenJobIds.clear();revPanel.classList.remove('on');cards=[];revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';updateTabBadge?.();}
 function setRevLoading(on){revLoading.style.display=on?'flex':'none';}
 function setRevMsg(m){const el=document.getElementById('rev-msg');if(el)el.textContent=m;}
 function showRevErr(m){revErr.style.display='block';revErr.textContent=m;revCardsEl.innerHTML='';revBulk.classList.remove('on');}
 
 function renderCards(){
+  updateTabBadge?.();
   revBulk.classList.toggle('on',cards.length>1);
   document.getElementById('rev-title').textContent=cards.length?`Pending Review (${cards.length})`:'Pending Review';
   if(!cards.length){revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';if(!revErr.style.display||revErr.style.display==='none')revPanel.classList.remove('on');return;}
@@ -1616,23 +1666,9 @@ function renderCards(){
     const hdrThumb=card.thumb
       ?`<img class="card-hdr-thumb" src="${card.thumb}" alt="">`
       :`<div class="card-hdr-ph">📼</div>`;
-    const thumbHtml=card.thumb?`<img class="card-thumb" src="${card.thumb}" alt="">`:''
-    const barcodeHtml=card.data.barcode?`<div class="fg full"><label>Barcode</label><input type="text" value="${esc(card.data.barcode)}" readonly style="font-family:monospace;color:var(--text3)"></div>`:''
-    return `<div class="rev-card${card.expanded?' expanded':''}" data-uid="${card.uid}" style="position:relative">
-      <span class="swipe-hint swipe-hint-ok">✓</span>
-      <span class="swipe-hint swipe-hint-x">✕</span>
-      <div class="card-hdr">
-        <span class="card-num">#${idx+1}</span>
-        ${hdrThumb}
-        <div class="card-hdr-info">
-          <span class="card-title-txt${empty?' empty':''}">${esc(title||'(click to edit)')}</span>
-          ${metaTxt?`<span class="card-meta-txt">${esc(metaTxt)}</span>`:''}
-        </div>
-        <span class="card-chev">▼</span>
-      </div>
-      <div class="card-body">
-        ${thumbHtml}
-        <div class="rev-grid">
+    const thumbHtml=card.thumb?`<img class="card-thumb" src="${card.thumb}" alt="">`:'';
+    const barcodeHtml=card.data.barcode?`<div class="fg full"><label>Barcode</label><input type="text" value="${esc(card.data.barcode)}" readonly style="font-family:monospace;color:var(--text3)"></div>`:'';
+    const formHtml=`<div class="rev-grid">
           <div class="fg full"><label>Title</label><div style="display:flex;gap:6px;align-items:center"><input type="text" class="c-f" data-f="title" data-uid="${card.uid}" value="${esc(card.data.title||'')}" placeholder="Title" style="flex:1"><button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata by title">🔍</button></div></div>
           <div class="fg"><label>Year</label><input type="text" class="c-f" data-f="year" data-uid="${card.uid}" value="${esc(card.data.year||'')}" placeholder="1984"></div>
           <div class="fg"><label>Label / Studio</label><input type="text" class="c-f" data-f="label" data-uid="${card.uid}" value="${esc(card.data.label||'')}" placeholder="Orion"></div>
@@ -1662,7 +1698,22 @@ function renderCards(){
           <button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}">✓ Confirm</button>
           <button class="btn btn-sm btn-x c-discard" data-uid="${card.uid}">✕ Discard</button>
           ${idx<cards.length-1?`<button class="btn btn-sm btn-x c-next" data-uid="${card.uid}" style="margin-left:auto">Next →</button>`:''}
+        </div>`;
+    return `<div class="rev-card${card.expanded?' expanded':''}" data-uid="${card.uid}" style="position:relative">
+      <span class="swipe-hint swipe-hint-ok">✓</span>
+      <span class="swipe-hint swipe-hint-x">✕</span>
+      <div class="card-hdr">
+        <span class="card-num">#${idx+1}</span>
+        ${hdrThumb}
+        <div class="card-hdr-info">
+          <span class="card-title-txt${empty?' empty':''}">${esc(title||'(click to edit)')}</span>
+          ${metaTxt?`<span class="card-meta-txt">${esc(metaTxt)}</span>`:''}
         </div>
+        <span class="card-chev">▼</span>
+      </div>
+      <div class="card-body${card.thumb?'':' no-thumb'}">
+        ${thumbHtml}
+        <div class="card-body-right">${formHtml}</div>
       </div>
     </div>`;
   }).join('');
@@ -2258,6 +2309,86 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
 });
 document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModal);
 
+// ── RE-VALIDATE DIFF ─────────────────────────────────────────────────────
+document.getElementById('btn-revalidate').addEventListener('click',()=>{
+  const targets=inventory.filter(t=>t.photo_thumbnail);
+  if(!targets.length){toast('No tapes with photos to re-validate','');return;}
+  const modal=document.getElementById('m-revalidate');
+  const statusEl=document.getElementById('rv-status');
+  const progBar=document.getElementById('rv-prog-bar');
+  const progWrap=document.getElementById('rv-progress');
+  const diffList=document.getElementById('rv-diff-list');
+  const btnAccAll=document.getElementById('rv-accept-all');
+  const btnDenyAll=document.getElementById('rv-deny-all');
+  const btnApply=document.getElementById('rv-apply-selected');
+  statusEl.textContent=`Analyzing ${targets.length} tape photo${targets.length>1?'s':''}…`;
+  progWrap.style.display='';progBar.style.width='0%';
+  diffList.innerHTML='';
+  btnAccAll.style.display='none';btnDenyAll.style.display='none';btnApply.style.display='none';
+  modal.style.display='flex';
+
+  const REVAL_FIELDS=['title','year','label','format'];
+  const diffs=[]; // [{tape, field, oldVal, newVal, id}]
+
+  (async()=>{
+    for(let i=0;i<targets.length;i++){
+      const t=targets[i];
+      progBar.style.width=`${Math.round((i/targets.length)*100)}%`;
+      statusEl.textContent=`Checking ${i+1}/${targets.length}: "${t.title||t.id}"…`;
+      try{
+        const base64=t.photo_thumbnail.split(',')[1]||t.photo_thumbnail;
+        const results=await callAI(base64);
+        if(!Array.isArray(results)||!results.length)continue;
+        const r=results[0];
+        for(const f of REVAL_FIELDS){
+          const oldVal=(t[f]||'').trim();
+          const newVal=(r[f]||'').trim();
+          if(newVal&&newVal!==oldVal){
+            diffs.push({tape:t,field:f,oldVal,newVal,id:`rv-${diffs.length}`});
+          }
+        }
+      }catch(e){console.warn('Re-validate error for',t.id,e);}
+    }
+    progBar.style.width='100%';
+    if(!diffs.length){
+      statusEl.textContent='✓ All tapes match their photos — no differences found.';
+      progWrap.style.display='none';
+      return;
+    }
+    statusEl.textContent=`Found ${diffs.length} difference${diffs.length>1?'s':''} — review below:`;
+    progWrap.style.display='none';
+    diffList.innerHTML=diffs.map(d=>`
+      <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:9px 12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <input type="checkbox" id="${d.id}" checked style="width:15px;height:15px;accent-color:var(--accent);flex-shrink:0">
+          <label for="${d.id}" style="font-size:12px;font-weight:700;color:var(--text);cursor:pointer;flex:1">${esc(d.tape.title||d.tape.id)}</label>
+          <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">${esc(d.field)}</span>
+        </div>
+        <div style="display:flex;gap:8px;font-size:12px;align-items:center;flex-wrap:wrap">
+          <span style="color:var(--red);background:rgba(232,64,64,.1);border:1px solid rgba(232,64,64,.2);padding:3px 8px;border-radius:4px;flex:1;min-width:80px;word-break:break-word">${esc(d.oldVal||'(empty)')}</span>
+          <span style="color:var(--text3)">→</span>
+          <span style="color:var(--green);background:rgba(61,187,61,.1);border:1px solid rgba(61,187,61,.2);padding:3px 8px;border-radius:4px;flex:1;min-width:80px;word-break:break-word">${esc(d.newVal)}</span>
+        </div>
+      </div>`).join('');
+    btnAccAll.style.display='';btnDenyAll.style.display='';btnApply.style.display='';
+
+    btnDenyAll.onclick=()=>{diffList.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);};
+    btnAccAll.onclick=()=>{diffList.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=true);};
+    btnApply.onclick=async()=>{
+      let applied=0;
+      const checked=diffs.filter(d=>document.getElementById(d.id)?.checked);
+      for(const d of checked){
+        d.tape[d.field]=d.newVal;
+        await dbPut(d.tape);
+        applied++;
+      }
+      if(applied){renderInv();updateCount();toast(`Applied ${applied} update${applied>1?'s':''}`, 'ok');}
+      modal.style.display='none';
+    };
+  })();
+});
+document.getElementById('rv-cancel').addEventListener('click',()=>{document.getElementById('m-revalidate').style.display='none';});
+
 document.getElementById('s-migrate-idb').addEventListener('click',async()=>{
   const btn=document.getElementById('s-migrate-idb');
   const status=document.getElementById('s-migrate-status');
@@ -2485,6 +2616,7 @@ document.addEventListener('keydown',e=>{
     if(document.getElementById('m-detail').style.display!=='none'){isNewTape=false;document.getElementById('d-delete').style.display='';document.getElementById('m-detail').style.display='none';return;}
     if(document.getElementById('m-settings').style.display!=='none'){document.getElementById('m-settings').style.display='none';return;}
     if(document.getElementById('m-dup').style.display!=='none'){document.getElementById('m-dup').style.display='none';return;}
+    if(document.getElementById('m-revalidate').style.display!=='none'){document.getElementById('m-revalidate').style.display='none';return;}
   }
   if(e.key==='?'&&!inp){document.getElementById('m-help').style.display='flex';}
   if(e.key==='n'&&!inp){openNewTapeModal();}
@@ -2511,6 +2643,8 @@ document.getElementById('btn-menu').addEventListener('click',openDrawer);
   if(m&&d)m.addEventListener('click',()=>{closeDrawer();d.click();});
 });
 document.getElementById('btn-import-mob')?.addEventListener('click',()=>{closeDrawer();document.getElementById('import-input').click();});
+// Proxy re-validate mobile button
+document.getElementById('btn-revalidate-mob')?.addEventListener('click',()=>{closeDrawer();document.getElementById('btn-revalidate').click();});
 // Drawer export sub-menu
 document.getElementById('btn-export-mob')?.addEventListener('click',e=>{
   e.stopPropagation();
@@ -2573,6 +2707,24 @@ function manualBarcodeSnap(){
   if(!video.srcObject)return;
   snapAndDecode(); // unified snap handler — tries BarcodeDetector then ZXing
 }
+
+// ── TAB NAV (MOBILE) ────────────────────────────────────────────────────
+function setActiveTab(tab){
+  document.body.dataset.tab=tab;
+  ['scan','review','index'].forEach(t=>document.getElementById(`tab-${t}`)?.classList.toggle('active',t===tab));
+  if(tab==='review'&&cards.length&&!revPanel.classList.contains('on'))showRevPanel();
+}
+function updateTabBadge(){
+  const badge=document.getElementById('tab-review-count');
+  if(!badge)return;
+  const n=cards.length;
+  badge.textContent=n;badge.style.display=n?'':'none';
+}
+document.getElementById('tab-scan')?.addEventListener('click',()=>setActiveTab('scan'));
+document.getElementById('tab-review')?.addEventListener('click',()=>setActiveTab('review'));
+document.getElementById('tab-index')?.addEventListener('click',()=>setActiveTab('index'));
+// Default tab
+setActiveTab('scan');
 
 // ── QUEUE STATUS ─────────────────────────────────────────────────────────
 const queueStatusEl=document.getElementById('queue-status');
