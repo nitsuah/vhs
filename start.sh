@@ -8,6 +8,18 @@
 #   or simply:  docker compose --profile gpu up web-gpu --build
 set -e
 
+# Guard: .env must exist and contain DATABASE_URL
+if [ ! -f .env ]; then
+  echo "  ✗ .env file not found."
+  echo "    Copy .env.example to .env and fill in your Neon DATABASE_URL."
+  exit 1
+fi
+if ! grep -qE '^DATABASE_URL=postgresql://' .env; then
+  echo "  ✗ DATABASE_URL not set in .env (must start with postgresql://)."
+  echo "    Get your connection string from https://console.neon.tech"
+  exit 1
+fi
+
 MODEL="${OLLAMA_MODEL:-llava:7b}"
 
 find_port() {
@@ -48,7 +60,7 @@ echo "  First run: Ollama will download ~4.7 GB for llava:7b"
 echo "  Subsequent runs: model is cached, starts instantly."
 echo ""
 
-docker compose up --build "$@"
+docker compose --env-file .env up --build --force-recreate "$@"
 
 echo ""
 echo "  ✓ Running at http://localhost:$APP_PORT"
