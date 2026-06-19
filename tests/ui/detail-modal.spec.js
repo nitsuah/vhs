@@ -5,10 +5,10 @@ const { test, expect } = require('@playwright/test');
 test('save closes the detail modal immediately', async ({ page }) => {
   await page.goto('/');
   // Wait for inventory to load
-  await page.waitForSelector('.tape-row', { timeout: 10000 });
+  await page.waitForSelector('.tbl-open', { timeout: 10000 });
 
-  // Open first tape
-  await page.locator('.tape-row').first().click();
+  // Open first tape via thumbnail cell
+  await page.locator('.tbl-open').first().click();
   await expect(page.locator('#m-detail')).toBeVisible();
 
   // Edit title and save
@@ -32,7 +32,7 @@ test('pin face button shows active state instantly', async ({ page }) => {
   });
 
   // Open a tape that has a photo
-  const tapeWithPhoto = page.locator('.tape-row').filter({ has: page.locator('img.row-thumb') }).first();
+  const tapeWithPhoto = page.locator('.tbl-open').filter({ has: page.locator('img.tbl-thumb') }).first();
   await tapeWithPhoto.click();
   await expect(page.locator('#m-detail')).toBeVisible();
 
@@ -53,7 +53,7 @@ test('spine pin button toggles off when clicked again', async ({ page }) => {
   await page.goto('/');
   await page.waitForSelector('.tape-row', { timeout: 10000 });
 
-  const tapeWithPhoto = page.locator('.tape-row').filter({ has: page.locator('img.row-thumb') }).first();
+  const tapeWithPhoto = page.locator('.tbl-open').filter({ has: page.locator('img.tbl-thumb') }).first();
   await tapeWithPhoto.click();
   await expect(page.locator('#m-detail')).toBeVisible();
 

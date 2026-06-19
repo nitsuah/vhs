@@ -101,7 +101,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 #btn-clear-q:hover{border-color:var(--accent);color:var(--text)}
 .q-count{font-size:11px;color:var(--text3);white-space:nowrap}
 
-#right{flex:1;display:flex;flex-direction:column}
+#right{flex:1;flex-direction:column}
 
 #review{background:var(--bg2);border-bottom:1px solid var(--border);display:none;flex-direction:column;padding:12px 14px;gap:8px;max-height:56%;overflow-y:auto;flex-shrink:0}
 #review.on{display:flex}
@@ -310,6 +310,27 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .tab-badge{background:var(--accent);color:#fff;border-radius:9px;font-size:8px;padding:1px 5px;min-width:14px;text-align:center;display:inline-block;margin-left:2px;vertical-align:top;line-height:14px}
 /* ── COLLECT SUBHEADER ───────────────────────────────────────────── */
 #collect-subhdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0}
+
+/* ── INLINE TABLES ──────────────────────────────────────────────── */
+.tape-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
+.tape-table th{position:sticky;top:0;background:var(--bg3);border-bottom:2px solid var(--border2);padding:7px 8px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;z-index:10}
+.tape-table td{border-bottom:1px solid var(--border);padding:4px 6px;vertical-align:middle}
+.tape-table .editable{cursor:text}
+.tape-table .editable:hover{background:rgba(255,255,255,.04)}
+.tbl-input{background:var(--bg3);border:1px solid var(--blue);color:var(--text);padding:2px 5px;border-radius:3px;font-size:12px;font-family:inherit;width:100%;min-width:60px;box-sizing:border-box;outline:none}
+.tbl-sel{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:3px 4px;border-radius:4px;font-size:11px;font-family:inherit;width:100%}
+.tbl-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:3px;line-height:1}
+.tbl-del:hover{color:var(--red);background:rgba(232,64,64,.12)}
+.tbl-thumb{width:80px;height:22px;object-fit:cover;border-radius:3px;display:block}
+.tbl-thumb-ph{width:80px;height:22px;border-radius:3px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:10px}
+/* Review table */
+.rev-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
+.rev-table th{position:sticky;top:0;background:var(--bg3);border-bottom:2px solid var(--border2);padding:7px 8px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;z-index:10}
+.rev-table td{border-bottom:1px solid var(--border);padding:5px 6px;vertical-align:middle}
+.rev-table .c-f{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:4px 6px;border-radius:4px;font-size:12px;font-family:inherit;width:100%;min-width:50px;box-sizing:border-box}
+.rev-table .c-f:focus{outline:none;border-color:var(--accent)}
+.rev-table select.c-f{padding:3px 4px}
+.rev-thumb{width:60px;height:42px;object-fit:cover;border-radius:3px;display:block}
 
 /* ── RESPONSIVE ─────────────────────────────────────────────────── */
 @media (max-width:700px){
@@ -1664,95 +1685,45 @@ function renderCards(){
   revBulk.classList.toggle('on',cards.length>1);
   document.getElementById('rev-title').textContent=cards.length?`Pending Review (${cards.length})`:'Pending Review';
   if(!cards.length){revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';if(!revErr.style.display||revErr.style.display==='none')revPanel.classList.remove('on');return;}
-
-  revCardsEl.innerHTML=cards.map((card,idx)=>{
-    const title=card.data.title||(card.source==='barcode'?`Barcode: ${card.data.barcode}`:'');
-    const empty=!card.data.title;
-    const metaParts=[card.data.year,card.data.label].filter(Boolean);
-    const metaTxt=metaParts.join(' · ');
-    const hdrThumb=card.thumb
-      ?`<img class="card-hdr-thumb" src="${card.thumb}" alt="">`
-      :`<div class="card-hdr-ph">📼</div>`;
-    const thumbHtml=card.thumb?`<img class="card-thumb" src="${card.thumb}" alt="">`:'';
-    const barcodeHtml=card.data.barcode?`<div class="fg full"><label>Barcode</label><input type="text" value="${esc(card.data.barcode)}" readonly style="font-family:monospace;color:var(--text3)"></div>`:'';
-    const formHtml=`<div class="rev-grid">
-          <div class="fg full"><label>Title</label><div style="display:flex;gap:6px;align-items:center"><input type="text" class="c-f" data-f="title" data-uid="${card.uid}" value="${esc(card.data.title||'')}" placeholder="Title" style="flex:1"><button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata by title">🔍</button></div></div>
-          <div class="fg"><label>Year</label><input type="text" class="c-f" data-f="year" data-uid="${card.uid}" value="${esc(card.data.year||'')}" placeholder="1984"></div>
-          <div class="fg"><label>Label / Studio</label><input type="text" class="c-f" data-f="label" data-uid="${card.uid}" value="${esc(card.data.label||'')}" placeholder="Orion"></div>
-          <div class="fg"><label>Format</label><input type="text" class="c-f" data-f="format" data-uid="${card.uid}" value="${esc(card.data.format||'VHS')}"></div>
-          <div class="fg"><label>Est. Low ($)</label><input type="text" class="c-f" data-f="value_low" data-uid="${card.uid}" value="${esc(card.data.value_low||'')}" placeholder="5"></div>
-          <div class="fg"><label>Est. High ($)</label><input type="text" class="c-f" data-f="value_high" data-uid="${card.uid}" value="${esc(card.data.value_high||'')}" placeholder="20"></div>
-          <div class="fg"><label>Condition</label>
-            <select class="c-f" data-f="condition" data-uid="${card.uid}">
-              ${['great','good','fair','poor'].map(v=>`<option value="${v}"${card.data.condition===v?' selected':''}>${v[0].toUpperCase()+v.slice(1)}</option>`).join('')}
-            </select>
-          </div>
-          <div class="fg"><label>Status</label>
-            <select class="c-f" data-f="status" data-uid="${card.uid}">
-              <option value="in_collection"${card.data.status==='in_collection'?' selected':''}>In Collection</option>
-              <option value="for_sale"${card.data.status==='for_sale'?' selected':''}>For Sale</option>
-              <option value="sold"${card.data.status==='sold'?' selected':''}>Sold</option>
-              <option value="donated"${card.data.status==='donated'?' selected':''}>Donated</option>
-              <option value="missing"${card.data.status==='missing'?' selected':''}>Missing</option>
-              <option value="wanted"${card.data.status==='wanted'?' selected':''}>Wanted</option>
-            </select>
-          </div>
-          <div class="fg full"><label>Notes</label><textarea class="c-f" data-f="notes" data-uid="${card.uid}" placeholder="Condition notes…">${esc(card.data.notes||'')}</textarea></div>
-          <div class="fg full"><label>Genres / Tags</label><div class="tag-wrap c-tag-wrap" data-uid="${card.uid}">${renderTagChips(card.data.tags||[])}</div></div>
-          ${barcodeHtml}
-        </div>
-        <div class="card-acts">
-          <button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}">✓ Confirm</button>
-          <button class="btn btn-sm btn-x c-discard" data-uid="${card.uid}">✕ Discard</button>
-          ${idx<cards.length-1?`<button class="btn btn-sm btn-x c-next" data-uid="${card.uid}" style="margin-left:auto">Next →</button>`:''}
-        </div>`;
-    return `<div class="rev-card${card.expanded?' expanded':''}" data-uid="${card.uid}" style="position:relative">
-      <span class="swipe-hint swipe-hint-ok">✓</span>
-      <span class="swipe-hint swipe-hint-x">✕</span>
-      <div class="card-hdr">
-        <span class="card-num">#${idx+1}</span>
-        ${hdrThumb}
-        <div class="card-hdr-info">
-          <span class="card-title-txt${empty?' empty':''}">${esc(title||'(click to edit)')}</span>
-          ${metaTxt?`<span class="card-meta-txt">${esc(metaTxt)}</span>`:''}
-        </div>
-        <span class="card-chev">▼</span>
-      </div>
-      <div class="card-body${card.thumb?'':' no-thumb'}">
-        ${thumbHtml}
-        <div class="card-body-right">${formHtml}</div>
-      </div>
-    </div>`;
-  }).join('');
-
-  revCardsEl.querySelectorAll('.card-hdr').forEach(hdr=>{
-    hdr.addEventListener('click',()=>{
-      const uid=+hdr.closest('.rev-card').dataset.uid;
-      const c=cards.find(x=>x.uid===uid);
-      if(c){syncCard(uid);c.expanded=!c.expanded;renderCards();}
-    });
-  });
-  revCardsEl.querySelectorAll('.c-confirm').forEach(btn=>{
-    btn.addEventListener('click',e=>{e.stopPropagation();confirmCard(+btn.dataset.uid);});
-  });
-  revCardsEl.querySelectorAll('.c-discard').forEach(btn=>{
-    btn.addEventListener('click',e=>{e.stopPropagation();discardCard(+btn.dataset.uid);});
-  });
+  const cOpts=v=>['great','good','fair','poor'].map(c=>`<option value="${c}"${v===c?' selected':''}>${c}</option>`).join('');
+  const sOpts=v=>[['in_collection','In Collection'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([c,l])=>`<option value="${c}"${v===c?' selected':''}>${l}</option>`).join('');
+  revCardsEl.innerHTML=`<table class="rev-table"><thead><tr>
+    <th style="width:68px"></th>
+    <th>Title</th><th style="width:55px">Year</th><th>Label</th><th style="width:65px">Format</th>
+    <th style="width:80px">Cond.</th><th style="width:110px">Status</th>
+    <th style="width:50px">$Lo</th><th style="width:50px">$Hi</th>
+    <th>Tags</th><th style="width:110px"></th>
+  </tr></thead><tbody>${cards.map(card=>{
+    const th=card.thumb?`<img class="rev-thumb" src="${card.thumb}">`:`<div class="card-hdr-ph">📼</div>`;
+    const tags=(card.data.tags||[]).join(', ');
+    return `<tr class="rev-card" data-uid="${card.uid}">
+      <td>${th}</td>
+      <td><div style="display:flex;gap:4px;align-items:center">
+        <input class="c-f" data-uid="${card.uid}" data-f="title" value="${esc(card.data.title||'')}" placeholder="Title" style="${!card.data.title?'border-color:var(--yellow)':''}">
+        <button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata">🔍</button>
+      </div></td>
+      <td><input class="c-f" data-uid="${card.uid}" data-f="year" value="${esc(card.data.year||'')}" placeholder="Year"></td>
+      <td><input class="c-f" data-uid="${card.uid}" data-f="label" value="${esc(card.data.label||'')}" placeholder="Label"></td>
+      <td><input class="c-f" data-uid="${card.uid}" data-f="format" value="${esc(card.data.format||'VHS')}"></td>
+      <td><select class="c-f" data-uid="${card.uid}" data-f="condition">${cOpts(card.data.condition||'great')}</select></td>
+      <td><select class="c-f" data-uid="${card.uid}" data-f="status">${sOpts(card.data.status||'in_collection')}</select></td>
+      <td><input class="c-f" data-uid="${card.uid}" data-f="value_low" value="${esc(card.data.value_low||'')}" placeholder="$"></td>
+      <td><input class="c-f" data-uid="${card.uid}" data-f="value_high" value="${esc(card.data.value_high||'')}" placeholder="$"></td>
+      <td><input class="c-f" data-uid="${card.uid}" data-f="tags" value="${esc(tags)}" placeholder="genres, tags…"></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}" title="Confirm">✓</button>
+        <button class="btn btn-sm btn-x c-discard" data-uid="${card.uid}" title="Discard">✕</button>
+      </td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
   revCardsEl.querySelectorAll('.c-f').forEach(el=>{
     el.addEventListener('input',()=>syncCard(+el.dataset.uid));
     el.addEventListener('change',()=>syncCard(+el.dataset.uid));
   });
-  revCardsEl.querySelectorAll('.c-tag-wrap').forEach(wrap=>{
-    const uid=+wrap.dataset.uid;
-    const card=cards.find(c=>c.uid===uid);if(!card)return;
-    if(!card.data.tags)card.data.tags=[];
-    initTagChips(wrap,()=>card.data.tags||[],tags=>{card.data.tags=tags;});
-  });
   revCardsEl.querySelectorAll('.c-lookup').forEach(btn=>{
     btn.addEventListener('click',async e=>{
       e.stopPropagation();
-      const uid=+btn.dataset.uid;
-      syncCard(uid);
+      const uid=+btn.dataset.uid;syncCard(uid);
       const card=cards.find(c=>c.uid===uid);if(!card)return;
       const title=card.data.title.trim();if(!title)return;
       btn.disabled=true;btn.textContent='…';
@@ -1767,63 +1738,22 @@ function renderCards(){
       renderCards();
     });
   });
-  revCardsEl.querySelectorAll('.c-next').forEach(btn=>{
-    btn.addEventListener('click',e=>{
-      e.stopPropagation();
-      const uid=+btn.dataset.uid;
-      const idx=cards.findIndex(c=>c.uid===uid);
-      syncCard(uid);
-      const c=cards.find(x=>x.uid===uid);if(c)c.expanded=false;
-      if(idx+1<cards.length){cards[idx+1].expanded=true;}
-      renderCards();
-      // scroll next card into view
-      const next=revCardsEl.querySelectorAll('.rev-card')[idx+1];
-      if(next)next.scrollIntoView({behavior:'smooth',block:'nearest'});
-    });
+  revCardsEl.querySelectorAll('.c-confirm').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.stopPropagation();confirmCard(+btn.dataset.uid);});
   });
-  // Swipe left → discard, swipe right → confirm (mobile)
-  if(isMobile){
-    revCardsEl.querySelectorAll('.rev-card').forEach(cardEl=>{
-      let sx=0,sy=0,draggingSwipe=false;
-      const hintOk=cardEl.querySelector('.swipe-hint-ok');
-      const hintX=cardEl.querySelector('.swipe-hint-x');
-      cardEl.addEventListener('touchstart',e=>{
-        if(e.touches.length!==1)return;
-        sx=e.touches[0].clientX;sy=e.touches[0].clientY;draggingSwipe=false;
-      },{passive:true});
-      cardEl.addEventListener('touchmove',e=>{
-        if(e.touches.length!==1)return;
-        const dx=e.touches[0].clientX-sx,dy=e.touches[0].clientY-sy;
-        if(!draggingSwipe&&Math.abs(dy)>Math.abs(dx))return;
-        if(!draggingSwipe&&Math.abs(dx)<14)return;
-        draggingSwipe=true;
-        e.preventDefault();
-        const pct=dx/window.innerWidth;
-        cardEl.classList.add('swiping');
-        cardEl.style.transform=`translateX(${dx}px) rotate(${pct*12}deg)`;
-        cardEl.style.opacity=String(1-Math.abs(pct)*.7);
-        cardEl.style.background=dx>60?'rgba(61,187,61,.18)':dx<-60?'rgba(232,64,64,.15)':'';
-        if(hintOk)hintOk.style.opacity=dx>40?Math.min(1,(dx-40)/60):'0';
-        if(hintX)hintX.style.opacity=dx<-40?Math.min(1,(-dx-40)/60):'0';
-      },{passive:false});
-      cardEl.addEventListener('touchend',e=>{
-        cardEl.classList.remove('swiping');
-        cardEl.style.transform='';cardEl.style.opacity='';cardEl.style.background='';
-        if(hintOk)hintOk.style.opacity='0';if(hintX)hintX.style.opacity='0';
-        if(!draggingSwipe)return;
-        const dx=e.changedTouches[0].clientX-sx;
-        const uid=+cardEl.dataset.uid;
-        if(dx>90){confirmCard(uid);}
-        else if(dx<-90){discardCard(uid);}
-      });
-    });
-  }
+  revCardsEl.querySelectorAll('.c-discard').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.stopPropagation();discardCard(+btn.dataset.uid);});
+  });
 }
 
 function syncCard(uid){
   const card=cards.find(c=>c.uid===uid);if(!card)return;
   revCardsEl.querySelectorAll(`[data-uid="${uid}"].c-f`).forEach(el=>{
-    card.data[el.dataset.f]=el.value;
+    if(el.dataset.f==='tags'){
+      card.data.tags=el.value?el.value.split(',').map(s=>s.trim()).filter(Boolean):[];
+    }else{
+      card.data[el.dataset.f]=el.value;
+    }
   });
 }
 
@@ -1959,37 +1889,85 @@ function renderInv(){
   wall.classList.remove('on');list.style.display='';
   if(!items.length){list.innerHTML='';list.appendChild(empty);empty.style.display='flex';return;}
   empty.style.display='none';
-  const condColor={'great':'#3dbb3d','good':'#4488ff','fair':'#f0c040','poor':'#e84040'};
-  list.innerHTML=items.map(t=>{
-    const meta=[t.year,t.label,t.format].filter(Boolean).join(' · ');
-    const val=t.sold_price?`<span style="color:var(--text3)">Sold $${esc(t.sold_price)}</span>`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
-    const condBit=t.condition&&t.condition!=='great'?`<span style="font-size:9px;font-weight:700;color:${condColor[t.condition]||'var(--text3)'}">${t.condition}</span>`:'';
-    const tagBit=(t.tags||[]).slice(0,3).map(tag=>`<span style="font-size:9px;padding:1px 5px;border-radius:10px;background:rgba(68,136,255,.12);color:var(--blue);border:1px solid rgba(68,136,255,.25)">${esc(tag)}</span>`).join(' ');
-    const checked=selectedIds.has(t.id);
+  const condOpts=v=>['great','good','fair','poor'].map(c=>`<option value="${c}"${v===c?' selected':''}>${c}</option>`).join('');
+  const statOpts=v=>[['in_collection','In Collection'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([c,l])=>`<option value="${c}"${v===c?' selected':''}>${l}</option>`).join('');
+  list.innerHTML=`<table class="tape-table"><thead><tr>
+    <th style="width:28px"><input type="checkbox" id="tbl-chk-all" title="Select all"></th>
+    <th style="width:88px"></th>
+    <th>Title</th><th style="width:55px">Year</th><th>Label</th><th style="width:60px">Format</th>
+    <th style="width:80px">Cond.</th><th style="width:110px">Status</th>
+    <th style="width:50px">$Lo</th><th style="width:50px">$Hi</th>
+    <th>Tags</th><th>Notes</th><th style="width:28px"></th>
+  </tr></thead><tbody>${items.map(t=>{
     const spineSrc=t.photo_spine||t.photo_thumbnail;
-    const thumbHtml=spineSrc
-      ?`<img class="row-thumb" src="${spineSrc}" alt="" loading="lazy">`
-      :`<div class="row-thumb-ph">📼</div>`;
-    return `<div class="tape-row${checked?' selected':''}" data-id="${t.id}">
-      <input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''} onclick="event.stopPropagation()">
-      ${thumbHtml}
-      <span class="tid">${esc(t.id)}</span>
-      <div class="tinfo"><h3>${esc(t.title)}</h3><div class="tmeta" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${meta?`<span>${esc(meta)}</span>`:''}${val?`<span style="color:var(--green)">${esc(val)}</span>`:''}${condBit}${tagBit}</div></div>
-      <span class="badge b-${t.status}">${statusLbl(t.status)}</span>
-    </div>`;
-  }).join('');
-  list.querySelectorAll('.tape-row').forEach(row=>row.addEventListener('click',e=>{
-    if(e.target.classList.contains('row-check'))return;
-    openDetail(row.dataset.id);
-  }));
-  list.querySelectorAll('.row-check').forEach(cb=>cb.addEventListener('change',()=>{
-    if(cb.checked)selectedIds.add(cb.dataset.id);else selectedIds.delete(cb.dataset.id);
-    const row=cb.closest('.tape-row');
-    if(row)row.classList.toggle('selected',cb.checked);
-    updateBulkBar();
-  }));
+    const thumb=spineSrc?`<img class="tbl-thumb" src="${spineSrc}" loading="lazy">`:`<div class="tbl-thumb-ph">📼</div>`;
+    const checked=selectedIds.has(t.id);
+    return `<tr class="tape-row${checked?' selected':''}" data-id="${t.id}">
+      <td style="text-align:center"><input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''}></td>
+      <td style="cursor:pointer" class="tbl-open" data-id="${t.id}">${thumb}</td>
+      <td class="editable" data-id="${t.id}" data-field="title">${esc(t.title||'')}</td>
+      <td class="editable" data-id="${t.id}" data-field="year">${esc(t.year||'')}</td>
+      <td class="editable" data-id="${t.id}" data-field="label">${esc(t.label||'')}</td>
+      <td class="editable" data-id="${t.id}" data-field="format">${esc(t.format||'VHS')}</td>
+      <td><select class="tbl-sel" data-id="${t.id}" data-field="condition">${condOpts(t.condition||'great')}</select></td>
+      <td><select class="tbl-sel" data-id="${t.id}" data-field="status">${statOpts(t.status||'in_collection')}</select></td>
+      <td class="editable" data-id="${t.id}" data-field="value_low">${esc(t.value_low||'')}</td>
+      <td class="editable" data-id="${t.id}" data-field="value_high">${esc(t.value_high||'')}</td>
+      <td class="editable" data-id="${t.id}" data-field="tags">${esc((t.tags||[]).join(', '))}</td>
+      <td class="editable" data-id="${t.id}" data-field="notes">${esc(t.notes||'')}</td>
+      <td><button class="tbl-del" data-id="${t.id}" title="Delete">×</button></td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+  const tbl=list.querySelector('.tape-table');
+  // Click: editable cell → inline input; thumb → open detail; delete → remove
+  tbl.addEventListener('click',e=>{
+    const del=e.target.closest('.tbl-del');
+    if(del){deleteTape(del.dataset.id);return;}
+    const open=e.target.closest('.tbl-open');
+    if(open){openDetail(open.dataset.id);return;}
+    const td=e.target.closest('.editable');
+    if(!td||td.querySelector('input'))return;
+    const t=inventory.find(x=>x.id===td.dataset.id);if(!t)return;
+    const field=td.dataset.field;
+    const isArr=field==='tags';
+    const cur=isArr?(t.tags||[]).join(', '):(t[field]||'');
+    const inp=document.createElement('input');inp.className='tbl-input';inp.value=cur;
+    td.textContent='';td.appendChild(inp);inp.focus();inp.select();
+    const save=async()=>{
+      const v=inp.value.trim();
+      if(isArr){t.tags=v?v.split(',').map(s=>s.trim()).filter(Boolean):[];}
+      else{t[field]=v;}
+      td.textContent=isArr?(t.tags.join(', ')):v;
+      try{await dbPut(t);}catch(e2){toast('Save failed: '+e2.message,'err');}
+    };
+    inp.addEventListener('blur',save);
+    inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();inp.blur();}if(ev.key==='Escape'){td.textContent=cur;}});
+  });
+  // Change: selects (condition/status) and checkboxes
+  tbl.addEventListener('change',async e=>{
+    const sel=e.target.closest('.tbl-sel');
+    if(sel){
+      const t=inventory.find(x=>x.id===sel.dataset.id);if(!t)return;
+      t[sel.dataset.field]=sel.value;
+      try{await dbPut(t);}catch(e2){toast('Save failed: '+e2.message,'err');}
+      updateCount();return;
+    }
+    const cb=e.target.closest('.row-check');
+    if(cb){
+      if(cb.checked)selectedIds.add(cb.dataset.id);else selectedIds.delete(cb.dataset.id);
+      cb.closest('.tape-row')?.classList.toggle('selected',cb.checked);
+      updateBulkBar();return;
+    }
+    const ca=e.target.closest('#tbl-chk-all');
+    if(ca){items.forEach(t=>{if(ca.checked)selectedIds.add(t.id);else selectedIds.delete(t.id);});renderInv();updateBulkBar();}
+  });
 }
 const statusLbl=s=>({in_collection:'In Coll.',for_sale:'For Sale',sold:'Sold',donated:'Donated',missing:'Missing',wanted:'Wanted'}[s]||s);
+async function deleteTape(id){
+  if(!confirm('Delete this tape?'))return;
+  try{await dbDel(id);inventory=inventory.filter(t=>t.id!==id);selectedIds.delete(id);renderInv();updateCount();toast('Deleted','ok');}
+  catch(e){toast('Delete failed: '+e.message,'err');}
+}
 window.quickFilter=function(status,cond){
   if(status!==undefined&&status!==null)document.getElementById('f-stat-filter').value=status;
   if(cond!==undefined&&cond!==null)document.getElementById('f-cond-filter').value=cond;

@@ -35,9 +35,6 @@ test('confirm auto-advances to next card when multiple cards exist', async ({ pa
 
   // After confirm: only one card remains
   await expect(cards).toHaveCount(1, { timeout: 3000 });
-
-  // Remaining card should be auto-expanded
-  await expect(cards.first()).toHaveClass(/expanded/, { timeout: 1000 });
 });
 
 test('discard removes card without posting to /api/tapes', async ({ page }) => {
