@@ -29,7 +29,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 #camera-select:focus{outline:none;border-color:var(--accent)}
 .hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px}
 #count-badge{font-size:12px;color:var(--text2)}
-.hbtn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.hbtn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:10px 14px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:5px;white-space:nowrap}
 .hbtn:hover{border-color:var(--accent);color:var(--text)}
 
 #main{flex:1;overflow:hidden;position:relative}
@@ -76,10 +76,10 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 #bc-zoom-label{color:var(--green);font-size:11px;min-width:32px;text-align:center;font-weight:700}
 
 #cam-ctrl{background:var(--bg2);border-top:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
-#btn-cap{background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;padding:10px 22px;border-radius:8px;cursor:pointer;letter-spacing:.03em}
+#btn-cap{background:var(--accent);border:none;color:#fff;font-size:16px;font-weight:700;padding:16px 26px;border-radius:8px;cursor:pointer;letter-spacing:.03em}
 #btn-cap:hover{background:var(--accent2)}
 #btn-cap:disabled{opacity:.4;cursor:not-allowed}
-.ctrl-btn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:9px 13px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600}
+.ctrl-btn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:14px 16px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600}
 .ctrl-btn:hover{border-color:var(--accent);color:var(--text)}
 .ctrl-btn.active{border-color:var(--green);color:var(--green);background:rgba(61,187,61,.1)}
 #file-input{display:none}
@@ -265,7 +265,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 
 /* ── CROP PRESETS ────────────────────────────────────────────────── */
 #crop-presets{display:flex;gap:3px;align-items:center;margin-left:4px}
-.preset-btn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);border-radius:5px;padding:5px 8px;cursor:pointer;font-size:11px;line-height:1;white-space:nowrap}
+.preset-btn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);border-radius:5px;padding:12px 12px;cursor:pointer;font-size:14px;line-height:1;white-space:nowrap}
 .preset-btn:hover{border-color:var(--accent);color:var(--accent)}
 .preset-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(90,80,255,.12)}
 
@@ -276,10 +276,15 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .qs-proc{background:rgba(153,102,255,.15);color:var(--purple);border:1px solid rgba(153,102,255,.3)}
 .qs-failed{background:rgba(232,64,64,.15);color:var(--red);border:1px solid rgba(232,64,64,.3)}
 
-/* ── MOBILE HAMBURGER ────────────────────────────────────────────── */
-.hdr-right-mob{display:none;align-items:center;gap:8px;margin-left:auto}
-#btn-menu{background:var(--bg4);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:16px;line-height:1}
-#btn-cam-flip{background:var(--bg4);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:14px;line-height:1;font-weight:700}
+/* ── HAMBURGER (always visible) ─────────────────────────────────── */
+#hdr-right-desktop{display:none!important}
+.hdr-right-mob{display:flex;align-items:center;gap:8px;margin-left:auto}
+#btn-menu{background:var(--bg4);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:10px 14px;cursor:pointer;font-size:20px;line-height:1}
+#db-dot-mob{width:7px;height:7px;border-radius:50%;background:var(--border2);display:inline-block;margin-left:4px;vertical-align:middle;flex-shrink:0;transition:background .3s}
+#db-dot-mob.ok{background:var(--green)}
+#db-dot-mob.err{background:var(--red);cursor:pointer;box-shadow:0 0 4px var(--red)}
+/* Camera flip lives in cam-ctrl now */
+#btn-cam-flip{background:var(--bg4);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:14px 16px;cursor:pointer;font-size:18px;line-height:1;font-weight:700}
 #hbr-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199}
 #hbr-drawer{display:none;position:fixed;top:0;right:0;bottom:0;width:240px;background:var(--bg2);border-left:1px solid var(--border);z-index:200;flex-direction:column;padding:16px 12px;gap:6px;overflow-y:auto}
 #hbr-drawer.open,#hbr-backdrop.open{display:flex}
@@ -297,9 +302,9 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 #inv-ctrl.tray-hidden{display:none}
 
 /* ── TAB NAV (always visible) ────────────────────────────────────── */
-#tab-nav{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);height:44px;flex-shrink:0}
-.tab-btn{flex:1;height:100%;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.04em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 0;transition:color .15s}
-.tab-btn .tab-ico{font-size:18px;line-height:1}
+#tab-nav{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);height:60px;flex-shrink:0}
+.tab-btn{flex:1;height:100%;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 0;transition:color .15s}
+.tab-btn .tab-ico{font-size:24px;line-height:1}
 .tab-btn:hover{color:var(--text)}
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
 .tab-badge{background:var(--accent);color:#fff;border-radius:9px;font-size:8px;padding:1px 5px;min-width:14px;text-align:center;display:inline-block;margin-left:2px;vertical-align:top;line-height:14px}
@@ -312,14 +317,9 @@ body[data-tab="review"] #review{max-height:none;flex:1}
   #header{height:auto;flex-wrap:nowrap;padding:8px 10px;gap:6px}
   #header h1{font-size:14px;white-space:nowrap}
   #ai-badge{font-size:9px;padding:2px 6px;white-space:nowrap}
-  #hdr-right-desktop{display:none}
-  .hdr-right-mob{display:flex}
   #btn-filter-tray{display:flex}
   #inv-ctrl{display:none}
   #inv-ctrl.tray-open{display:block;position:fixed;bottom:0;left:0;right:0;z-index:150;background:var(--bg2);border-top:2px solid var(--accent);border-radius:16px 16px 0 0;padding:12px;max-height:60vh;overflow-y:auto;box-shadow:0 -8px 32px rgba(0,0,0,.5)}
-  #cam-ctrl{padding:7px 10px;gap:5px;flex-wrap:nowrap}
-  #btn-cap{padding:10px 14px;font-size:12px}
-  .ctrl-btn{padding:7px 9px;font-size:11px}
   .key-hint{display:none}
   #thumb-wrap{display:none!important}
   .tape-row{grid-template-columns:24px 40px 1fr auto;gap:5px;padding:6px 10px}
@@ -332,7 +332,6 @@ body[data-tab="review"] #review{max-height:none;flex:1}
   .dfield.full{grid-column:1}
   .rev-grid{grid-template-columns:1fr}
   .rev-grid .full{grid-column:1}
-  #crop-presets{display:none}
   /* 2-col card: on mobile, stack vertically */
   .rev-card.expanded .card-body{display:flex;flex-direction:column}
   .card-thumb{width:100%;max-height:200px}
@@ -357,7 +356,6 @@ body[data-tab="review"] #review{max-height:none;flex:1}
   <div class="hdr-right-mob" id="hdr-right-mob">
     <span id="count-badge-mob" style="font-size:11px;color:var(--text2)"></span>
     <span id="db-dot-mob"></span>
-    <button id="btn-cam-flip" title="Flip camera" style="display:none">⇅</button>
     <button id="btn-menu">☰</button>
   </div>
 </header>
@@ -415,6 +413,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
       <button class="ctrl-btn" id="btn-snap" style="display:none">📷 Snap</button>
       <button class="ctrl-btn" id="btn-upload">⬆ Upload</button>
       <input type="file" id="file-input" accept="image/*" multiple>
+      <button id="btn-cam-flip" title="Flip camera" style="display:none">⇅</button>
       <div id="crop-presets">
         <button class="preset-btn active" data-preset="default" title="Default crop">▣</button>
         <button class="preset-btn" data-preset="cover" title="VHS cover (portrait)">▯</button>
@@ -2710,11 +2709,14 @@ document.addEventListener('keydown',e=>{
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const dbDot=document.getElementById('db-dot');
+const dbDotMob=document.getElementById('db-dot-mob');
 function setDbDot(state){
-  dbDot.className=state;
-  dbDot.title={ok:'Neon DB connected',err:'Database error — click to retry','':'Connecting to database…'}[state]||'';
+  const titles={ok:'Neon DB connected',err:'Database error — click to retry','':'Connecting to database…'};
+  if(dbDot){dbDot.className=state;dbDot.title=titles[state]||'';}
+  if(dbDotMob){dbDotMob.className=state;dbDotMob.title=titles[state]||'';}
 }
-dbDot.addEventListener('click',()=>{if(dbDot.className==='err')init();});
+dbDot?.addEventListener('click',()=>{if(dbDot.className==='err')init();});
+dbDotMob?.addEventListener('click',()=>{if(dbDotMob.className==='err')init();});
 
 // ── HAMBURGER MENU ────────────────────────────────────────────────────────
 function openDrawer(){document.getElementById('hbr-drawer').classList.add('open');document.getElementById('hbr-backdrop').classList.add('open');}
@@ -2746,7 +2748,8 @@ async function populateCameras(){
   cameraDevices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
   camSel.innerHTML=cameraDevices.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
   if(cameraDevices.length>1){
-    if(isMobile){btnCamFlip.style.display='';} else {camSel.style.display='';}
+    btnCamFlip.style.display='';
+    camSel.style.display='';
     camIdx=isMobile?Math.max(0,cameraDevices.length-1):0;
   }
 }
