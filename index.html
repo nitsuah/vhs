@@ -166,7 +166,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 #btn-wall.active{border-color:var(--accent);color:var(--accent)}
 
 #inv-list{flex:1;overflow-y:auto;overflow-x:auto}
-.tape-row{display:grid;grid-template-columns:28px 48px 68px 1fr auto;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);cursor:pointer;align-items:center}
+.tape-row{cursor:pointer}
 .row-thumb{width:80px;height:22px;object-fit:cover;border-radius:3px;background:var(--bg4);flex-shrink:0}
 .row-thumb-ph{width:80px;height:22px;border-radius:3px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
 .tape-row:hover{background:var(--bg3)}
@@ -344,10 +344,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
   #inv-ctrl.tray-open{display:block;position:fixed;bottom:0;left:0;right:0;z-index:150;background:var(--bg2);border-top:2px solid var(--accent);border-radius:16px 16px 0 0;padding:12px;max-height:60vh;overflow-y:auto;box-shadow:0 -8px 32px rgba(0,0,0,.5)}
   .key-hint{display:none}
   #thumb-wrap{display:none!important}
-  .tape-row{grid-template-columns:24px 40px 1fr auto;gap:5px;padding:6px 10px}
   .tid{display:none}
-  .row-thumb{width:60px;height:18px}
-  .row-thumb-ph{width:60px;height:18px;font-size:10px}
   .tinfo h3{font-size:12px}
   .modal{max-height:90dvh;overflow-y:auto;width:calc(100vw - 24px)}
   .dgrid{grid-template-columns:1fr}
@@ -758,10 +755,10 @@ async function apiReq(p,opts){
     const r=await fetch(p,opts);
     if(!r.ok){const t=await r.text();throw new Error(t||r.status);}
     const d=await r.json();
-    setDbDot('ok');
+    if(p.startsWith('/api/tapes')||p.startsWith('/api/jobs'))setDbDot('ok');
     return d;
   }catch(err){
-    setDbDot('err');
+    if(p.startsWith('/api/tapes')||p.startsWith('/api/jobs'))setDbDot('err');
     throw err;
   }
 }
@@ -857,7 +854,8 @@ async function initCamera(){
     });
     probe.getTracks().forEach(t=>t.stop());
     await populateCameras();
-    const defaultDev=isMobile?(cameraDevices[cameraDevices.length-1]?.deviceId):cameraDevices[0]?.deviceId;
+    currentFacing='environment';
+    const defaultDev=isMobile?null:cameraDevices[0]?.deviceId;
     await startStream(defaultDev);
     checkTorch();
   }catch(e){
@@ -877,13 +875,14 @@ async function initCamera(){
     btnEnableCam.textContent='📷 Enable Camera';
   }
 }
+let currentFacing='environment';
 async function startStream(deviceId){
   if(video.srcObject)video.srcObject.getTracks().forEach(t=>t.stop());
   try{
     const videoConstraints=deviceId
       ? {deviceId:{exact:deviceId}}
       : isMobile
-        ? {facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080},focusMode:{ideal:'continuous'}}
+        ? {facingMode:{ideal:currentFacing},width:{ideal:1920},height:{ideal:1080},focusMode:{ideal:'continuous'}}
         : {width:{ideal:1920},height:{ideal:1080}};
     const constraints={video:videoConstraints,audio:false};
     video.srcObject=await navigator.mediaDevices.getUserMedia(constraints);
@@ -2738,11 +2737,16 @@ async function populateCameras(){
   }
 }
 btnCamFlip?.addEventListener('click',async()=>{
-  if(cameraDevices.length<2)return;
-  camIdx=(camIdx+1)%cameraDevices.length;
-  const id=cameraDevices[camIdx]?.deviceId;
-  camSel.value=id;
-  await startStream(id);
+  if(isMobile){
+    currentFacing=currentFacing==='environment'?'user':'environment';
+    await startStream(null);
+  }else{
+    if(cameraDevices.length<2)return;
+    camIdx=(camIdx+1)%cameraDevices.length;
+    const id=cameraDevices[camIdx]?.deviceId;
+    camSel.value=id;
+    await startStream(id);
+  }
 });
 
 // ── CROP PRESETS ─────────────────────────────────────────────────────────
