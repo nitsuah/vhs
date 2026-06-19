@@ -1016,68 +1016,100 @@ function flashBcTarget(){
   setTimeout(()=>t.classList.remove('hit'),500);
 }
 
+function _fireBarcodeResult(code){
+  const now=Date.now();
+  if(code===lastCode.val&&now-lastCode.t<4000)return;
+  lastCode={val:code,t:now};
+  beep();flashBcTarget();
+  const bcLabelEl=document.getElementById('bc-label');
+  if(bcLabelEl)bcLabelEl.textContent=`✓ ${code}`;
+  setTimeout(()=>{if(bcLabelEl)bcLabelEl.textContent='Hold barcode in box — or tap 📷';},3500);
+  const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
+  if(bcDup)toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);
+  const uid=++uidSeq;
+  cards.push({uid,data:{title:bcDup?bcDup.title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
+  renderCards();showRevPanel();
+  if(!bcDup)lookupBarcode(code).then(meta=>{
+    if(!meta)return;
+    const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
+    card.data.title=meta.title;
+    if(meta.label)card.data.label=meta.label;
+    renderCards();
+    toast(`UPC matched: ${meta.title}`,'ok');
+  });
+}
+
 function startBarcodeLoop(){
-  if(!window.ZXing)return;
-  const hints=new Map([
-    [ZXing.DecodeHintType.TRY_HARDER,true],
-    [ZXing.DecodeHintType.POSSIBLE_FORMATS,[
-      ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,
-      ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.ITF,
-    ]]
-  ]);
-  barcodeRdr=new ZXing.BrowserMultiFormatReader(hints);
+  // Prefer native BarcodeDetector (Chrome/Android) — much more reliable than ZXing
+  const useNativeDetector='BarcodeDetector' in window;
+  let nativeDetector=null;
+  if(useNativeDetector){
+    try{
+      nativeDetector=new BarcodeDetector({formats:['ean_13','upc_a','upc_e','ean_8','code_128','code_39','itf']});
+    }catch{nativeDetector=null;}
+  }
+
+  // ZXing fallback
+  if(!nativeDetector){
+    if(!window.ZXing)return;
+    const hints=new Map([
+      [ZXing.DecodeHintType.TRY_HARDER,true],
+      [ZXing.DecodeHintType.POSSIBLE_FORMATS,[
+        ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,
+        ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.CODE_128,
+        ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.ITF,
+      ]]
+    ]);
+    barcodeRdr=new ZXing.BrowserMultiFormatReader(hints);
+  }
+
   let busy=false;
-  // Accumulate candidate reads — require same code seen twice within 1.5s to confirm
-  const candidates=new Map(); // code → {count, firstSeen}
+  const candidates=new Map(); // for ZXing: code → {count, firstSeen}
+  let noDetectSince=Date.now();
 
   const loop=async()=>{
     if(!barcodeMode)return;
     if(!busy&&video.readyState>=2&&video.videoWidth>0){
       busy=true;
       try{
-        const vw=video.videoWidth,vh=video.videoHeight;
-        let result=null;
-        // Try all 4 preprocessing variants; also try full-frame as variant 4
-        for(let v=0;v<5&&!result;v++){
-          try{result=await barcodeRdr.decodeFromCanvas(buildBcVariant(vw,vh,v%4,v===4));}catch{}
-        }
-        if(result){
-          const code=result.getText(),now=Date.now();
-          const prev=candidates.get(code)||{count:0,firstSeen:now};
-          // Expire stale candidates older than 2s
-          if(now-prev.firstSeen>2000){candidates.set(code,{count:1,firstSeen:now});}
-          else{
-            const newCount=prev.count+1;
-            candidates.set(code,{count:newCount,firstSeen:prev.firstSeen});
-            // Confirm on 2nd consistent read
-            if(newCount>=2&&(code!==lastCode.val||now-lastCode.t>4000)){
-              lastCode={val:code,t:now};
-              candidates.clear();
-              beep();flashBcTarget();
-              const bcLabelEl=document.getElementById('bc-label');
-              if(bcLabelEl)bcLabelEl.textContent=`✓ ${code}`;
-              setTimeout(()=>{if(bcLabelEl)bcLabelEl.textContent='Tap · or hold barcode in box';},3500);
-              const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
-              if(bcDup)toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);
-              const uid=++uidSeq;
-              cards.push({uid,data:{title:bcDup?bcDup.title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
-              renderCards();showRevPanel();
-              if(!bcDup)lookupBarcode(code).then(meta=>{
-                if(!meta)return;
-                const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
-                card.data.title=meta.title;
-                if(meta.label)card.data.label=meta.label;
-                renderCards();
-                toast(`UPC matched: ${meta.title}`,'ok');
-              });
+        let code=null;
+        if(nativeDetector){
+          // Native: detect directly from video element — fast, hardware-accelerated
+          const results=await nativeDetector.detect(video).catch(()=>[]);
+          if(results.length)code=results[0].rawValue;
+        }else{
+          // ZXing: try preprocessing variants
+          const vw=video.videoWidth,vh=video.videoHeight;
+          let result=null;
+          for(let v=0;v<5&&!result;v++){
+            try{result=await barcodeRdr.decodeFromCanvas(buildBcVariant(vw,vh,v%4,v===4));}catch{}
+          }
+          if(result){
+            const raw=result.getText(),now=Date.now();
+            const prev=candidates.get(raw)||{count:0,firstSeen:now};
+            if(now-prev.firstSeen>2000){candidates.set(raw,{count:1,firstSeen:now});}
+            else{
+              const c=prev.count+1;
+              candidates.set(raw,{count:c,firstSeen:prev.firstSeen});
+              if(c>=2)code=raw; // confirm on 2nd read
             }
+          }
+        }
+        if(code){
+          candidates.clear();
+          noDetectSince=Date.now();
+          _fireBarcodeResult(code);
+        } else {
+          // After 8s with no detection, nudge user toward native camera
+          const bcLbl=document.getElementById('bc-label');
+          if(bcLbl&&Date.now()-noDetectSince>8000){
+            bcLbl.textContent='No barcode found — try the 📷 button';
           }
         }
       }catch{}
       busy=false;
     }
-    if(barcodeMode)setTimeout(loop,100);
+    if(barcodeMode)setTimeout(loop,nativeDetector?80:120);
   };
   loop();
 }
@@ -1098,38 +1130,25 @@ async function toggleTorch(){
 }
 
 async function snapAndDecode(){
-  if(!window.ZXing||!barcodeRdr||!video.videoWidth)return;
-  const vw=video.videoWidth,vh=video.videoHeight;
-  let result=null;
-  for(let v=0;v<4&&!result;v++){
-    try{result=await barcodeRdr.decodeFromCanvas(buildBcVariant(vw,vh,v));}catch{}
+  if(!video.videoWidth)return;
+  let code=null;
+  // Try native BarcodeDetector first
+  if('BarcodeDetector' in window){
+    try{
+      const det=new BarcodeDetector({formats:['ean_13','upc_a','upc_e','ean_8','code_128','code_39','itf']});
+      const results=await det.detect(video);
+      if(results.length)code=results[0].rawValue;
+    }catch{}
   }
-  if(result){
-    const code=result.getText(),now=Date.now();
-    if(code!==lastCode.val||now-lastCode.t>3000){
-      lastCode={val:code,t:now};
-      beep();flashBcTarget();
-      const bcLbl2=document.getElementById('bc-label');
-      if(bcLbl2){bcLbl2.textContent=`✓ ${code}`;setTimeout(()=>{bcLbl2.textContent='Tap · or hold barcode in box';},3500);}
-      const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
-      if(bcDup)toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);
-      const uid=++uidSeq;
-      cards.push({uid,data:{title:bcDup?bcDup.title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
-      renderCards();showRevPanel();
-      if(!bcDup)lookupBarcode(code).then(meta=>{
-        if(!meta)return;
-        const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
-        card.data.title=meta.title;
-        if(meta.label)card.data.label=meta.label;
-        renderCards();
-        toast(`UPC matched: ${meta.title}`,'ok');
-      });
-    }else{
-      toast('Already scanned recently','');
+  // Fallback to ZXing preprocessing variants
+  if(!code&&window.ZXing&&barcodeRdr){
+    const vw=video.videoWidth,vh=video.videoHeight;
+    for(let v=0;v<5&&!code;v++){
+      try{const r=await barcodeRdr.decodeFromCanvas(buildBcVariant(vw,vh,v%4,v===4));if(r)code=r.getText();}catch{}
     }
-  }else{
-    toast('No barcode detected — try adjusting zoom or lighting','err');
   }
+  if(code){_fireBarcodeResult(code);}
+  else{toast('No barcode detected — try adjusting zoom or lighting','err');}
 }
 document.getElementById('btn-torch').addEventListener('click',toggleTorch);
 document.getElementById('btn-snap').addEventListener('click',snapAndDecode);
@@ -2539,8 +2558,6 @@ vidWrapEl.addEventListener('click',e=>{
   if(!video.srcObject)return;
   if(e.target.id==='crop'||e.target.closest('#barcode-overlay')||e.target.id==='crop-handle')return;
   if(barcodeMode){
-    // In barcode mode, tap = manual barcode scan attempt
-    if(lastBarcodeResult)return; // already have a result
     manualBarcodeSnap();
   } else {
     document.getElementById('btn-cap').click();
@@ -2548,29 +2565,8 @@ vidWrapEl.addEventListener('click',e=>{
 });
 
 function manualBarcodeSnap(){
-  if(!barcodeRdr||!video.srcObject)return;
-  const canvas=document.createElement('canvas');
-  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
-  canvas.getContext('2d').drawImage(video,0,0);
-  try{
-    const result=barcodeRdr.decodeFromCanvas(canvas);
-    if(result){
-      const code=result.getText();
-      // Inject into the candidate loop as a confirmed scan
-      lastCode={val:code,t:0}; // set t:0 so next scan re-fires
-      const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
-      if(bcDup){toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);return;}
-      const uid=++uidSeq;
-      cards.push({uid,data:{title:'',barcode:code,format:'VHS',condition:'great',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
-      renderCards();showRevPanel();beep();flashBcTarget();
-      lookupBarcode(code).then(meta=>{
-        if(!meta)return;
-        const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
-        card.data.title=meta.title;if(meta.label)card.data.label=meta.label;
-        renderCards();
-      });
-    } else {toast('No barcode detected — try again','warn',2000);}
-  }catch{toast('No barcode detected','warn',2000);}
+  if(!video.srcObject)return;
+  snapAndDecode(); // unified snap handler — tries BarcodeDetector then ZXing
 }
 
 // ── QUEUE STATUS ─────────────────────────────────────────────────────────
@@ -2582,15 +2578,23 @@ async function updateQueueStatus(){
     const s=await fetch('/api/jobs/status').then(r=>r.json());
     const active=(s.pending||0)+(s.processing||0);
     const failed=s.failed||0;
-    const done=s.done||0;
-    if(!active&&!failed&&!done){queueStatusEl.style.display='none';return;}
+    // "done" jobs minus cards already loaded = truly new-ready count
+    const newReady=Math.max(0,(s.done||0)-seenJobIds.size);
+    if(!active&&!failed&&!newReady){queueStatusEl.style.display='none';return;}
     queueStatusEl.style.display='flex';
     const parts=[];
     if(s.pending)parts.push(`<span class="qs-badge qs-pending">⏳ ${s.pending} queued</span>`);
     if(s.processing)parts.push(`<span class="qs-badge qs-proc">⟳ ${s.processing} analyzing</span>`);
-    if(done)parts.push(`<span class="qs-badge" style="background:rgba(61,187,61,.15);color:var(--green);border:1px solid rgba(61,187,61,.3)">✓ ${done} ready</span>`);
-    if(failed)parts.push(`<span class="qs-badge qs-failed">⚠ ${failed} failed</span>`);
+    if(newReady)parts.push(`<span class="qs-badge" style="background:rgba(61,187,61,.15);color:var(--green);border:1px solid rgba(61,187,61,.3);cursor:pointer" title="Click to open review panel" id="qs-ready-btn">✓ ${newReady} ready</span>`);
+    if(failed)parts.push(`<span class="qs-badge qs-failed" style="cursor:pointer" title="Click to retry failed jobs" id="qs-failed-btn">⚠ ${failed} failed</span>`);
     queueStatusEl.innerHTML=`<span style="font-size:10px;color:var(--text3)">Queue:</span>${parts.join('')}`;
+    document.getElementById('qs-ready-btn')?.addEventListener('click',()=>{pollReadyJobs();showRevPanel();});
+    document.getElementById('qs-failed-btn')?.addEventListener('click',async()=>{
+      const r=await fetch('/api/jobs/retry-failed',{method:'POST'});
+      const d=await r.json();
+      if(d.requeued)toast(`Re-queued ${d.requeued} failed job${d.requeued>1?'s':''}…`,'ok');
+      updateQueueStatus();
+    });
   }catch{}finally{queueBusy=false;}
 }
 

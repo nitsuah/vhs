@@ -183,6 +183,31 @@ app.delete('/api/jobs/:id', async (req, res) => {
   }
 });
 
+// Clear all permanently-failed jobs (retry_count >= MAX_RETRIES)
+app.delete('/api/jobs/failed/all', async (_req, res) => {
+  try {
+    const { rowCount } = await pool.query(
+      `DELETE FROM upload_jobs WHERE status='failed' AND retry_count>=$1`, [MAX_RETRIES]
+    );
+    res.json({ deleted: rowCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reset failed jobs so they get re-queued on next worker tick
+app.post('/api/jobs/retry-failed', async (_req, res) => {
+  try {
+    const { rowCount } = await pool.query(
+      `UPDATE upload_jobs SET status='pending', retry_count=0, updated_at=$1 WHERE status='failed'`,
+      [new Date().toISOString()]
+    );
+    res.json({ requeued: rowCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Background worker — picks pending jobs, calls Ollama, saves results; retries failures up to 3×
 const MAX_RETRIES = 3;
 let workerBusy = false;
