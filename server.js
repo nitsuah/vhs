@@ -141,10 +141,28 @@ app.post('/api/jobs', async (req, res) => {
 
 app.get('/api/jobs/ready', async (_req, res) => {
   try {
+    // Return done jobs AND permanently-failed jobs so the client can surface both
     const { rows } = await pool.query(
-      "SELECT id, thumb, result, created_at FROM upload_jobs WHERE status='done' ORDER BY created_at ASC"
+      `SELECT id, thumb, result, error, status, retry_count, created_at
+       FROM upload_jobs
+       WHERE status='done' OR (status='failed' AND retry_count>=$1)
+       ORDER BY created_at ASC`,
+      [MAX_RETRIES]
     );
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/jobs/:id/retry', async (req, res) => {
+  try {
+    const { rowCount } = await pool.query(
+      "UPDATE upload_jobs SET status='pending', retry_count=0, error=NULL, updated_at=$1 WHERE id=$2",
+      [new Date().toISOString(), req.params.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'not found' });
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

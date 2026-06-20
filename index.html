@@ -346,6 +346,15 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .rev-table .c-f:focus{outline:none;border-color:var(--accent)}
 .rev-table select.c-f{padding:3px 4px}
 .rev-thumb{width:60px;height:42px;object-fit:cover;border-radius:3px;display:block}
+/* Processing state — fields locked except title */
+.rev-card.card-processing{opacity:.8}
+.rev-card.card-processing .c-f.locked{pointer-events:none;opacity:.35;background:transparent;border-color:transparent}
+.rev-card.card-processing select.locked{pointer-events:none;opacity:.35}
+/* Failed state — red left border, error reason visible */
+.rev-card.card-failed{box-shadow:inset 3px 0 0 var(--red)}
+.fail-reason{font-size:10px;color:var(--red);margin-top:3px}
+.btn-retry{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:4px 8px;border-radius:5px;cursor:pointer;font-size:11px}
+.btn-retry:hover{border-color:var(--accent);color:var(--text)}
 
 /* ── RESPONSIVE ─────────────────────────────────────────────────── */
 @media (max-width:700px){
@@ -1119,28 +1128,37 @@ function _fireBarcodeResult(code){
   const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
   if(bcDup)toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);
   const uid=++uidSeq;
-  cards.push({uid,data:{title:bcDup?bcDup.title:'',barcode:code,format:'VHS',condition:'good',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
+  // Barcode cards start immediately — 'processing' while lookup runs, 'ready' when done
+  cards.push({uid,data:{title:bcDup?bcDup.title:'',barcode:code,format:'VHS',condition:'good',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true,jobId:null,processingState:bcDup?'ready':'processing',failReason:''});
   renderCards();showRevPanel();
-  if(!bcDup)lookupBarcode(code).then(async meta=>{
-    if(!meta)return;
-    const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
-    card.data.title=meta.title;
-    if(meta.label)card.data.label=meta.label;
-    if(meta.year)card.data.year=meta.year;
-    renderCards();
-    toast(`Barcode matched: ${meta.title}`,'ok');
-    // Enrich with year/value via Ollama or Claude
-    const enriched=await lookupMetadata(meta.title).catch(()=>null);
-    if(enriched){
-      const c2=cards.find(c=>c.uid===uid);if(!c2)return;
-      if(enriched.year&&!c2.data.year)c2.data.year=enriched.year;
-      if(enriched.label&&!c2.data.label)c2.data.label=enriched.label;
-      if(enriched.format)c2.data.format=enriched.format;
-      if(enriched.value_low)c2.data.value_low=enriched.value_low;
-      if(enriched.value_high)c2.data.value_high=enriched.value_high;
-      renderCards();
-    }
-  });
+  if(!bcDup){
+    lookupBarcode(code).then(async meta=>{
+      const card=cards.find(c=>c.uid===uid);
+      if(card&&meta&&!card.data.title){
+        card.data.title=meta.title;
+        if(meta.label)card.data.label=meta.label;
+        if(meta.year)card.data.year=meta.year;
+        toast(`Barcode matched: ${meta.title}`,'ok');
+        const enriched=await lookupMetadata(meta.title).catch(()=>null);
+        if(enriched){
+          const c2=cards.find(c=>c.uid===uid);if(!c2){return;}
+          if(enriched.year&&!c2.data.year)c2.data.year=enriched.year;
+          if(enriched.label&&!c2.data.label)c2.data.label=enriched.label;
+          if(enriched.format)c2.data.format=enriched.format;
+          if(enriched.value_low)c2.data.value_low=enriched.value_low;
+          if(enriched.value_high)c2.data.value_high=enriched.value_high;
+        }
+      }else if(card&&!meta){
+        toast('No barcode match — enter title manually','warn',3000);
+      }
+      // Always unlock the card when the lookup chain completes
+      const c3=cards.find(c=>c.uid===uid);
+      if(c3){c3.processingState='ready';renderCards();}
+    }).catch(()=>{
+      const c=cards.find(c=>c.uid===uid);
+      if(c){c.processingState='ready';renderCards();}
+    });
+  }
 }
 
 function startBarcodeLoop(){
@@ -1478,20 +1496,23 @@ async function processQueue(){
     return;
   }
 
-  // No API key — submit to server queue (durable: survives browser close)
+  // No API key — submit to server queue; add 'processing' cards immediately so queue is visible
   let submitted=0;
   for(const item of queue){
     try{
-      await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},
+      const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({image:item.base64,thumb:item.thumb})});
-      submitted++;
+      if(r.ok){
+        const {id:jobId}=await r.json();
+        addCard({format:'VHS',condition:'good',status:'in_collection',notes:''},null,item.thumb,false,jobId,'processing');
+        submitted++;
+      }
     }catch(e){console.warn('Job submit error:',e);}
   }
   if(submitted){
-    toast(`${submitted} image${submitted>1?'s':''} queued — Ollama is analyzing in the background. Results appear here automatically.`,'ok',6000);
     showRevPanel();
-    setRevMsg('Waiting for server analysis…');
-    setRevLoading(true);
+    renderCards();
+    toast(`${submitted} image${submitted>1?'s':''} queued — Ollama is analyzing…`,'ok',4000);
   }
 }
 
@@ -1501,27 +1522,61 @@ let seenJobIds=new Set();
 async function pollReadyJobs(){
   try{
     const jobs=await fetch('/api/jobs/ready').then(r=>r.json());
-    if(!Array.isArray(jobs)||!jobs.length){
-      if(!cards.length)setRevLoading(false);
-      return;
-    }
-    showRevPanel();
-    let added=0;
+    if(!Array.isArray(jobs)||!jobs.length)return;
+    let changed=0;
     for(const job of jobs){
       if(seenJobIds.has(job.id))continue;
       seenJobIds.add(job.id);
-      const results=Array.isArray(job.result)?job.result:[];
-      if(!results.length){
-        // Nothing found — auto-delete so it doesn't accumulate
-        fetch(`/api/jobs/${encodeURIComponent(job.id)}`,{method:'DELETE'}).catch(()=>{});
+      // Find an existing 'processing' card that was created for this job
+      const existing=cards.find(c=>c.jobId===job.id&&c.processingState==='processing');
+      if(job.status==='failed'){
+        // Permanently failed — surface with error reason
+        if(existing){
+          existing.processingState='failed';
+          existing.failReason=job.error||'Analysis failed';
+        }else{
+          // Job from another session/device we didn't create a card for
+          addCard({format:'VHS',condition:'good',status:'in_collection',notes:''},null,job.thumb,false,job.id,'failed',job.error||'Analysis failed');
+          showRevPanel();
+        }
+        changed++;
         continue;
       }
-      const wasEmpty=!cards.length&&added===0;
-      results.forEach((d,j)=>addCard({...d,condition:d.condition||'good',status:'in_collection',notes:''},null,job.thumb,wasEmpty&&j===0,job.id));
-      added+=results.length;
-      // job stays in DB as 'done' until user confirms or discards the card
+      // status === 'done'
+      const results=Array.isArray(job.result)?job.result:[];
+      if(!results.length){
+        // Nothing detected — mark as failed so user knows
+        if(existing){
+          existing.processingState='failed';
+          existing.failReason='No tapes detected in image';
+        }else{
+          fetch(`/api/jobs/${encodeURIComponent(job.id)}`,{method:'DELETE'}).catch(()=>{});
+        }
+        changed++;
+        continue;
+      }
+      if(existing){
+        // Update the existing card — respect any title the user pre-filled
+        const d=results[0];
+        if(!existing.data.title)existing.data.title=d.title||'';
+        if(d.year)existing.data.year=d.year;
+        if(d.label)existing.data.label=d.label;
+        if(d.format)existing.data.format=d.format||'VHS';
+        if(d.condition)existing.data.condition=d.condition||'good';
+        existing.processingState='ready';
+        // Extra results from the same image become new ready cards
+        for(let i=1;i<results.length;i++){
+          addCard({...results[i],condition:results[i].condition||'good',status:'in_collection',notes:''},null,job.thumb,false,null,'ready');
+        }
+      }else{
+        // Submitted from another browser/device — add cards normally
+        const wasEmpty=!cards.length;
+        results.forEach((d,j)=>addCard({...d,condition:d.condition||'good',status:'in_collection',notes:''},null,job.thumb,wasEmpty&&j===0,job.id,'ready'));
+        showRevPanel();
+      }
+      changed++;
     }
-    if(added){renderCards();setRevLoading(false);toast(`${added} tape${added>1?'s':''} ready for review`,'ok');}
+    if(changed)renderCards();
   }catch(e){console.warn('Job poll error:',e);}
 }
 function startJobPoller(){
@@ -1668,8 +1723,8 @@ const revCardsEl=document.getElementById('rev-cards');
 const revErr=document.getElementById('rev-err');
 const revBulk=document.getElementById('rev-bulk');
 
-function addCard(data,source=null,thumb=null,expanded=false,jobId=null){
-  cards.push({uid:++uidSeq,data:{...data},source,thumb,expanded,jobId});
+function addCard(data,source=null,thumb=null,expanded=false,jobId=null,processingState='ready',failReason=''){
+  cards.push({uid:++uidSeq,data:{...data},source,thumb,expanded,jobId,processingState,failReason});
 }
 function _claimJob(jobId){
   if(!jobId)return;
@@ -1684,9 +1739,11 @@ function showRevErr(m){revErr.style.display='block';revErr.textContent=m;revCard
 
 function renderCards(){
   updateTabBadge?.();
-  revBulk.classList.toggle('on',cards.length>1);
-  document.getElementById('rev-title').textContent=cards.length?`Pending Review (${cards.length})`:'Pending Review';
-  if(!cards.length){revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';if(!revErr.style.display||revErr.style.display==='none')revPanel.classList.remove('on');return;}
+  const readyCount=cards.filter(c=>c.processingState==='ready').length;
+  revBulk.classList.toggle('on',readyCount>1);
+  const totalN=cards.length;
+  document.getElementById('rev-title').textContent=totalN?`Pending Review (${totalN})`:'Pending Review';
+  if(!totalN){revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';if(!revErr.style.display||revErr.style.display==='none')revPanel.classList.remove('on');return;}
   const cOpts=v=>['great','good','fair','poor'].map(c=>`<option value="${c}"${v===c?' selected':''}>${c}</option>`).join('');
   const sOpts=v=>[['in_collection','In Collection'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([c,l])=>`<option value="${c}"${v===c?' selected':''}>${l}</option>`).join('');
   revCardsEl.innerHTML=`<table class="rev-table"><thead><tr>
@@ -1694,33 +1751,48 @@ function renderCards(){
     <th>Title</th><th style="width:55px">Year</th><th>Label</th><th style="width:65px">Format</th>
     <th style="width:80px">Cond.</th><th style="width:110px">Status</th>
     <th style="width:50px">$Lo</th><th style="width:50px">$Hi</th>
-    <th>Tags</th><th style="width:110px"></th>
+    <th>Tags</th><th style="width:120px"></th>
   </tr></thead><tbody>${cards.map(card=>{
-    const th=card.thumb?`<img class="rev-thumb" src="${card.thumb}">`:`<div class="card-hdr-ph">📼</div>`;
+    const proc=card.processingState==='processing';
+    const fail=card.processingState==='failed';
+    const lk='c-f locked';  // locked field class for processing state
+    const thumb=card.thumb?`<img class="rev-thumb" src="${card.thumb}">`:`<div class="card-hdr-ph">${proc?'<span class="spin" style="width:12px;height:12px;border-width:2px;display:inline-block"></span>':'📼'}</div>`;
     const tags=(card.data.tags||[]).join(', ');
-    return `<tr class="rev-card" data-uid="${card.uid}">
-      <td>${th}</td>
-      <td><div style="display:flex;gap:4px;align-items:center">
-        <input class="c-f" data-uid="${card.uid}" data-f="title" value="${esc(card.data.title||'')}" placeholder="Title" style="${!card.data.title?'border-color:var(--yellow)':''}">
-        <button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata">🔍</button>
+    const rowClass=`rev-card${proc?' card-processing':fail?' card-failed':''}`;
+    const titlePlaceholder=proc?'Analyzing… (pre-fill if you know it)':fail?'Enter title manually':'Title';
+    const titleStyle=!card.data.title&&!proc?'border-color:var(--yellow)':'';
+    return `<tr class="${rowClass}" data-uid="${card.uid}">
+      <td>${thumb}</td>
+      <td><div style="display:flex;flex-direction:column;gap:2px">
+        <div style="display:flex;gap:4px;align-items:center">
+          <input class="c-f" data-uid="${card.uid}" data-f="title" value="${esc(card.data.title||'')}" placeholder="${titlePlaceholder}" style="${titleStyle}">
+          ${!proc?`<button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata">🔍</button>`:''}
+        </div>
+        ${fail&&card.failReason?`<div class="fail-reason">⚠ ${esc(card.failReason)}</div>`:''}
+        ${proc&&card.data.title?`<div style="font-size:10px;color:var(--text3);font-style:italic">Pre-filled — won't be overwritten</div>`:''}
       </div></td>
-      <td><input class="c-f" data-uid="${card.uid}" data-f="year" value="${esc(card.data.year||'')}" placeholder="Year"></td>
-      <td><input class="c-f" data-uid="${card.uid}" data-f="label" value="${esc(card.data.label||'')}" placeholder="Label"></td>
-      <td><input class="c-f" data-uid="${card.uid}" data-f="format" value="${esc(card.data.format||'VHS')}"></td>
-      <td><select class="c-f" data-uid="${card.uid}" data-f="condition">${cOpts(card.data.condition||'good')}</select></td>
-      <td><select class="c-f" data-uid="${card.uid}" data-f="status">${sOpts(card.data.status||'in_collection')}</select></td>
-      <td><input class="c-f" data-uid="${card.uid}" data-f="value_low" value="${esc(card.data.value_low||'')}" placeholder="$"></td>
-      <td><input class="c-f" data-uid="${card.uid}" data-f="value_high" value="${esc(card.data.value_high||'')}" placeholder="$"></td>
-      <td><input class="c-f" data-uid="${card.uid}" data-f="tags" value="${esc(tags)}" placeholder="genres, tags…"></td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}" title="Confirm">✓</button>
+      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="year" value="${esc(card.data.year||'')}" placeholder="Year"></td>
+      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="label" value="${esc(card.data.label||'')}" placeholder="Label"></td>
+      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="format" value="${esc(card.data.format||'VHS')}"></td>
+      <td><select class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="condition" ${proc?'disabled':''}>${cOpts(card.data.condition||'good')}</select></td>
+      <td><select class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="status" ${proc?'disabled':''}>${sOpts(card.data.status||'in_collection')}</select></td>
+      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="value_low" value="${esc(card.data.value_low||'')}" placeholder="$"></td>
+      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="value_high" value="${esc(card.data.value_high||'')}" placeholder="$"></td>
+      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="tags" value="${esc(tags)}" placeholder="genres, tags…"></td>
+      <td style="white-space:nowrap;display:flex;gap:4px;align-items:center;padding:5px 6px">
+        ${!proc?`<button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}" title="Confirm">✓</button>`:''}
+        ${fail&&card.jobId?`<button class="btn-retry c-retry" data-uid="${card.uid}" title="Re-queue for analysis">↺</button>`:''}
         <button class="btn btn-sm btn-x c-discard" data-uid="${card.uid}" title="Discard">✕</button>
       </td>
     </tr>`;
   }).join('')}</tbody></table>`;
-  revCardsEl.querySelectorAll('.c-f').forEach(el=>{
+  revCardsEl.querySelectorAll('.c-f:not(.locked)').forEach(el=>{
     el.addEventListener('input',()=>syncCard(+el.dataset.uid));
     el.addEventListener('change',()=>syncCard(+el.dataset.uid));
+  });
+  // Title inputs on processing cards are editable
+  revCardsEl.querySelectorAll('.card-processing input[data-f="title"]').forEach(el=>{
+    el.addEventListener('input',()=>syncCard(+el.dataset.uid));
   });
   revCardsEl.querySelectorAll('.c-lookup').forEach(btn=>{
     btn.addEventListener('click',async e=>{
@@ -1746,6 +1818,20 @@ function renderCards(){
   revCardsEl.querySelectorAll('.c-discard').forEach(btn=>{
     btn.addEventListener('click',e=>{e.stopPropagation();discardCard(+btn.dataset.uid);});
   });
+  revCardsEl.querySelectorAll('.c-retry').forEach(btn=>{
+    btn.addEventListener('click',async e=>{
+      e.stopPropagation();
+      const uid=+btn.dataset.uid;
+      const card=cards.find(c=>c.uid===uid);if(!card?.jobId)return;
+      btn.disabled=true;btn.textContent='…';
+      try{
+        await fetch(`/api/jobs/${encodeURIComponent(card.jobId)}/retry`,{method:'POST'});
+        seenJobIds.delete(card.jobId);
+        card.processingState='processing';card.failReason='';
+        renderCards();
+      }catch(e2){btn.disabled=false;btn.textContent='↺';toast('Retry failed','err');}
+    });
+  });
 }
 
 function syncCard(uid){
@@ -1762,6 +1848,7 @@ function syncCard(uid){
 async function confirmCard(uid){
   syncCard(uid);
   const card=cards.find(c=>c.uid===uid);if(!card)return;
+  if(card.processingState==='processing')return;  // still analyzing
   const title=card.data.title.trim();
   if(!title){
     const el=revCardsEl.querySelector(`[data-uid="${uid}"][data-f="title"]`);
@@ -1817,7 +1904,10 @@ function discardCard(uid){
 }
 
 document.getElementById('btn-confirm-all').addEventListener('click',async()=>{
-  for(const card of [...cards]){syncCard(card.uid);if(card.data.title.trim())await confirmCard(card.uid);}
+  for(const card of [...cards]){
+    if(card.processingState==='processing')continue;
+    syncCard(card.uid);if(card.data.title.trim())await confirmCard(card.uid);
+  }
 });
 document.getElementById('btn-discard-all').addEventListener('click',hideRevPanel);
 

@@ -124,3 +124,52 @@ describe('GET /api/jobs/:id', () => {
     expect(res.body.status).toBe('done');
   });
 });
+
+// ── Jobs ready (unified queue) ─────────────────────────────────────────────────
+
+describe('GET /api/jobs/ready', () => {
+  it('returns done jobs', async () => {
+    const jobs = [
+      { id: 'job_1', thumb: null, result: '[{"title":"Jaws"}]', error: null, status: 'done', retry_count: 0, created_at: new Date().toISOString() },
+    ];
+    mockQuery.mockResolvedValue({ rows: jobs });
+    const res = await request(app).get('/api/jobs/ready');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].status).toBe('done');
+  });
+
+  it('also returns permanently-failed jobs (retry_count >= MAX_RETRIES)', async () => {
+    const jobs = [
+      { id: 'job_2', thumb: null, result: null, error: 'Ollama timeout', status: 'failed', retry_count: 3, created_at: new Date().toISOString() },
+    ];
+    mockQuery.mockResolvedValue({ rows: jobs });
+    const res = await request(app).get('/api/jobs/ready');
+    expect(res.status).toBe(200);
+    expect(res.body[0].status).toBe('failed');
+    expect(res.body[0].error).toBe('Ollama timeout');
+  });
+
+  it('returns 500 on db error', async () => {
+    mockQuery.mockRejectedValue(new Error('db down'));
+    const res = await request(app).get('/api/jobs/ready');
+    expect(res.status).toBe(500);
+  });
+});
+
+// ── Job retry ─────────────────────────────────────────────────────────────────
+
+describe('POST /api/jobs/:id/retry', () => {
+  it('resets failed job to pending and returns {ok:true}', async () => {
+    mockQuery.mockResolvedValue({ rowCount: 1 });
+    const res = await request(app).post('/api/jobs/job_2/retry');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+  });
+
+  it('returns 404 when job id does not exist', async () => {
+    mockQuery.mockResolvedValue({ rowCount: 0 });
+    const res = await request(app).post('/api/jobs/job_unknown/retry');
+    expect(res.status).toBe(404);
+  });
+});
