@@ -1518,7 +1518,11 @@ async function processQueue(){
 
 // Poll server for completed analysis jobs every 5s
 let jobPollTimer=null;
-let seenJobIds=new Set();
+// seenJobIds persists across page reloads so done jobs don't flood the review panel on refresh
+const _LS_SEEN='vhs_seenJobIds';
+let seenJobIds=(()=>{try{return new Set(JSON.parse(localStorage.getItem(_LS_SEEN)||'[]'));}catch{return new Set();}})();
+function _seenAdd(id){seenJobIds.add(id);try{localStorage.setItem(_LS_SEEN,JSON.stringify([...seenJobIds]));}catch{}}
+function _seenDel(id){seenJobIds.delete(id);try{localStorage.setItem(_LS_SEEN,JSON.stringify([...seenJobIds]));}catch{}}
 async function pollReadyJobs(){
   try{
     const jobs=await fetch('/api/jobs/ready').then(r=>r.json());
@@ -1526,7 +1530,7 @@ async function pollReadyJobs(){
     let changed=0;
     for(const job of jobs){
       if(seenJobIds.has(job.id))continue;
-      seenJobIds.add(job.id);
+      _seenAdd(job.id);
       // Find an existing 'processing' card that was created for this job
       const existing=cards.find(c=>c.jobId===job.id&&c.processingState==='processing');
       if(job.status==='failed'){
@@ -1585,7 +1589,7 @@ async function resumeInflightJobs(){
     if(!Array.isArray(jobs)||!jobs.length)return;
     let added=0;
     for(const job of jobs){
-      if(seenJobIds.has(job.id))continue;
+      if(seenJobIds.has(job.id)||cards.some(c=>c.jobId===job.id))continue;
       // Don't add to seenJobIds — pollReadyJobs will claim it when done
       addCard({format:'VHS',condition:'good',status:'in_collection',notes:''},null,job.thumb,false,job.id,'processing');
       added++;
@@ -1743,11 +1747,11 @@ function addCard(data,source=null,thumb=null,expanded=false,jobId=null,processin
 }
 function _claimJob(jobId){
   if(!jobId)return;
-  seenJobIds.delete(jobId);
+  _seenDel(jobId);
   fetch(`/api/jobs/${encodeURIComponent(jobId)}`,{method:'DELETE'}).catch(()=>{});
 }
 function showRevPanel(){revPanel.classList.add('on');revErr.style.display='none';setActiveTab('review');}
-function hideRevPanel(){cards.forEach(c=>_claimJob(c.jobId));seenJobIds.clear();revPanel.classList.remove('on');cards=[];revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';updateTabBadge?.();}
+function hideRevPanel(){cards.forEach(c=>_claimJob(c.jobId));revPanel.classList.remove('on');cards=[];revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';updateTabBadge?.();}
 function setRevLoading(on){revLoading.style.display=on?'flex':'none';}
 function setRevMsg(m){const el=document.getElementById('rev-msg');if(el)el.textContent=m;}
 function showRevErr(m){revErr.style.display='block';revErr.textContent=m;revCardsEl.innerHTML='';revBulk.classList.remove('on');}
@@ -1841,7 +1845,7 @@ function renderCards(){
       btn.disabled=true;btn.textContent='…';
       try{
         await fetch(`/api/jobs/${encodeURIComponent(card.jobId)}/retry`,{method:'POST'});
-        seenJobIds.delete(card.jobId);
+        _seenDel(card.jobId);
         card.processingState='processing';card.failReason='';
         renderCards();
       }catch(e2){btn.disabled=false;btn.textContent='↺';toast('Retry failed','err');}
