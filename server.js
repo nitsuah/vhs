@@ -546,6 +546,24 @@ if (require.main === module) {
   ensureCerts();
 
   runMigrations()
+    .then(async () => {
+      // One-time backfill: convert any pre-migration 'done' upload_jobs into review_items
+      const { rows: done } = await pool.query("SELECT id, result, thumb, created_at FROM upload_jobs WHERE status='done'");
+      if (done.length) {
+        console.log(`⟳ Backfilling ${done.length} done upload_jobs → review_items…`);
+        for (const job of done) {
+          const items = Array.isArray(job.result) ? job.result : [];
+          for (const item of items) {
+            await pool.query(
+              'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
+              [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', job.created_at]
+            );
+          }
+          await pool.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
+        }
+        console.log(`✓ Backfill complete`);
+      }
+    })
     .then(() => {
       setInterval(processJobs, 5000);
       processJobs();
