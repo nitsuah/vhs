@@ -1591,7 +1591,8 @@ async function resumeInflightJobs(){
     for(const job of jobs){
       if(seenJobIds.has(job.id)||cards.some(c=>c.jobId===job.id))continue;
       // Don't add to seenJobIds — pollReadyJobs will claim it when done
-      addCard({format:'VHS',condition:'good',status:'in_collection',notes:''},null,job.thumb,false,job.id,'processing');
+      const card={uid:++uidSeq,data:{format:'VHS',condition:'good',status:'in_collection',notes:''},source:null,thumb:job.thumb,expanded:false,jobId:job.id,processingState:'processing',failReason:'',inflightSince:job.created_at};
+      cards.push(card);
       added++;
     }
     if(added){showRevPanel();renderCards();}
@@ -1774,10 +1775,11 @@ function renderCards(){
   </tr></thead><tbody>${cards.map(card=>{
     const proc=card.processingState==='processing';
     const fail=card.processingState==='failed';
+    const stuck=proc&&card.jobId&&card.inflightSince&&(Date.now()-new Date(card.inflightSince).getTime()>10*60*1000);
     const lk='c-f locked';  // locked field class for processing state
     const thumb=card.thumb?`<img class="rev-thumb" src="${card.thumb}">`:`<div class="card-hdr-ph">${proc?'<span class="spin" style="width:12px;height:12px;border-width:2px;display:inline-block"></span>':'📼'}</div>`;
     const tags=(card.data.tags||[]).join(', ');
-    const rowClass=`rev-card${proc?' card-processing':fail?' card-failed':''}`;
+    const rowClass=`rev-card${proc?(stuck?' card-failed':' card-processing'):fail?' card-failed':''}`;
     const titlePlaceholder=proc?'Analyzing… (pre-fill if you know it)':fail?'Enter title manually':'Title';
     const titleStyle=!card.data.title&&!proc?'border-color:var(--yellow)':'';
     return `<tr class="${rowClass}" data-uid="${card.uid}">
@@ -1788,6 +1790,7 @@ function renderCards(){
           ${!proc?`<button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata">🔍</button>`:''}
         </div>
         ${fail&&card.failReason?`<div class="fail-reason">⚠ ${esc(card.failReason)}</div>`:''}
+        ${stuck?`<div class="fail-reason">⚠ Stuck — analyzing >10 min</div>`:''}
         ${proc&&card.data.title?`<div style="font-size:10px;color:var(--text3);font-style:italic">Pre-filled — won't be overwritten</div>`:''}
       </div></td>
       <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="year" value="${esc(card.data.year||'')}" placeholder="Year"></td>
@@ -1800,7 +1803,7 @@ function renderCards(){
       <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="tags" value="${esc(tags)}" placeholder="genres, tags…"></td>
       <td style="white-space:nowrap;display:flex;gap:4px;align-items:center;padding:5px 6px">
         ${!proc?`<button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}" title="Confirm">✓</button>`:''}
-        ${fail&&card.jobId?`<button class="btn-retry c-retry" data-uid="${card.uid}" title="Re-queue for analysis">↺</button>`:''}
+        ${(fail||stuck)&&card.jobId?`<button class="btn-retry c-retry" data-uid="${card.uid}" title="${stuck?'Stuck — re-queue for analysis':'Re-queue for analysis'}">↺${stuck?' Stuck':''}</button>`:''}
         <button class="btn btn-sm btn-x c-discard" data-uid="${card.uid}" title="Discard">✕</button>
       </td>
     </tr>`;
