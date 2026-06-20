@@ -698,14 +698,8 @@ async function runRevalidate(){
   const statusEl=document.getElementById('rv-status');
   const progBar=document.getElementById('rv-prog-bar');
   const progWrap=document.getElementById('rv-progress');
-  const diffList=document.getElementById('rv-diff-list');
-  const btnAccAll=document.getElementById('rv-accept-all');
-  const btnDenyAll=document.getElementById('rv-deny-all');
-  const btnApply=document.getElementById('rv-apply-selected');
   statusEl.textContent=`Queuing ${targets.length} photo${targets.length>1?'s':''} for analysis…`;
   progWrap.style.display='';progBar.style.width='0%';
-  diffList.innerHTML='';
-  btnAccAll.style.display='none';btnDenyAll.style.display='none';btnApply.style.display='none';
   modal.style.display='flex';
   const REVAL_FIELDS=['title','year','label','format'];
 
