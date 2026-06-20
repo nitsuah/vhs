@@ -1,5 +1,6 @@
 // ── INVENTORY ─────────────────────────────────────────────────────────────
 let _resizeTh=null,_resizeX0=0,_resizeW0=0;
+let mobileColPage=0;
 function _onColResize(e){if(!_resizeTh)return;_resizeTh.style.width=Math.max(40,_resizeW0+e.clientX-_resizeX0)+'px';}
 function _onColResizeEnd(){_resizeTh=null;document.removeEventListener('mousemove',_onColResize);}
 
@@ -73,32 +74,66 @@ function renderInv(){
   <tr>
     <th style="width:28px">${rh}<input type="checkbox" id="tbl-chk-all" title="Select all"></th>
     <th style="width:188px" class="mc-2">${rh}</th>
-    <th class="th-sort mc-3" data-sa="title_asc" data-sd="title_desc">${rh}Title ${sa('title','title_asc','title_desc')}</th>
-    <th class="th-sort mc-4" data-sa="year_asc" data-sd="year_desc" style="min-width:90px">${rh}Year ${sa('year','year_asc','year_desc')}</th>
-    <th class="mc-5">${rh}Label</th><th style="width:95px" class="mc-6">${rh}Format</th>
-    <th class="th-sort mc-7" data-sa="cond_asc" data-sd="cond_desc" style="width:80px">${rh}Cond. ${sa('cond','cond_asc','cond_desc')}</th>
-    <th style="width:110px" class="mc-8">${rh}Status</th>
-    <th class="th-sort mc-9" data-sa="val_asc" data-sd="val_desc" style="width:50px">${rh}$Lo ${sa('val','val_asc','val_desc')}</th>
-    <th style="width:50px" class="mc-10">${rh}$Hi</th>
-    <th class="mc-11">${rh}Tags</th><th class="mc-12">${rh}Notes</th>
-    <th style="width:52px">${rh}</th>
-  </tr>
-  <tr class="thead-filter">
-    <td colspan="2"></td>
-    <td class="mc-3"><input class="col-f" data-cf="title" value="${esc(colFilters.title)}" placeholder="filter…"></td>
-    <td class="mc-4"><div class="yr-dual">
-      <div class="yr-lbl">${esc(yrLbl)}</div>
-      <div class="yr-track"></div>
-      <input type="range" class="yr-slider" data-cf="yrFrom" min="${minYr}" max="${maxYr}" value="${yrFrom}" step="1">
-      <input type="range" class="yr-slider" data-cf="yrTo" min="${minYr}" max="${maxYr}" value="${yrTo}" step="1">
-    </div></td>
-    <td class="mc-5"><input class="col-f" data-cf="label" value="${esc(colFilters.label)}" placeholder="filter…"></td>
-    <td class="mc-6"><select class="col-f" data-cf="format"><option value="">All</option>${FORMAT_LIST.map(f=>`<option value="${f}"${colFilters.format===f?' selected':''}>${f}</option>`).join('')}</select></td>
-    <td class="mc-7"><select class="col-f" data-cf="condition"><option value="">All</option>${['great','good','fair','poor'].map(c=>`<option value="${c}"${colFilters.condition===c?' selected':''}>${c}</option>`).join('')}</select></td>
-    <td class="mc-8"><select class="col-f" data-cf="status"><option value="">All</option>${[['in_collection','In Coll.'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([v,l])=>`<option value="${v}"${colFilters.status===v?' selected':''}>${l}</option>`).join('')}</select></td>
-    <td colspan="2"></td>
-    <td class="mc-11"><input class="col-f" data-cf="tags" value="${esc(colFilters.tags)}" placeholder="tag…"></td>
-    <td colspan="2"></td>
+    <th class="th-sort mc-3" data-sa="title_asc" data-sd="title_desc" style="width:200px">
+      ${rh}<span class="th-lbl">Title ${sa('title','title_asc','title_desc')}</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.title?' style="display:block"':''}>
+        <input class="col-f" data-cf="title" value="${esc(colFilters.title)}" placeholder="search…">
+      </div>
+    </th>
+    <th class="th-sort mc-4" data-sa="year_asc" data-sd="year_desc" style="min-width:90px">
+      ${rh}<span class="th-lbl">Year ${sa('year','year_asc','year_desc')}</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${(colFilters.yrFrom||colFilters.yrTo)?' style="display:block"':''}>
+        <div class="yr-dual">
+          <div class="yr-lbl">${esc(yrLbl)}</div>
+          <div class="yr-track"></div>
+          <input type="range" class="yr-slider" data-cf="yrFrom" min="${minYr}" max="${maxYr}" value="${yrFrom}" step="1">
+          <input type="range" class="yr-slider" data-cf="yrTo" min="${minYr}" max="${maxYr}" value="${yrTo}" step="1">
+        </div>
+      </div>
+    </th>
+    <th class="mc-5" style="width:120px">
+      ${rh}<span class="th-lbl">Label</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.label?' style="display:block"':''}>
+        <input class="col-f" data-cf="label" value="${esc(colFilters.label)}" placeholder="search…">
+      </div>
+    </th>
+    <th style="width:95px" class="mc-6">
+      ${rh}<span class="th-lbl">Format</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.format?' style="display:block"':''}>
+        <select class="col-f" data-cf="format"><option value="">All</option>${FORMAT_LIST.map(f=>`<option value="${f}"${colFilters.format===f?' selected':''}>${f}</option>`).join('')}</select>
+      </div>
+    </th>
+    <th class="th-sort mc-7" data-sa="cond_asc" data-sd="cond_desc" style="width:80px">
+      ${rh}<span class="th-lbl">Cond. ${sa('cond','cond_asc','cond_desc')}</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.condition?' style="display:block"':''}>
+        <select class="col-f" data-cf="condition"><option value="">All</option>${['great','good','fair','poor'].map(c=>`<option value="${c}"${colFilters.condition===c?' selected':''}>${c}</option>`).join('')}</select>
+      </div>
+    </th>
+    <th style="width:110px" class="mc-8">
+      ${rh}<span class="th-lbl">Status</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.status?' style="display:block"':''}>
+        <select class="col-f" data-cf="status"><option value="">All</option>${[['in_collection','In Coll.'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([v,l])=>`<option value="${v}"${colFilters.status===v?' selected':''}>${l}</option>`).join('')}</select>
+      </div>
+    </th>
+    <th class="th-sort mc-9" data-sa="val_asc" data-sd="val_desc" style="width:50px">
+      ${rh}<span class="th-lbl">$Lo ${sa('val','val_asc','val_desc')}</span>
+    </th>
+    <th style="width:50px" class="mc-10">${rh}<span class="th-lbl">$Hi</span></th>
+    <th class="mc-11" style="width:120px">
+      ${rh}<span class="th-lbl">Tags</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.tags?' style="display:block"':''}>
+        <input class="col-f" data-cf="tags" value="${esc(colFilters.tags)}" placeholder="tag…">
+      </div>
+    </th>
+    <th class="mc-12" style="width:150px">${rh}<span class="th-lbl">Notes</span></th>
+    <th style="width:52px"></th>
   </tr>
   </thead><tbody>${items.map(t=>{
     const spineSrc=t.photo_spine||t.photo_thumbnail;
@@ -135,12 +170,24 @@ function renderInv(){
     </tr>`;
   }).join('')}</tbody></table>`;
   const tbl=list.querySelector('.tape-table');
-  tbl.querySelectorAll('.th-sort').forEach(th=>th.addEventListener('click',()=>{
+  if(window.innerWidth<=700)tbl.dataset.mcpage=String(mobileColPage);
+  tbl.querySelectorAll('.th-sort').forEach(th=>th.addEventListener('click',e=>{
+    if(e.target.closest('.th-fp-btn,.th-fp,.col-rh'))return;
     const sel=document.getElementById('sort-sel');if(!sel)return;
     const cur=sel.value,a=th.dataset.sa,d=th.dataset.sd;
     sel.value=(cur===a&&d)?d:a;
     renderInv();
   }));
+  tbl.querySelectorAll('.th-fp-btn').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const pop=btn.closest('th').querySelector('.th-fp');if(!pop)return;
+      const wasOn=pop.style.display==='block';
+      tbl.querySelectorAll('.th-fp').forEach(p=>{p.style.display='none';});
+      if(!wasOn)pop.style.display='block';
+    });
+  });
+  tbl.querySelectorAll('.th-fp').forEach(pop=>pop.addEventListener('click',e=>e.stopPropagation()));
   tbl.querySelectorAll('.col-f').forEach(el=>{
     const fire=()=>{colFilters[el.dataset.cf]=el.value;renderInv();};
     el.addEventListener('input',fire);
@@ -187,7 +234,11 @@ function renderInv(){
     const cancelBtn=e.target.closest('.tbl-cancel');
     if(cancelBtn){editingId=null;pendingEdits.delete(cancelBtn.dataset.id);renderInv();return;}
     const editBtn=e.target.closest('.tbl-edit');
-    if(editBtn){editingId=editBtn.dataset.id;pendingEdits.delete(editingId);renderInv();return;}
+    if(editBtn){
+      if(window.innerWidth<=700){openDetail(editBtn.dataset.id);}
+      else{editingId=editBtn.dataset.id;pendingEdits.delete(editingId);renderInv();}
+      return;
+    }
     const del=e.target.closest('.tbl-del');
     if(del){deleteTape(del.dataset.id);return;}
     const open=e.target.closest('.tbl-open');
@@ -299,12 +350,13 @@ document.getElementById('bulk-clear').addEventListener('click',()=>{selectedIds.
 
 document.getElementById('search')?.addEventListener('input',()=>renderInv());
 
-// Mobile column scroll arrows
-document.getElementById('mob-col-prev')?.addEventListener('click',()=>{
-  const el=document.getElementById('inv-list');if(el)el.scrollLeft=Math.max(0,el.scrollLeft-240);
-});
-document.getElementById('mob-col-next')?.addEventListener('click',()=>{
-  const el=document.getElementById('inv-list');if(el)el.scrollLeft+=240;
+// Mobile column paging arrows
+document.getElementById('mob-col-prev')?.addEventListener('click',()=>{if(mobileColPage>0){mobileColPage--;renderInv();}});
+document.getElementById('mob-col-next')?.addEventListener('click',()=>{if(mobileColPage<3){mobileColPage++;renderInv();}});
+
+// Close filter popovers when clicking outside the table
+document.addEventListener('click',()=>{
+  document.querySelectorAll('.tape-table .th-fp[style*="display:block"]').forEach(p=>{p.style.display='none';});
 });
 const savedSort=localStorage.getItem('vhs-sort');
 if(savedSort)document.getElementById('sort-sel').value=savedSort;
@@ -331,7 +383,7 @@ function openDetail(id){
   document.getElementById('d-barcode').value=t.barcode||'';
   document.getElementById('d-value-low').value=t.value_low||'';
   document.getElementById('d-value-high').value=t.value_high||'';
-  document.getElementById('d-cond').value=t.condition||'great';
+  document.getElementById('d-cond').value=t.condition||'good';
   document.getElementById('d-status').value=t.status||'in_collection';
   document.getElementById('d-sold-price').value=t.sold_price||'';
   document.getElementById('d-notes').value=t.condition_notes||'';

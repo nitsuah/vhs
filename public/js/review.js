@@ -45,7 +45,7 @@ function addCard(data,source=null,thumb=null,expanded=false,jobId=null,processin
 }
 function _claimJob(jobId){
   if(!jobId)return;
-  _seenDel(jobId);
+  _seenAdd(jobId); // mark claimed so poll won't recreate a card if DELETE races the next poll tick
   fetch(`/api/jobs/${encodeURIComponent(jobId)}`,{method:'DELETE'}).catch(()=>{});
 }
 function showRevPanel(){revPanel.classList.add('on');revErr.style.display='none';setActiveTab('review');}
@@ -180,6 +180,9 @@ async function confirmCard(uid){
   const bcode=card.data.barcode||'';
   const useUpcId=bcode&&/^\d{8,14}$/.test(bcode)&&!inventory.find(t=>t.id===bcode);
   const recId=useUpcId?bcode:(await nextId());
+  // auto-rotate capture thumbnails 90° CCW — spines are photographed sideways
+  let thumb=card.thumb||'';
+  if(thumb)thumb=await rotateImage90CCW(thumb);
   const rec={
     id:recId,title,
     year:card.data.year||'',label:card.data.label||'',
@@ -187,8 +190,8 @@ async function confirmCard(uid){
     condition_notes:card.data.notes||'',status:card.data.status||'in_collection',
     barcode:card.data.barcode||'',tags:card.data.tags||[],
     value_low:card.data.value_low||'',value_high:card.data.value_high||'',
-    photos:card.thumb?[card.thumb]:[],
-    scanned_at:new Date().toISOString(),photo_thumbnail:card.thumb||'',
+    photos:thumb?[thumb]:[],
+    scanned_at:new Date().toISOString(),photo_thumbnail:thumb,photo_spine:thumb,
   };
   await Promise.all([dbAdd(rec),new Promise(r=>setTimeout(r,280))]);
   _claimJob(card.jobId);

@@ -116,19 +116,19 @@ async function processQueue(){
 
 // ── JOB POLLING ──────────────────────────────────────────────────────────
 let jobPollTimer=null;
-const _LS_SEEN='vhs_seenJobIds';
-let seenJobIds=(()=>{try{return new Set(JSON.parse(localStorage.getItem(_LS_SEEN)||'[]'));}catch{return new Set();}})();
-function _seenAdd(id){seenJobIds.add(id);try{localStorage.setItem(_LS_SEEN,JSON.stringify([...seenJobIds]));}catch{}}
-function _seenDel(id){seenJobIds.delete(id);try{localStorage.setItem(_LS_SEEN,JSON.stringify([...seenJobIds]));}catch{}}
+// session-only: prevents within-session duplicate cards; NOT persisted so completed jobs survive page refresh
+let seenJobIds=new Set();
+function _seenAdd(id){seenJobIds.add(id);}
+function _seenDel(id){seenJobIds.delete(id);}
 async function pollReadyJobs(){
   try{
     const jobs=await fetch('/api/jobs/ready').then(r=>r.json());
     if(!Array.isArray(jobs)||!jobs.length)return;
     let changed=0;
     for(const job of jobs){
-      if(seenJobIds.has(job.id))continue;
-      _seenAdd(job.id);
+      if(seenJobIds.has(job.id))continue; // user confirmed/discarded this session
       const existing=cards.find(c=>c.jobId===job.id&&c.processingState==='processing');
+      if(!existing&&cards.some(c=>c.jobId===job.id))continue; // already visible as ready/failed
       if(job.status==='failed'){
         if(existing){
           existing.processingState='failed';
