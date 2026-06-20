@@ -132,6 +132,7 @@
         <div id="rev-bulk">
           <button class="btn btn-sm btn-ok" id="btn-confirm-all">✓ All</button>
           <button class="btn btn-sm btn-x" id="btn-discard-all">✕ All</button>
+          <button class="hbtn" id="btn-logs" title="Activity log — server ↔ Ollama" style="font-size:11px;padding:5px 8px">▶ Log</button>
         </div>
       </div>
       <div id="rev-loading" class="spin-row" style="display:none">
@@ -143,30 +144,35 @@
 
     <div id="inv-panel">
       <div id="collect-subhdr">
-        <button class="hbtn" id="btn-wall">⊞ Wall</button>
-        <button class="hbtn" id="btn-fill-data" title="AI fills missing year, label, and value">⚡ Fill</button>
-        <button class="hbtn btn-ai-check" id="btn-revalidate" title="Check tape data via AI"><span style="color:var(--purple)">☑</span> Check</button>
-        <button class="hbtn" id="btn-logs" title="Activity log — server ↔ Ollama">▶ Log</button>
-        <input id="search" type="text" placeholder="🔍 Search…">
-        <select id="sort-sel">
-          <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
-          <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
-          <option value="year_asc">Year ↑</option><option value="year_desc">Year ↓</option>
-          <option value="val_desc">Value ↓</option><option value="val_asc">Value ↑</option>
-          <option value="cond_asc">Cond. Best→Worst</option><option value="cond_desc">Cond. Worst→Best</option>
-        </select>
-        <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700;margin-left:auto">+<span class="btn-txt"> Add</span></button>
-        <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑<span class="btn-txt"> Import</span></button>
-        <input type="file" id="import-input" accept=".json" style="display:none">
-        <div class="exp-wrap">
-          <button class="hbtn" id="btn-export">↓<span class="btn-txt"> Export</span></button>
-          <div class="exp-dd" id="exp-dd">
-            <button id="exp-json">Export JSON</button>
-            <button id="exp-csv">Export CSV</button>
-            <button id="exp-sell">For Sale Export</button>
-            <button id="exp-tags">Print Price Tags</button>
-            <button id="exp-print">Printable List</button>
+        <div class="csh-row1">
+          <button class="hbtn hbtn-view" id="btn-wall">⊞ Wall</button>
+          <button class="hbtn hbtn-view hbtn-fill" id="btn-fill-data" title="Fill with Ollama — AI enriches missing year, label and value">⚡ Fill</button>
+          <button class="hbtn hbtn-view hbtn-check" id="btn-revalidate" title="Check with Ollama — re-analyze photo vs saved data">🦙 Check</button>
+          <span style="flex:1"></span>
+          <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700">+ Add</button>
+          <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ Import</button>
+          <input type="file" id="import-input" accept=".json" style="display:none">
+          <div class="exp-wrap">
+            <button class="hbtn" id="btn-export">↓ Export</button>
+            <div class="exp-dd" id="exp-dd">
+              <button id="exp-json">Export JSON</button>
+              <button id="exp-csv">Export CSV</button>
+              <button id="exp-sell">For Sale Export</button>
+              <button id="exp-tags">Print Price Tags</button>
+              <button id="exp-print">Printable List</button>
+            </div>
           </div>
+        </div>
+        <div class="csh-row2">
+          <input id="search" type="text" placeholder="Search…">
+          <button id="btn-search" title="Search">🔍</button>
+          <select id="sort-sel">
+            <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
+            <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
+            <option value="year_asc">Year ↑</option><option value="year_desc">Year ↓</option>
+            <option value="val_desc">Value ↓</option><option value="val_asc">Value ↑</option>
+            <option value="cond_asc">Cond. Best→Worst</option><option value="cond_desc">Cond. Worst→Best</option>
+          </select>
         </div>
       </div>
       <div id="bulk-bar">
@@ -179,8 +185,8 @@
           <option value="missing">Missing</option><option value="wanted">Wanted</option>
         </select>
         <button class="ctrl-btn" id="bulk-apply">Apply</button>
-        <button class="ctrl-btn" id="bulk-del" style="color:var(--red);border-color:rgba(232,64,64,.3)">Delete</button>
-        <button class="ctrl-btn" id="bulk-clear" style="margin-left:auto">Deselect All</button>
+        <button class="ctrl-btn bulk-del-btn" id="bulk-del" style="color:var(--red);border-color:rgba(232,64,64,.3)"><span class="bulk-del-txt">Delete</span><span class="bulk-del-ico" style="display:none">🗑</span></button>
+        <button class="ctrl-btn" id="bulk-clear" style="margin-left:auto" title="Deselect all">↩</button>
       </div>
       <div id="inv-list"></div>
       <div class="empty" id="empty-state" style="flex-direction:column;gap:10px;padding:40px 20px;display:none">

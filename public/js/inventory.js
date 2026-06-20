@@ -50,13 +50,13 @@ function renderInv(){
     if(wallMode===2){
       wall.innerHTML=items.map(t=>{
         const src=t.photo_spine||t.photo_thumbnail;
-        const img=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph">📼</div>`;
+        const img=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
         return `<div class="spine-card" data-id="${t.id}">${img}<div class="spine-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else{
       wall.innerHTML=items.map(t=>{
         const wallSrc=t.photo_face||t.photo_thumbnail;
-        const img=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph">📼</div>`;
+        const img=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph-txt">${esc(t.title)}</div>`;
         const meta=[t.year,t.label].filter(Boolean).join(' · ');
         const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
         return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
@@ -180,7 +180,21 @@ function renderInv(){
     </tr>`;
   }).join('')}</tbody></table>`;
   const tbl=list.querySelector('.tape-table');
-  if(window.innerWidth<=700)tbl.dataset.mcpage=String(mobileColPage);
+  if(window.innerWidth<=700){
+    tbl.dataset.mcpage=String(mobileColPage);
+    // Swipe left on row → highlight action buttons; swipe right → dismiss
+    tbl.querySelectorAll('.tape-row').forEach(row=>{
+      let sx=0;
+      row.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;},{passive:true});
+      row.addEventListener('touchend',e=>{
+        const dx=e.changedTouches[0].clientX-sx;
+        if(dx<-50)row.classList.add('swipe-action');
+        else if(dx>30)row.classList.remove('swipe-action');
+      },{passive:true});
+    });
+    // Tap outside to dismiss any open swipe
+    tbl.addEventListener('click',()=>tbl.querySelectorAll('.swipe-action').forEach(r=>r.classList.remove('swipe-action')));
+  }
   tbl.querySelectorAll('.th-sort').forEach(th=>th.addEventListener('click',e=>{
     if(e.target.closest('.th-fp-btn,.th-fp,.col-rh'))return;
     const sel=document.getElementById('sort-sel');if(!sel)return;
@@ -327,6 +341,11 @@ const updateCount=()=>{
   document.getElementById('count-badge').innerHTML=`📼 ${n}${valStr}`;
   const mob=document.getElementById('count-badge-mob');
   if(mob)mob.innerHTML=`📼 ${n}`;
+  // Show/hide AI buttons based on whether collection has items
+  const fillBtn=document.getElementById('btn-fill-data');
+  const checkBtn=document.getElementById('btn-revalidate');
+  if(fillBtn)fillBtn.style.display=n?'':'none';
+  if(checkBtn)checkBtn.style.display=n?'':'none';
 };
 
 function updateBulkBar(){
@@ -359,6 +378,7 @@ document.getElementById('bulk-del').addEventListener('click',async()=>{
 document.getElementById('bulk-clear').addEventListener('click',()=>{selectedIds.clear();renderInv();updateBulkBar();});
 
 document.getElementById('search')?.addEventListener('input',()=>renderInv());
+document.getElementById('btn-search')?.addEventListener('click',()=>{document.getElementById('search')?.focus();renderInv();});
 
 
 // Close filter popovers when clicking outside the table
@@ -375,7 +395,7 @@ document.getElementById('sort-sel')?.addEventListener('change',()=>{
 document.getElementById('btn-wall').addEventListener('click',()=>{
   wallMode=(wallMode+1)%3;
   const btn=document.getElementById('btn-wall');
-  const labels=['⊞ Wall','⊞ Cover','☰ Spines'];
+  const labels=['⊞ Wall','⊞ Cover','☰ Stacks'];
   btn.textContent=labels[wallMode];
   btn.classList.toggle('active',wallMode>0);
   renderInv();
