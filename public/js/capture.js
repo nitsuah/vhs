@@ -39,7 +39,7 @@ function capture(){
   document.getElementById('thumb-img').src=fullThumb;
   document.getElementById('thumb-wrap').style.display='flex';
   if(cropEl.dataset.preset==='multispine'){
-    const N=4;
+    const N=5;
     const sliceW=Math.round(frame.width/N);
     for(let i=0;i<N;i++){
       const c=document.createElement('canvas');
