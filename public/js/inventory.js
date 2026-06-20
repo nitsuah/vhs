@@ -65,9 +65,9 @@ function renderInv(){
     wall.querySelectorAll('.wall-card,.spine-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
     return;
   }
-  wall.classList.remove('on','spine-mode');list.style.display='';
-  if(!items.length){list.innerHTML='';list.appendChild(empty);empty.style.display='flex';return;}
-  empty.style.display='none';
+  wall.classList.remove('on','spine-mode');
+  if(!items.length){list.style.display='none';list.innerHTML='';if(empty)empty.style.display='flex';return;}
+  list.style.display='';if(empty)empty.style.display='none';
   const sort=document.getElementById('sort-sel')?.value||'scanned_desc';
   const condOpts=v=>['great','good','fair','poor'].map(c=>`<option value="${c}"${(v||'good')===c?' selected':''}>${c}</option>`).join('');
   const statOpts=v=>[['in_collection','In Collection'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([c,l])=>`<option value="${c}"${v===c?' selected':''}>${l}</option>`).join('');

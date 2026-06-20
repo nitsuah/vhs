@@ -146,6 +146,7 @@
         <button class="hbtn" id="btn-wall">⊞ Wall</button>
         <button class="hbtn" id="btn-fill-data" title="AI fills missing year, label, and value">⚡ Fill</button>
         <button class="hbtn btn-ai-check" id="btn-revalidate" title="Check tape data via AI"><span style="color:var(--purple)">☑</span> Check</button>
+        <button class="hbtn" id="btn-logs" title="Activity log — server ↔ Ollama">▶ Log</button>
         <input id="search" type="text" placeholder="🔍 Search…">
         <select id="sort-sel">
           <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
@@ -181,16 +182,15 @@
         <button class="ctrl-btn" id="bulk-del" style="color:var(--red);border-color:rgba(232,64,64,.3)">Delete</button>
         <button class="ctrl-btn" id="bulk-clear" style="margin-left:auto">Deselect All</button>
       </div>
-      <div id="inv-list">
-        <div class="empty" id="empty-state" style="flex-direction:column;gap:10px;padding:40px 20px">
-          <div style="font-size:36px">📼</div>
-          <div style="font-size:14px;font-weight:700;color:var(--text)">No tapes yet</div>
-          <div style="font-size:12px;color:var(--text3);text-align:center;max-width:260px;line-height:1.6">Point the camera at a shelf and press <strong>Capture</strong>, scan a barcode, or press <kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:10px">N</kbd> to add manually.</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px">
-            <button class="hbtn" onclick="document.getElementById('btn-cap').click()" style="font-size:12px">⬤ Capture</button>
-            <button class="hbtn" onclick="openNewTapeModal()" style="font-size:12px">+ Add Manually</button>
-            <button class="hbtn" onclick="document.getElementById('btn-upload').click()" style="font-size:12px">⬆ Upload Photo</button>
-          </div>
+      <div id="inv-list"></div>
+      <div class="empty" id="empty-state" style="flex-direction:column;gap:10px;padding:40px 20px;display:none">
+        <div style="font-size:36px">📼</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text)">No tapes yet</div>
+        <div style="font-size:12px;color:var(--text3);text-align:center;max-width:260px;line-height:1.6">Point the camera at a shelf and press <strong>Capture</strong>, scan a barcode, or press <kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:10px">N</kbd> to add manually.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px">
+          <button class="hbtn" onclick="document.getElementById('btn-cap').click()" style="font-size:12px">⬤ Capture</button>
+          <button class="hbtn" onclick="openNewTapeModal()" style="font-size:12px">+ Add Manually</button>
+          <button class="hbtn" onclick="document.getElementById('btn-upload').click()" style="font-size:12px">⬆ Upload Photo</button>
         </div>
       </div>
       <div id="wall-view"></div>
@@ -296,6 +296,17 @@
       <button class="btn btn-ok" id="rv-apply-selected" style="display:none">Apply Selected</button>
     </div>
   </div>
+</div>
+
+<!-- ACTIVITY LOG PANEL -->
+<div id="log-panel" style="display:none;position:fixed;bottom:0;left:0;right:0;height:220px;background:#0a0a0a;border-top:1px solid #2a2a2a;z-index:200;display:none;flex-direction:column">
+  <div style="display:flex;align-items:center;gap:8px;padding:4px 10px;background:#111;border-bottom:1px solid #222;flex-shrink:0">
+    <span style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.08em">▶ Activity Log</span>
+    <span style="font-size:10px;color:#444;margin-left:4px">server ↔ Ollama</span>
+    <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:#555;cursor:pointer"><input type="checkbox" id="log-follow" checked style="accent-color:#e84040"> Follow</label>
+    <button onclick="document.getElementById('log-panel').style.display='none'" style="background:none;border:none;color:#555;font-size:16px;cursor:pointer;line-height:1;padding:0 2px">✕</button>
+  </div>
+  <div id="log-output" style="flex:1;overflow-y:auto;font-family:monospace;font-size:11px;padding:6px 10px;color:#888;line-height:1.5"></div>
 </div>
 
 <!-- DUPLICATE MODAL -->

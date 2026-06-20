@@ -7,6 +7,25 @@ const https = require('https');
 const fs = require('fs');
 const { execSync } = require('child_process');
 
+// ── Activity log ring buffer ──────────────────────────────────────────────────
+const LOG_LIMIT = 200;
+const activityLog = [];
+const logClients = new Set();
+
+function logActivity(level, msg) {
+  const entry = { ts: new Date().toISOString(), level, msg };
+  activityLog.push(entry);
+  if (activityLog.length > LOG_LIMIT) activityLog.shift();
+  const line = `data: ${JSON.stringify(entry)}\n\n`;
+  logClients.forEach(res => { try { res.write(line); } catch {} });
+}
+
+// Intercept console so all server output also feeds the activity log
+const _origLog  = console.log.bind(console);
+const _origWarn = console.warn.bind(console);
+console.log  = (...a) => { _origLog(...a);  logActivity('info', a.join(' ')); };
+console.warn = (...a) => { _origWarn(...a); logActivity('warn', a.join(' ')); };
+
 const app = express();
 const PORT       = parseInt(process.env.PORT       || '8080', 10);
 const HTTPS_PORT = parseInt(process.env.HTTPS_PORT || '8443', 10);
@@ -398,10 +417,12 @@ async function processJobs() {
     if (!rows.length) return;
     const job = rows[0];
     await pool.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [now, job.id]);
+    console.log(`⟳ Ollama: sending job ${job.id} to ${OLLAMA} (model: ${OLLAMA_MODEL})`);
 
     try {
       const result = await callOllamaServer(job.image_data);
       const ts = new Date().toISOString();
+      console.log(`✓ Ollama: job ${job.id} → ${result.length} tape(s): ${result.map(r=>r.title||'?').join(', ')}`);
       if (!result.length) {
         // No tapes detected — surface as a failed review_item so user is notified
         await pool.query(
@@ -457,6 +478,20 @@ app.get('/api/health', async (_req, res) => {
     result.ollamaError = err.message;
   }
   res.status(result.db === 'ok' ? 200 : 503).json(result);
+});
+
+// ── Activity log ─────────────────────────────────────────────────────────────
+app.get('/api/logs', (_req, res) => res.json(activityLog));
+
+app.get('/api/logs/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  // Send recent history so the UI catches up immediately
+  activityLog.forEach(e => res.write(`data: ${JSON.stringify(e)}\n\n`));
+  logClients.add(res);
+  req.on('close', () => logClients.delete(res));
 });
 
 // ── REST API ──────────────────────────────────────────────────────────────────

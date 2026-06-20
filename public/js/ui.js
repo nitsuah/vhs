@@ -264,6 +264,36 @@ tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style>
   document.getElementById('exp-dd').classList.remove('on');
 });
 
+// ── ACTIVITY LOG PANEL ───────────────────────────────────────────────────
+(function(){
+  const logPanel=document.getElementById('log-panel');
+  const logOutput=document.getElementById('log-output');
+  const followChk=document.getElementById('log-follow');
+  const LEVEL_COLOR={'info':'#888','warn':'#c8a040','error':'#e84040'};
+  let sse=null;
+
+  function appendEntry(e){
+    const ts=e.ts?e.ts.slice(11,19):'';
+    const color=LEVEL_COLOR[e.level]||'#888';
+    const msgEsc=String(e.msg||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const row=document.createElement('div');
+    row.innerHTML=`<span style="color:#444">${ts}</span> <span style="color:${color}">${msgEsc}</span>`;
+    logOutput.appendChild(row);
+    if(followChk?.checked)logOutput.scrollTop=logOutput.scrollHeight;
+    if(logOutput.children.length>300)logOutput.removeChild(logOutput.firstChild);
+  }
+
+  function openLogs(){
+    logPanel.style.display='flex';
+    if(sse)return;
+    sse=new EventSource('/api/logs/stream');
+    sse.onmessage=e=>{try{appendEntry(JSON.parse(e.data));}catch{}};
+    sse.onerror=()=>{setTimeout(()=>{sse?.close();sse=null;},2000);};
+  }
+
+  document.getElementById('btn-logs')?.addEventListener('click',openLogs);
+})();
+
 // ── MOBILE FILTER TRAY ───────────────────────────────────────────────────
 const btnFilterTray=document.getElementById('btn-filter-tray');
 const invCtrl=document.getElementById('inv-ctrl');

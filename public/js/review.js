@@ -111,7 +111,7 @@ function renderCards(){
       <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="value_high" value="${esc(card.data.value_high||'')}" placeholder="$"></td>
       <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="tags" value="${esc(tags)}" placeholder="genres, tags…"></td>
       <td style="white-space:nowrap;display:flex;gap:4px;align-items:center;padding:5px 6px">
-        ${!proc?`<button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}" title="Confirm">✓</button>`:''}
+        ${(!proc||card.data.title)?`<button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}" title="${proc?'Save now (skip analysis)':'Confirm'}">${proc?'↓ Save':'✓'}</button>`:''}
         ${(fail||stuck)&&card.jobId?`<button class="btn-retry c-retry" data-uid="${card.uid}" title="${stuck?'Stuck — re-queue for analysis':'Re-queue for analysis'}">↺${stuck?' Stuck':''}</button>`:''}
         <button class="btn btn-sm btn-x c-discard" data-uid="${card.uid}" title="Discard">✕</button>
       </td>
@@ -122,7 +122,21 @@ function renderCards(){
     el.addEventListener('change',()=>syncCard(+el.dataset.uid));
   });
   revCardsEl.querySelectorAll('.card-processing input[data-f="title"]').forEach(el=>{
-    el.addEventListener('input',()=>syncCard(+el.dataset.uid));
+    el.addEventListener('input',()=>{
+      syncCard(+el.dataset.uid);
+      // Show/hide the save button as user types
+      const row=el.closest('tr');
+      const existing=row?.querySelector('.c-confirm');
+      if(el.value.trim()&&!existing){
+        const acts=row?.querySelector('td:last-child');
+        if(acts){
+          const btn=document.createElement('button');
+          btn.className='btn btn-sm btn-ok c-confirm';btn.dataset.uid=el.dataset.uid;btn.title='Save now (skip analysis)';btn.textContent='↓ Save';
+          btn.addEventListener('click',e=>{e.stopPropagation();confirmCard(+btn.dataset.uid);});
+          acts.prepend(btn);
+        }
+      }else if(!el.value.trim()&&existing){existing.remove();}
+    });
   });
   revCardsEl.querySelectorAll('.c-lookup').forEach(btn=>{
     btn.addEventListener('click',async e=>{
@@ -180,7 +194,8 @@ function syncCard(uid){
 async function confirmCard(uid){
   syncCard(uid);
   const card=cards.find(c=>c.uid===uid);if(!card)return;
-  if(card.processingState==='processing')return;
+  // Allow saving a processing card if the user manually filled in a title
+  if(card.processingState==='processing'&&!card.data.title?.trim())return;
   const title=card.data.title.trim();
   if(!title){
     const el=revCardsEl.querySelector(`[data-uid="${uid}"][data-f="title"]`);
