@@ -1,4 +1,8 @@
 // ── INVENTORY ─────────────────────────────────────────────────────────────
+let _resizeTh=null,_resizeX0=0,_resizeW0=0;
+function _onColResize(e){if(!_resizeTh)return;_resizeTh.style.width=Math.max(40,_resizeW0+e.clientX-_resizeX0)+'px';}
+function _onColResizeEnd(){_resizeTh=null;document.removeEventListener('mousemove',_onColResize);}
+
 function getFiltered(){
   const q=(document.getElementById('search')?.value||'').toLowerCase();
   const sort=document.getElementById('sort-sel')?.value||'scanned_desc';
@@ -58,6 +62,7 @@ function renderInv(){
   const statOpts=v=>[['in_collection','In Collection'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([c,l])=>`<option value="${c}"${v===c?' selected':''}>${l}</option>`).join('');
   const fmtOpts=v=>{const opts=[...FORMAT_LIST];if(v&&!opts.includes(v))opts.unshift(v);return opts.map(f=>`<option value="${f}"${(v||'VHS')===f?' selected':''}>${esc(f)}</option>`).join('');};
   const sa=(col,a,d)=>{const s=sort;return`<span class="sort-arr${s===a||s===d?' on':''}">${s===a?'↑':s===d?'↓':'↕'}</span>`;};
+  const rh='<span class="col-rh"></span>';
   const years=inventory.map(t=>parseInt(t.year)).filter(y=>y>=1900&&y<=2030);
   const minYr=years.length?Math.min(...years):1970;
   const maxYr=years.length?Math.max(...years):2025;
@@ -66,51 +71,67 @@ function renderInv(){
   const yrLbl=(yrFrom<=minYr&&yrTo>=maxYr)?'All':yrFrom+'–'+yrTo;
   list.innerHTML=`<table class="tape-table"><thead>
   <tr>
-    <th style="width:28px"><input type="checkbox" id="tbl-chk-all" title="Select all"></th>
-    <th style="width:188px"></th>
-    <th class="th-sort" data-sa="title_asc" data-sd="title_desc">Title ${sa('title','title_asc','title_desc')}</th>
-    <th class="th-sort" data-sa="year_asc" data-sd="year_desc" style="min-width:90px">Year ${sa('year','year_asc','year_desc')}</th>
-    <th>Label</th><th style="width:95px">Format</th>
-    <th class="th-sort" data-sa="cond_asc" data-sd="cond_desc" style="width:80px">Cond. ${sa('cond','cond_asc','cond_desc')}</th>
-    <th style="width:110px">Status</th>
-    <th class="th-sort" data-sa="val_asc" data-sd="val_desc" style="width:50px">$Lo ${sa('val','val_asc','val_desc')}</th>
-    <th style="width:50px">$Hi</th><th>Tags</th><th>Notes</th><th style="width:28px"></th>
+    <th style="width:28px">${rh}<input type="checkbox" id="tbl-chk-all" title="Select all"></th>
+    <th style="width:188px" class="mc-2">${rh}</th>
+    <th class="th-sort mc-3" data-sa="title_asc" data-sd="title_desc">${rh}Title ${sa('title','title_asc','title_desc')}</th>
+    <th class="th-sort mc-4" data-sa="year_asc" data-sd="year_desc" style="min-width:90px">${rh}Year ${sa('year','year_asc','year_desc')}</th>
+    <th class="mc-5">${rh}Label</th><th style="width:95px" class="mc-6">${rh}Format</th>
+    <th class="th-sort mc-7" data-sa="cond_asc" data-sd="cond_desc" style="width:80px">${rh}Cond. ${sa('cond','cond_asc','cond_desc')}</th>
+    <th style="width:110px" class="mc-8">${rh}Status</th>
+    <th class="th-sort mc-9" data-sa="val_asc" data-sd="val_desc" style="width:50px">${rh}$Lo ${sa('val','val_asc','val_desc')}</th>
+    <th style="width:50px" class="mc-10">${rh}$Hi</th>
+    <th class="mc-11">${rh}Tags</th><th class="mc-12">${rh}Notes</th>
+    <th style="width:52px">${rh}</th>
   </tr>
   <tr class="thead-filter">
     <td colspan="2"></td>
-    <td><input class="col-f" data-cf="title" value="${esc(colFilters.title)}" placeholder="filter…"></td>
-    <td><div class="yr-dual">
+    <td class="mc-3"><input class="col-f" data-cf="title" value="${esc(colFilters.title)}" placeholder="filter…"></td>
+    <td class="mc-4"><div class="yr-dual">
       <div class="yr-lbl">${esc(yrLbl)}</div>
       <div class="yr-track"></div>
       <input type="range" class="yr-slider" data-cf="yrFrom" min="${minYr}" max="${maxYr}" value="${yrFrom}" step="1">
       <input type="range" class="yr-slider" data-cf="yrTo" min="${minYr}" max="${maxYr}" value="${yrTo}" step="1">
     </div></td>
-    <td><input class="col-f" data-cf="label" value="${esc(colFilters.label)}" placeholder="filter…"></td>
-    <td><select class="col-f" data-cf="format"><option value="">All</option>${FORMAT_LIST.map(f=>`<option value="${f}"${colFilters.format===f?' selected':''}>${f}</option>`).join('')}</select></td>
-    <td><select class="col-f" data-cf="condition"><option value="">All</option>${['great','good','fair','poor'].map(c=>`<option value="${c}"${colFilters.condition===c?' selected':''}>${c}</option>`).join('')}</select></td>
-    <td><select class="col-f" data-cf="status"><option value="">All</option>${[['in_collection','In Coll.'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([v,l])=>`<option value="${v}"${colFilters.status===v?' selected':''}>${l}</option>`).join('')}</select></td>
+    <td class="mc-5"><input class="col-f" data-cf="label" value="${esc(colFilters.label)}" placeholder="filter…"></td>
+    <td class="mc-6"><select class="col-f" data-cf="format"><option value="">All</option>${FORMAT_LIST.map(f=>`<option value="${f}"${colFilters.format===f?' selected':''}>${f}</option>`).join('')}</select></td>
+    <td class="mc-7"><select class="col-f" data-cf="condition"><option value="">All</option>${['great','good','fair','poor'].map(c=>`<option value="${c}"${colFilters.condition===c?' selected':''}>${c}</option>`).join('')}</select></td>
+    <td class="mc-8"><select class="col-f" data-cf="status"><option value="">All</option>${[['in_collection','In Coll.'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([v,l])=>`<option value="${v}"${colFilters.status===v?' selected':''}>${l}</option>`).join('')}</select></td>
     <td colspan="2"></td>
-    <td><input class="col-f" data-cf="tags" value="${esc(colFilters.tags)}" placeholder="tag…"></td>
+    <td class="mc-11"><input class="col-f" data-cf="tags" value="${esc(colFilters.tags)}" placeholder="tag…"></td>
     <td colspan="2"></td>
   </tr>
   </thead><tbody>${items.map(t=>{
     const spineSrc=t.photo_spine||t.photo_thumbnail;
     const thumb=spineSrc?`<img class="tbl-thumb" src="${spineSrc}" loading="lazy">`:`<div class="tbl-thumb-ph">📼</div>`;
     const checked=selectedIds.has(t.id);
-    return `<tr class="tape-row${checked?' selected':''}" data-id="${t.id}">
+    const isEd=t.id===editingId;
+    const pe=pendingEdits.get(t.id)||{};
+    const edCell=(field,mc,isArr=false)=>{
+      const curVal=isArr?(t.tags||[]).join(', '):(t[field]||'');
+      const pv=pe[field];
+      const pend=isEd&&pv!==undefined&&pv!==curVal;
+      if(isEd)return`<td class="${mc}${pend?' tbl-td-pending':''}" data-id="${t.id}" data-field="${field}"><input class="tbl-input${pend?' pending':''}" data-id="${t.id}" data-field="${field}" value="${esc(pv!==undefined?pv:curVal)}"></td>`;
+      return`<td class="${mc} editable" data-id="${t.id}" data-field="${field}">${esc(curVal)}</td>`;
+    };
+    const selCurVal=(field,def)=>pe[field]!==undefined?pe[field]:(t[field]||def||'');
+    const selPend=(field,def)=>isEd&&pe[field]!==undefined&&pe[field]!==(t[field]||def||'');
+    const actCell=isEd
+      ?`<td style="white-space:nowrap;text-align:center"><button class="tbl-save" data-id="${t.id}" title="Save">✓</button><button class="tbl-cancel" data-id="${t.id}" title="Cancel">✕</button></td>`
+      :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button><button class="tbl-edit" data-id="${t.id}" title="Edit row">✎</button></td>`;
+    return `<tr class="tape-row${checked?' selected':''}${isEd?' editing':''}" data-id="${t.id}">
       <td style="text-align:center"><input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''}></td>
-      <td class="tbl-open" data-id="${t.id}">${thumb}</td>
-      <td class="editable" data-id="${t.id}" data-field="title">${esc(t.title||'')}</td>
-      <td class="editable" data-id="${t.id}" data-field="year">${esc(t.year||'')}</td>
-      <td class="editable" data-id="${t.id}" data-field="label">${esc(t.label||'')}</td>
-      <td><select class="tbl-sel" data-id="${t.id}" data-field="format">${fmtOpts(t.format)}</select></td>
-      <td><select class="tbl-sel" data-id="${t.id}" data-field="condition">${condOpts(t.condition)}</select></td>
-      <td><select class="tbl-sel" data-id="${t.id}" data-field="status">${statOpts(t.status||'in_collection')}</select></td>
-      <td class="editable" data-id="${t.id}" data-field="value_low">${esc(t.value_low||'')}</td>
-      <td class="editable" data-id="${t.id}" data-field="value_high">${esc(t.value_high||'')}</td>
-      <td class="editable" data-id="${t.id}" data-field="tags">${esc((t.tags||[]).join(', '))}</td>
-      <td class="editable" data-id="${t.id}" data-field="notes">${esc(t.notes||'')}</td>
-      <td><button class="tbl-del" data-id="${t.id}" title="Delete">×</button></td>
+      <td class="tbl-open mc-2" data-id="${t.id}">${thumb}</td>
+      ${edCell('title','mc-3')}
+      ${edCell('year','mc-4')}
+      ${edCell('label','mc-5')}
+      <td class="mc-6${selPend('format','VHS')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('format','VHS')?' pending':''}" data-id="${t.id}" data-field="format">${fmtOpts(selCurVal('format','VHS'))}</select></td>
+      <td class="mc-7${selPend('condition','good')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('condition','good')?' pending':''}" data-id="${t.id}" data-field="condition">${condOpts(selCurVal('condition','good'))}</select></td>
+      <td class="mc-8${selPend('status','in_collection')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('status','in_collection')?' pending':''}" data-id="${t.id}" data-field="status">${statOpts(selCurVal('status','in_collection'))}</select></td>
+      ${edCell('value_low','mc-9')}
+      ${edCell('value_high','mc-10')}
+      ${edCell('tags','mc-11',true)}
+      ${edCell('notes','mc-12')}
+      ${actCell}
     </tr>`;
   }).join('')}</tbody></table>`;
   const tbl=list.querySelector('.tape-table');
@@ -137,34 +158,74 @@ function renderInv(){
     });
     sl.addEventListener('change',()=>renderInv());
   });
+  // Column resize
+  tbl.querySelectorAll('.col-rh').forEach(handle=>{
+    handle.addEventListener('mousedown',e=>{
+      e.preventDefault();e.stopPropagation();
+      _resizeTh=handle.closest('th');
+      _resizeX0=e.clientX;_resizeW0=_resizeTh.offsetWidth;
+      document.addEventListener('mousemove',_onColResize);
+      document.addEventListener('mouseup',_onColResizeEnd,{once:true});
+    });
+  });
   tbl.addEventListener('click',e=>{
-    if(e.target.closest('.col-f,.yr-slider,.th-sort'))return;
+    if(e.target.closest('.col-f,.yr-slider,.th-sort,.col-rh'))return;
+    const saveBtn=e.target.closest('.tbl-save');
+    if(saveBtn){
+      const id=saveBtn.dataset.id;
+      const t=inventory.find(x=>x.id===id);if(!t)return;
+      const pe=pendingEdits.get(id)||{};
+      if('tags' in pe)t.tags=pe.tags?pe.tags.split(',').map(s=>s.trim()).filter(Boolean):[];
+      const fields=['title','year','label','format','condition','status','value_low','value_high','notes'];
+      fields.forEach(f=>{if(f in pe&&f!=='tags')t[f]=pe[f];});
+      dbPut(t).then(()=>{
+        const row=list.querySelector(`tr[data-id="${id}"]`);
+        if(row){row.classList.add('just-saved');setTimeout(()=>row.classList.remove('just-saved'),1400);}
+      }).catch(e2=>toast('Save failed: '+e2.message,'err'));
+      editingId=null;pendingEdits.delete(id);renderInv();return;
+    }
+    const cancelBtn=e.target.closest('.tbl-cancel');
+    if(cancelBtn){editingId=null;pendingEdits.delete(cancelBtn.dataset.id);renderInv();return;}
+    const editBtn=e.target.closest('.tbl-edit');
+    if(editBtn){editingId=editBtn.dataset.id;pendingEdits.delete(editingId);renderInv();return;}
     const del=e.target.closest('.tbl-del');
     if(del){deleteTape(del.dataset.id);return;}
     const open=e.target.closest('.tbl-open');
     if(open){openDetail(open.dataset.id);return;}
     const td=e.target.closest('.editable');
-    if(!td||td.querySelector('input'))return;
-    const t=inventory.find(x=>x.id===td.dataset.id);if(!t)return;
-    const field=td.dataset.field,isArr=field==='tags';
-    const cur=isArr?(t.tags||[]).join(', '):(t[field]||'');
-    const inp=document.createElement('input');inp.className='tbl-input';inp.value=cur;
-    td.textContent='';td.appendChild(inp);inp.focus();inp.select();
-    const save=async()=>{
-      const v=inp.value.trim();
-      if(isArr)t.tags=v?v.split(',').map(s=>s.trim()).filter(Boolean):[];else t[field]=v;
-      td.textContent=isArr?t.tags.join(', '):v;
-      dbPut(t).catch(e2=>toast('Save failed: '+e2.message,'err'));
-    };
-    inp.addEventListener('blur',save);
-    inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();inp.blur();}if(ev.key==='Escape')td.textContent=cur;});
+    if(td&&!editingId){openDetail(td.dataset.id);return;}
   });
+  // Track pending changes from edit-mode inputs
+  if(editingId){
+    tbl.querySelectorAll('.editing .tbl-input').forEach(inp=>{
+      inp.addEventListener('input',()=>{
+        const id=inp.dataset.id,field=inp.dataset.field;
+        if(!pendingEdits.has(id))pendingEdits.set(id,{});
+        pendingEdits.get(id)[field]=inp.value;
+        const t2=inventory.find(x=>x.id===id);
+        const orig=field==='tags'?(t2?.tags||[]).join(', '):(t2?.[field]||'');
+        const changed=inp.value!==orig;
+        inp.classList.toggle('pending',changed);
+        inp.closest('td')?.classList.toggle('tbl-td-pending',changed);
+      });
+    });
+  }
   tbl.addEventListener('change',async e=>{
     if(e.target.closest('.col-f'))return;
     const sel=e.target.closest('.tbl-sel');
     if(sel){
-      const t=inventory.find(x=>x.id===sel.dataset.id);if(!t)return;
-      const field=sel.dataset.field,val=sel.value;
+      const id=sel.dataset.id,field=sel.dataset.field,val=sel.value;
+      const t=inventory.find(x=>x.id===id);if(!t)return;
+      if(editingId===id){
+        // In edit mode: buffer in pendingEdits, don't save yet
+        if(!pendingEdits.has(id))pendingEdits.set(id,{});
+        const orig=t[field]||'';
+        if(val!==orig)pendingEdits.get(id)[field]=val;else delete pendingEdits.get(id)[field];
+        sel.classList.toggle('pending',val!==orig);
+        sel.closest('td')?.classList.toggle('tbl-td-pending',val!==orig);
+        return;
+      }
+      // Not editing: save immediately
       if(field==='format'&&val&&!FORMAT_LIST.includes(val)){FORMAT_LIST.splice(FORMAT_LIST.length-1,0,val);}
       t[field]=val;
       dbPut(t).catch(e2=>toast('Save failed: '+e2.message,'err'));
@@ -237,6 +298,14 @@ document.getElementById('bulk-del').addEventListener('click',async()=>{
 document.getElementById('bulk-clear').addEventListener('click',()=>{selectedIds.clear();renderInv();updateBulkBar();});
 
 document.getElementById('search')?.addEventListener('input',()=>renderInv());
+
+// Mobile column scroll arrows
+document.getElementById('mob-col-prev')?.addEventListener('click',()=>{
+  const el=document.getElementById('inv-list');if(el)el.scrollLeft=Math.max(0,el.scrollLeft-240);
+});
+document.getElementById('mob-col-next')?.addEventListener('click',()=>{
+  const el=document.getElementById('inv-list');if(el)el.scrollLeft+=240;
+});
 const savedSort=localStorage.getItem('vhs-sort');
 if(savedSort)document.getElementById('sort-sel').value=savedSort;
 document.getElementById('sort-sel')?.addEventListener('change',()=>{

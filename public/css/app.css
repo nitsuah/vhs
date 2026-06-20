@@ -320,12 +320,32 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .tape-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}
 .tape-table th{position:sticky;top:0;background:var(--bg3);border-bottom:2px solid var(--border2);padding:7px 8px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;z-index:10}
 .tape-table td{border-bottom:1px solid var(--border);padding:4px 6px;vertical-align:middle}
-.tape-table .editable{cursor:text}
+.tape-table .editable{cursor:pointer}
 .tape-table .editable:hover{background:rgba(255,255,255,.04)}
 .tbl-input{background:var(--bg3);border:1px solid var(--blue);color:var(--text);padding:2px 5px;border-radius:3px;font-size:12px;font-family:inherit;width:100%;min-width:60px;box-sizing:border-box;outline:none}
 .tbl-sel{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:3px 4px;border-radius:4px;font-size:11px;font-family:inherit;width:100%}
 .tbl-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:3px;line-height:1}
 .tbl-del:hover{color:var(--red);background:rgba(232,64,64,.12)}
+.tbl-edit{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:3px;line-height:1}
+.tbl-edit:hover{color:var(--blue);background:rgba(68,136,255,.12)}
+.tbl-save{background:none;border:none;color:var(--green);cursor:pointer;font-size:15px;padding:2px 5px;border-radius:3px;font-weight:700}
+.tbl-save:hover{background:rgba(61,187,61,.15)}
+.tbl-cancel{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:3px}
+.tbl-cancel:hover{color:var(--red);background:rgba(232,64,64,.1)}
+/* Editing row */
+.tape-row.editing{background:rgba(68,136,255,.05);outline:1px solid rgba(68,136,255,.2)}
+.tape-row.editing .tbl-input{cursor:text}
+/* Pending change indicator */
+.tbl-td-pending{background:rgba(240,192,64,.07)!important}
+.tbl-input.pending,.tbl-sel.pending{border-color:var(--yellow)!important;background:rgba(240,192,64,.08)!important}
+/* Save-confirmation flash */
+@keyframes row-saved{0%{background:rgba(61,187,61,.28);outline:2px solid rgba(61,187,61,.5)}80%{background:rgba(61,187,61,.06)}100%{background:transparent;outline:none}}
+.tape-row.just-saved{animation:row-saved 1.4s ease-out}
+/* Column resize handle */
+.tape-table th{position:relative}
+.col-rh{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:12;opacity:0;border-right:2px solid var(--accent);transition:opacity .15s}
+.tape-table th:hover .col-rh{opacity:.5}
+.col-rh:hover,.col-rh:active{opacity:1!important}
 .tbl-thumb{width:180px;height:54px;object-fit:cover;border-radius:3px;display:block}
 .tbl-thumb-ph{width:180px;height:54px;border-radius:3px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:16px}
 /* Review table */
@@ -345,6 +365,9 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .fail-reason{font-size:10px;color:var(--red);margin-top:3px}
 .btn-retry{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:4px 8px;border-radius:5px;cursor:pointer;font-size:11px}
 .btn-retry:hover{border-color:var(--accent);color:var(--text)}
+
+/* Mobile scroll arrows: hidden on desktop */
+.mob-col-arrow{display:none!important}
 
 /* ── RESPONSIVE ─────────────────────────────────────────────────── */
 @media (max-width:700px){
@@ -367,7 +390,24 @@ body[data-tab="review"] #review{max-height:none;flex:1}
   /* 2-col card: on mobile, stack vertically */
   .rev-card.expanded .card-body{display:flex;flex-direction:column}
   .card-thumb{width:100%;max-height:200px}
+  /* Mobile table: horizontally scrollable; arrows scroll left/right */
+  .mob-col-arrow{display:flex!important}
+  #sort-sel{display:none}
+  #inv-list{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tbl-thumb{width:56px;height:40px}
+  .tbl-thumb-ph{width:56px;height:40px;font-size:12px}
+  /* Wall: 4 tiles across between 500-700px */
+  .wall-card{width:calc(25vw - 10px);min-width:70px;padding:5px}
+  .wall-img,.wall-ph{width:calc(25vw - 18px);min-width:62px;height:auto;aspect-ratio:2/3;object-fit:cover}
+  .wall-lbl{max-width:calc(25vw - 18px);font-size:9px}
 }
 @media (max-width:700px) and (orientation:landscape){
   #cam-panel{height:160px}
+}
+@media (max-width:499px){
+  /* 3 tiles scaled to fill width at narrow phones */
+  .wall-card{width:calc(33.33vw - 9px);min-width:80px}
+  .wall-img,.wall-ph{width:calc(33.33vw - 17px);min-width:72px;aspect-ratio:2/3;object-fit:cover}
+  .wall-lbl{max-width:calc(33.33vw - 17px);font-size:9px}
+  .wall-meta,.wall-val{display:none}
 }

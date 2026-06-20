@@ -147,6 +147,8 @@
         <button class="hbtn" id="btn-fill-data" title="AI fills missing year, label, and value">⚡ Fill</button>
         <button class="hbtn" id="btn-revalidate" title="Re-run AI on tape photos">🔄 Re-validate</button>
         <input id="search" type="text" placeholder="🔍 Search…">
+        <button class="hbtn mob-col-arrow" id="mob-col-prev" title="Scroll columns left">←</button>
+        <button class="hbtn mob-col-arrow" id="mob-col-next" title="Scroll columns right">→</button>
         <select id="sort-sel">
           <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
           <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
@@ -320,7 +322,7 @@
       <div class="dfield full"><label>Title</label><div style="display:flex;gap:6px;align-items:center"><input id="d-title" type="text" style="flex:1"><button class="btn-lookup" id="d-lookup" title="Look up metadata by title">🔍 Lookup</button></div></div>
       <div class="dfield"><label>Year</label><input id="d-year" type="text"></div>
       <div class="dfield"><label>Label</label><input id="d-label" type="text"></div>
-      <div class="dfield"><label>Format</label><input id="d-format" type="text"></div>
+      <div class="dfield"><label>Format</label><select id="d-format"><option value="VHS">VHS</option><option value="DVD">DVD</option><option value="Blu-ray">Blu-ray</option><option value="Betamax">Betamax</option><option value="LaserDisc">LaserDisc</option><option value="8mm/Hi8">8mm/Hi8</option><option value="Digital">Digital</option><option value="Other">Other</option></select></div>
       <div class="dfield"><label>Barcode (UPC/EAN)</label><input id="d-barcode" type="text" placeholder="0 00000 00000 0"></div>
       <div class="dfield"><label>Est. Value Low ($)</label><input id="d-value-low" type="text" placeholder="5"></div>
       <div class="dfield"><label>Est. Value High ($)</label><input id="d-value-high" type="text" placeholder="20"></div>

@@ -92,7 +92,7 @@ function renderCards(){
       </div></td>
       <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="year" value="${esc(card.data.year||'')}" placeholder="Year"></td>
       <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="label" value="${esc(card.data.label||'')}" placeholder="Label"></td>
-      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="format" value="${esc(card.data.format||'VHS')}"></td>
+      <td><select class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="format" ${proc?'disabled':''}>${FORMAT_LIST.map(f=>`<option value="${esc(f)}"${(card.data.format||'VHS')===f?' selected':''}>${esc(f)}</option>`).join('')}</select></td>
       <td><select class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="condition" ${proc?'disabled':''}>${cOpts(card.data.condition||'good')}</select></td>
       <td><select class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="status" ${proc?'disabled':''}>${sOpts(card.data.status||'in_collection')}</select></td>
       <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="value_low" value="${esc(card.data.value_low||'')}" placeholder="$"></td>

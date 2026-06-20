@@ -22,4 +22,4 @@ async function init(){
   renderInv();updateCount();
   startJobPoller();
 }
-init().catch(err=>{setDbDot('err');console.error('init error:',err);});
+init().catch(err=>{console.error('init error:',err);});

@@ -33,6 +33,8 @@ let cropFrac    = { x:.12, y:.08, w:.76, h:.84 };
 let bcZoom      = 0.7;
 let torchOn     = false;
 let dragging=false, resizing=false, dragOrig={};
+let editingId=null;
+const pendingEdits=new Map();
 
 function defaultOllamaUrl() {
   return location.protocol==='file:' ? 'http://localhost:11434' : '/api/ollama';
