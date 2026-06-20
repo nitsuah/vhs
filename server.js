@@ -25,14 +25,26 @@ const pool = new Pool({
     : false,
 });
 
+async function withRetry(fn, maxAttempts = 5, baseDelay = 1000) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try { return await fn(); }
+    catch (err) {
+      if (attempt === maxAttempts) throw err;
+      const delay = baseDelay * Math.pow(2, attempt - 1);
+      console.warn(`Attempt ${attempt}/${maxAttempts} failed: ${err.message} — retrying in ${delay}ms`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+
 async function initDb() {
-  await pool.query(`
+  await withRetry(() => pool.query(`
     CREATE TABLE IF NOT EXISTS tapes (
       id         TEXT PRIMARY KEY,
       data       JSONB NOT NULL,
       scanned_at TEXT NOT NULL
     )
-  `);
+  `));
   await pool.query(`
     CREATE TABLE IF NOT EXISTS upload_jobs (
       id          TEXT PRIMARY KEY,
@@ -46,7 +58,6 @@ async function initDb() {
       updated_at  TEXT NOT NULL
     )
   `);
-  // Non-destructive migration: add retry_count if table already existed without it
   await pool.query(`ALTER TABLE upload_jobs ADD COLUMN IF NOT EXISTS retry_count INT NOT NULL DEFAULT 0`).catch(() => {});
   console.log('✓ Database ready');
 }
@@ -268,6 +279,33 @@ async function processJobs() {
     workerBusy = false;
   }
 }
+
+// ── System health ─────────────────────────────────────────────────────────────
+app.get('/api/health', async (_req, res) => {
+  const result = { db: 'unknown', ollama: 'unknown', ts: new Date().toISOString() };
+  try {
+    await pool.query('SELECT 1');
+    result.db = 'ok';
+  } catch (err) {
+    result.db = 'error';
+    result.dbError = err.message;
+  }
+  try {
+    const r = await fetch(`${OLLAMA}/api/tags`, { signal: AbortSignal.timeout(5000) });
+    if (r.ok) {
+      const d = await r.json();
+      result.ollama = 'ok';
+      result.ollamaModels = (d.models || []).map(m => m.name);
+    } else {
+      result.ollama = 'error';
+      result.ollamaError = `HTTP ${r.status}`;
+    }
+  } catch (err) {
+    result.ollama = 'error';
+    result.ollamaError = err.message;
+  }
+  res.status(result.db === 'ok' ? 200 : 503).json(result);
+});
 
 // ── REST API ──────────────────────────────────────────────────────────────────
 app.get('/api/tapes', async (_req, res) => {
