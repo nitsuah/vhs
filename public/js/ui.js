@@ -51,6 +51,7 @@ document.getElementById('help-close').addEventListener('click',()=>document.getE
 // ── SETTINGS MODAL ───────────────────────────────────────────────────────
 document.getElementById('btn-settings').addEventListener('click',()=>{
   document.getElementById('s-apikey').value=apiKey;
+  document.getElementById('s-omdb-key').value=omdbKey;
   document.getElementById('s-ollama-url').value=ollamaUrl;
   document.getElementById('s-ollama-model').value=ollamaModel;
   document.getElementById('s-fast-mode').checked=fastMode;
@@ -60,10 +61,12 @@ document.getElementById('btn-settings').addEventListener('click',()=>{
 document.getElementById('s-cancel').addEventListener('click',()=>document.getElementById('m-settings').style.display='none');
 document.getElementById('s-save').addEventListener('click',()=>{
   apiKey=document.getElementById('s-apikey').value.trim();
+  omdbKey=document.getElementById('s-omdb-key').value.trim();
   ollamaUrl=document.getElementById('s-ollama-url').value.trim()||defaultOllamaUrl();
   ollamaModel=document.getElementById('s-ollama-model').value;
   fastMode=document.getElementById('s-fast-mode').checked;
   apiKey?localStorage.setItem('vhs-apikey',apiKey):localStorage.removeItem('vhs-apikey');
+  omdbKey?localStorage.setItem('vhs-omdb-key',omdbKey):localStorage.removeItem('vhs-omdb-key');
   localStorage.setItem('vhs-ollama-url',ollamaUrl);
   localStorage.setItem('vhs-ollama-model',ollamaModel);
   localStorage.setItem('vhs-fast-mode',String(fastMode));

@@ -258,6 +258,13 @@
     </div>
     <span class="shint">Docker proxies Ollama at <code>/api/ollama</code>. For GPU acceleration set <code>OLLAMA_UPSTREAM=http://host.docker.internal:11434</code> in <code>.env</code> to use native Windows Ollama with DirectML.</span>
     <hr class="ssep">
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">OMDb (movie metadata)</div>
+    <div class="sfield">
+      <label>OMDb API Key</label>
+      <input id="s-omdb-key" type="password" placeholder="optional — free key at omdbapi.com" autocomplete="off">
+      <span class="shint">Used for authoritative movie year and IMDB ID lookup when filling metadata. Falls back to server env key if not set.</span>
+    </div>
+    <hr class="ssep">
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Extraction mode</div>
     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text2)">
       <input type="checkbox" id="s-fast-mode" style="width:16px;height:16px;accent-color:var(--accent)">

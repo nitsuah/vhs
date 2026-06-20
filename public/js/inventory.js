@@ -594,6 +594,10 @@ document.getElementById('d-lookup').addEventListener('click',async()=>{
   if(meta.format)document.getElementById('d-format').value=meta.format;
   if(meta.value_low)document.getElementById('d-value-low').value=meta.value_low;
   if(meta.value_high)document.getElementById('d-value-high').value=meta.value_high;
+  // Store imdb_id on the in-progress edit so it's saved with the tape
+  if(meta.imdb_id&&selectedId){
+    const t=inventory.find(x=>x.id===selectedId);if(t&&!t.imdb_id)t.imdb_id=meta.imdb_id;
+  }
 });
 document.getElementById('d-save').addEventListener('click',async()=>{
   const titleVal=document.getElementById('d-title').value.trim();
@@ -671,6 +675,7 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
     if(meta.value_low&&!t.value_low){t.value_low=meta.value_low;changed=true;}
     if(meta.value_high&&!t.value_high){t.value_high=meta.value_high;changed=true;}
     if(meta.format&&!t.format){t.format=meta.format;changed=true;}
+    if(meta.imdb_id&&!t.imdb_id){t.imdb_id=meta.imdb_id;changed=true;}
     if(changed){await dbPut(t);done++;}
   }
   btn.disabled=false;btn.textContent='⚡ Fill Data';

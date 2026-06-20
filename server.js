@@ -37,29 +37,25 @@ async function withRetry(fn, maxAttempts = 5, baseDelay = 1000) {
   }
 }
 
-async function initDb() {
+async function runMigrations() {
   await withRetry(() => pool.query(`
-    CREATE TABLE IF NOT EXISTS tapes (
-      id         TEXT PRIMARY KEY,
-      data       JSONB NOT NULL,
-      scanned_at TEXT NOT NULL
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version    TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL
     )
   `));
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS upload_jobs (
-      id          TEXT PRIMARY KEY,
-      image_data  TEXT NOT NULL,
-      thumb       TEXT,
-      status      TEXT NOT NULL DEFAULT 'pending',
-      result      JSONB,
-      error       TEXT,
-      retry_count INT NOT NULL DEFAULT 0,
-      created_at  TEXT NOT NULL,
-      updated_at  TEXT NOT NULL
-    )
-  `);
-  await pool.query(`ALTER TABLE upload_jobs ADD COLUMN IF NOT EXISTS retry_count INT NOT NULL DEFAULT 0`).catch(() => {});
-  console.log('✓ Database ready');
+  const migrationsDir = path.join(__dirname, 'migrations');
+  const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+  const { rows } = await pool.query('SELECT version FROM schema_migrations');
+  const applied = new Set(rows.map(r => r.version));
+  for (const file of files) {
+    if (applied.has(file)) { console.log(`  ↷ ${file}`); continue; }
+    const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+    await pool.query(sql);
+    await pool.query('INSERT INTO schema_migrations(version,applied_at) VALUES($1,$2)', [file, new Date().toISOString()]);
+    console.log(`  ✓ ${file}`);
+  }
+  console.log('✓ Migrations complete');
 }
 
 // ── TLS cert generation ───────────────────────────────────────────────────────
@@ -118,9 +114,32 @@ async function callOllamaServer(base64) {
   return parseJsonArray(data.response || '');
 }
 
-// ── Job queue ─────────────────────────────────────────────────────────────────
+// ── OMDb lookup ───────────────────────────────────────────────────────────────
+const OMDB_API_KEY = (process.env.OMDB_API_KEY || '').trim();
+
+async function callOmdb({ title, imdbId }, apiKey) {
+  if (!apiKey) return null;
+  const params = new URLSearchParams({ apikey: apiKey });
+  if (imdbId) { params.set('i', imdbId); }
+  else { params.set('t', title); params.set('type', 'movie'); }
+  const r = await fetch(`https://www.omdbapi.com/?${params}`, { signal: AbortSignal.timeout(5000) });
+  if (!r.ok) return null;
+  const d = await r.json();
+  if (d.Response === 'False' || !d.Title) return null;
+  return {
+    title:   d.Title,
+    year:    (d.Year || '').match(/\d{4}/)?.[0] || '',
+    label:   d.Production || '',
+    imdb_id: d.imdbID || '',
+  };
+}
+
+// ── Job / review helpers ──────────────────────────────────────────────────────
 function jobId() {
   return `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+function reviewItemId() {
+  return `rev_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 app.post('/api/jobs', async (req, res) => {
@@ -139,20 +158,30 @@ app.post('/api/jobs', async (req, res) => {
   }
 });
 
-app.get('/api/jobs/ready', async (_req, res) => {
+// ── Review items (cross-session queue) ───────────────────────────────────────
+app.get('/api/review/pending', async (_req, res) => {
   try {
-    // Return done jobs AND permanently-failed jobs so the client can surface both
     const { rows } = await pool.query(
-      `SELECT id, thumb, result, error, status, retry_count, created_at
-       FROM upload_jobs
-       WHERE status='done' OR (status='failed' AND retry_count>=$1)
-       ORDER BY created_at ASC`,
-      [MAX_RETRIES]
+      "SELECT id, job_id, data, thumb, source, status, fail_reason, created_at FROM review_items WHERE status IN ('pending','failed') ORDER BY created_at ASC"
     );
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.delete('/api/review/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM review_items WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Keep /api/jobs/ready for legacy compatibility (returns empty now — review_items replaced it)
+app.get('/api/jobs/ready', async (_req, res) => {
+  res.json([]);
 });
 
 app.post('/api/jobs/:id/retry', async (req, res) => {
@@ -168,13 +197,15 @@ app.post('/api/jobs/:id/retry', async (req, res) => {
   }
 });
 
-// Jobs that are in-flight (pending/processing) — used by client on startup to restore processing cards
+// Jobs that are in-flight (pending/processing) or transiently failed (will be retried)
 app.get('/api/jobs/inflight', async (_req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, thumb, created_at FROM upload_jobs
+      `SELECT id, thumb, created_at, status, retry_count FROM upload_jobs
        WHERE status IN ('pending','processing')
-       ORDER BY created_at ASC`
+          OR (status='failed' AND retry_count<$1)
+       ORDER BY created_at ASC`,
+      [MAX_RETRIES]
     );
     res.json(rows);
   } catch (err) {
@@ -184,9 +215,13 @@ app.get('/api/jobs/inflight', async (_req, res) => {
 
 app.get('/api/jobs/status', async (_req, res) => {
   try {
-    const { rows } = await pool.query(`SELECT status, COUNT(*) as count FROM upload_jobs GROUP BY status`);
-    const counts = { pending: 0, processing: 0, done: 0, failed: 0 };
-    rows.forEach(r => { counts[r.status] = parseInt(r.count, 10); });
+    const [jobsRes, reviewRes] = await Promise.all([
+      pool.query('SELECT status, COUNT(*) as count FROM upload_jobs GROUP BY status'),
+      pool.query("SELECT COUNT(*) as count FROM review_items WHERE status='pending'"),
+    ]);
+    const counts = { pending: 0, processing: 0, done: 0, failed: 0, review_pending: 0 };
+    jobsRes.rows.forEach(r => { counts[r.status] = parseInt(r.count, 10); });
+    counts.review_pending = parseInt(reviewRes.rows[0]?.count || '0', 10);
     res.json(counts);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -209,6 +244,9 @@ app.get('/api/jobs/:id', async (req, res) => {
 app.get('/api/lookup/barcode/:code', async (req, res) => {
   const code = req.params.code.trim().replace(/\s/g, '');
   if (!code) return res.status(400).json({ error: 'code required' });
+  const omdbKey = (req.headers['x-omdb-key'] || OMDB_API_KEY).trim();
+
+  let found = null;
 
   // 1. UPC Item DB — covers most North American retail product codes
   try {
@@ -220,13 +258,13 @@ app.get('/api/lookup/barcode/:code', async (req, res) => {
       const d = await r.json();
       const item = d.items?.[0];
       if (item?.title?.trim()) {
-        return res.json({ title: item.title.trim(), label: item.brand || '', year: '', source: 'upcitemdb' });
+        found = { title: item.title.trim(), label: item.brand || '', year: '', source: 'upcitemdb' };
       }
     }
   } catch (e) { console.warn('UPC lookup:', e.message); }
 
   // 2. Open Library — for ISBN-13 codes (978/979 prefix, 13 digits)
-  if (/^97[89]\d{10}$/.test(code)) {
+  if (!found && /^97[89]\d{10}$/.test(code)) {
     try {
       const r = await fetch(
         `https://openlibrary.org/isbn/${code}.json`,
@@ -235,39 +273,65 @@ app.get('/api/lookup/barcode/:code', async (req, res) => {
       if (r.ok) {
         const d = await r.json();
         if (d.title) {
-          const year = (d.publish_date || '').match(/\d{4}/)?.[0] || '';
-          const label = Array.isArray(d.publishers) ? (d.publishers[0] || '') : '';
-          return res.json({ title: d.title, label, year, source: 'openlibrary' });
+          found = {
+            title: d.title,
+            label: Array.isArray(d.publishers) ? (d.publishers[0] || '') : '',
+            year:  (d.publish_date || '').match(/\d{4}/)?.[0] || '',
+            source: 'openlibrary',
+          };
         }
       }
     } catch (e) { console.warn('Open Library lookup:', e.message); }
   }
 
-  res.status(404).json({ error: 'not found' });
+  if (!found) return res.status(404).json({ error: 'not found' });
+
+  // 3. Enrich with OMDb for authoritative year + IMDB id
+  if (omdbKey && found.title) {
+    const omdb = await callOmdb({ title: found.title }, omdbKey).catch(() => null);
+    if (omdb?.imdb_id) {
+      found = { ...found, year: omdb.year || found.year, imdb_id: omdb.imdb_id };
+    }
+  }
+
+  res.json(found);
 });
 
 app.get('/api/lookup', async (req, res) => {
   const title = (req.query.title || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
+  const omdbKey = (req.headers['x-omdb-key'] || OMDB_API_KEY).trim();
+
   const prompt = `You are a VHS collectibles expert. For the title: "${title.replace(/"/g, '\\"')}"
 Return ONLY a JSON object — no other text:
 {"year":"1984","label":"Orion Pictures","format":"VHS","value_low":"8","value_high":"25"}
 Rules: year=4-digit release year, label=VHS distributor/studio, value_low/value_high=USD resale range in good condition.
 Omit fields you are unsure about. Return {} if completely unknown.`;
-  try {
-    const r = await fetch(`${OLLAMA}/api/generate`, {
+
+  const [ollamaRes, omdbRes] = await Promise.allSettled([
+    fetch(`${OLLAMA}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: OLLAMA_MODEL, prompt, stream: false, options: { num_predict: 200 } }),
       signal: AbortSignal.timeout(30000),
-    });
-    if (!r.ok) return res.status(502).json({ error: `Ollama ${r.status}` });
-    const data = await r.json();
-    const m = (data.response || '').match(/\{[\s\S]*?\}/);
-    try { res.json(m ? JSON.parse(m[0]) : {}); } catch { res.json({}); }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    }).then(async r => {
+      if (!r.ok) throw new Error(`Ollama ${r.status}`);
+      const data = await r.json();
+      const m = (data.response || '').match(/\{[\s\S]*?\}/);
+      try { return m ? JSON.parse(m[0]) : {}; } catch { return {}; }
+    }),
+    callOmdb({ title }, omdbKey),
+  ]);
+
+  const base = ollamaRes.status === 'fulfilled' ? (ollamaRes.value || {}) : {};
+  const omdb  = omdbRes.status  === 'fulfilled' ? omdbRes.value  : null;
+
+  const merged = { ...base };
+  if (omdb?.year)    merged.year    = omdb.year;
+  if (omdb?.imdb_id) merged.imdb_id = omdb.imdb_id;
+  if (omdb?.label && !merged.label) merged.label = omdb.label;
+
+  res.json(merged);
 });
 
 app.delete('/api/jobs/:id', async (req, res) => {
@@ -279,17 +343,7 @@ app.delete('/api/jobs/:id', async (req, res) => {
   }
 });
 
-// Clear all permanently-failed jobs (retry_count >= MAX_RETRIES)
-app.delete('/api/jobs/failed/all', async (_req, res) => {
-  try {
-    const { rowCount } = await pool.query(
-      `DELETE FROM upload_jobs WHERE status='failed' AND retry_count>=$1`, [MAX_RETRIES]
-    );
-    res.json({ deleted: rowCount });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Permanently-failed jobs are now auto-converted to review_items by the worker
 
 // Reset failed jobs so they get re-queued on next worker tick
 app.post('/api/jobs/retry-failed', async (_req, res) => {
@@ -304,7 +358,7 @@ app.post('/api/jobs/retry-failed', async (_req, res) => {
   }
 });
 
-// Background worker — picks pending jobs, calls Ollama, saves results; retries failures up to 3×
+// Background worker — picks pending jobs, calls Ollama, creates review_items; retries up to 3×
 const MAX_RETRIES = 3;
 let workerBusy = false;
 async function processJobs() {
@@ -312,32 +366,58 @@ async function processJobs() {
   workerBusy = true;
   try {
     const now = new Date().toISOString();
-    // Reset jobs stuck in 'processing' for >10 min (server restart or crash)
-    const stuckCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const stuckCutoff    = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const retryCutoff    = new Date(Date.now() -      60 * 1000).toISOString();
+
     await pool.query(
       "UPDATE upload_jobs SET status='pending', updated_at=$1 WHERE status='processing' AND updated_at<$2",
       [now, stuckCutoff]
     );
-    // Re-queue failed jobs with retries remaining (wait at least 60s between attempts)
-    const retryCutoff = new Date(Date.now() - 60 * 1000).toISOString();
     await pool.query(
       "UPDATE upload_jobs SET status='pending', updated_at=$1 WHERE status='failed' AND retry_count<$2 AND updated_at<$3",
       [now, MAX_RETRIES, retryCutoff]
     );
+
+    // Convert permanently-failed jobs into review_items so they surface cross-session
+    const { rows: permFailed } = await pool.query(
+      "SELECT id, thumb, error FROM upload_jobs WHERE status='failed' AND retry_count>=$1",
+      [MAX_RETRIES]
+    );
+    for (const pf of permFailed) {
+      await pool.query(
+        'INSERT INTO review_items(id,job_id,data,thumb,source,status,fail_reason,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+        [reviewItemId(), pf.id, '{}', pf.thumb, 'scan', 'failed', pf.error || 'Analysis failed after max retries', now]
+      );
+      await pool.query('DELETE FROM upload_jobs WHERE id=$1', [pf.id]);
+      console.warn(`✗ Job ${pf.id} permanently failed → review_items`);
+    }
 
     const { rows } = await pool.query(
       "SELECT id, image_data, thumb FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
     );
     if (!rows.length) return;
     const job = rows[0];
-    await pool.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [new Date().toISOString(), job.id]);
+    await pool.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [now, job.id]);
+
     try {
       const result = await callOllamaServer(job.image_data);
-      await pool.query(
-        "UPDATE upload_jobs SET status='done', result=$1, updated_at=$2 WHERE id=$3",
-        [JSON.stringify(result), new Date().toISOString(), job.id]
-      );
-      console.log(`✓ Job ${job.id}: ${result.length} tape(s) found`);
+      const ts = new Date().toISOString();
+      if (!result.length) {
+        // No tapes detected — surface as a failed review_item so user is notified
+        await pool.query(
+          'INSERT INTO review_items(id,job_id,data,thumb,source,status,fail_reason,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+          [reviewItemId(), job.id, '{}', job.thumb, 'scan', 'failed', 'No tapes detected in image', ts]
+        );
+      } else {
+        for (const item of result) {
+          await pool.query(
+            'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
+            [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', ts]
+          );
+        }
+      }
+      await pool.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
+      console.log(`✓ Job ${job.id}: ${result.length} tape(s) → review_items`);
     } catch (err) {
       await pool.query(
         "UPDATE upload_jobs SET status='failed', error=$1, updated_at=$2, retry_count=retry_count+1 WHERE id=$3",
@@ -465,7 +545,7 @@ if (require.main === module) {
 
   ensureCerts();
 
-  initDb()
+  runMigrations()
     .then(() => {
       setInterval(processJobs, 5000);
       processJobs();

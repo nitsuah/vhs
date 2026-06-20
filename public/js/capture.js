@@ -101,8 +101,10 @@ async function processQueue(){
       const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({image:item.base64,thumb:item.thumb})});
       if(r.ok){
-        const {id:jobId}=await r.json();
-        addCard({format:'VHS',condition:'good',status:'in_collection',notes:''},null,item.thumb,false,jobId,'processing');
+        const {id:uploadJobId}=await r.json();
+        // srcJobId tracks the upload_job; jobId will be updated to review_item id when ready
+        const card={uid:++uidSeq,data:{format:'VHS',condition:'good',status:'in_collection',notes:''},source:null,thumb:item.thumb,expanded:false,jobId:uploadJobId,srcJobId:uploadJobId,processingState:'processing',failReason:'',inflightSince:new Date().toISOString()};
+        cards.push(card);
         submitted++;
       }
     }catch(e){console.warn('Job submit error:',e);}
@@ -116,81 +118,59 @@ async function processQueue(){
 
 // ── JOB POLLING ──────────────────────────────────────────────────────────
 let jobPollTimer=null;
-// session-only: prevents within-session duplicate cards; NOT persisted so completed jobs survive page refresh
+// session-only set: prevents re-adding an item after confirm/discard within the same session
 let seenJobIds=new Set();
 function _seenAdd(id){seenJobIds.add(id);}
 function _seenDel(id){seenJobIds.delete(id);}
-async function pollReadyJobs(){
+
+async function pollReviewItems(){
   try{
-    const jobs=await fetch('/api/jobs/ready').then(r=>r.json());
-    if(!Array.isArray(jobs)||!jobs.length)return;
+    const items=await fetch('/api/review/pending').then(r=>r.json());
+    if(!Array.isArray(items))return;
     let changed=0;
-    for(const job of jobs){
-      if(seenJobIds.has(job.id))continue; // user confirmed/discarded this session
-      const existing=cards.find(c=>c.jobId===job.id&&c.processingState==='processing');
-      if(!existing&&cards.some(c=>c.jobId===job.id))continue; // already visible as ready/failed
-      if(job.status==='failed'){
-        if(existing){
-          existing.processingState='failed';
-          existing.failReason=job.error||'Analysis failed';
-        }else{
-          addCard({format:'VHS',condition:'good',status:'in_collection',notes:''},null,job.thumb,false,job.id,'failed',job.error||'Analysis failed');
-          showRevPanel();
-        }
-        changed++;
-        continue;
-      }
-      const results=Array.isArray(job.result)?job.result:[];
-      if(!results.length){
-        if(existing){
-          existing.processingState='failed';
-          existing.failReason='No tapes detected in image';
-        }else{
-          fetch(`/api/jobs/${encodeURIComponent(job.id)}`,{method:'DELETE'}).catch(()=>{});
-        }
-        changed++;
-        continue;
-      }
+    for(const item of items){
+      if(seenJobIds.has(item.id))continue;
+      // Check if a processing card from the same upload_job already exists → transition it
+      const existing=cards.find(c=>c.srcJobId===item.job_id&&c.processingState==='processing');
+      if(!existing&&cards.some(c=>c.jobId===item.id))continue; // already shown
+      const data={...((typeof item.data==='object'?item.data:{})||{}),condition:item.data?.condition||'good',status:item.data?.status||'in_collection'};
       if(existing){
-        const d=results[0];
-        if(!existing.data.title)existing.data.title=d.title||'';
-        if(d.year)existing.data.year=d.year;
-        if(d.label)existing.data.label=d.label;
-        if(d.format)existing.data.format=d.format||'VHS';
-        if(d.condition)existing.data.condition=d.condition||'good';
-        existing.processingState='ready';
-        for(let i=1;i<results.length;i++){
-          addCard({...results[i],condition:results[i].condition||'good',status:'in_collection',notes:''},null,job.thumb,false,null,'ready');
-        }
+        // Upgrade the processing card to this review_item
+        existing.jobId=item.id; // now tracks review_item id for cleanup
+        existing.data=data;
+        existing.processingState=item.status==='failed'?'failed':'ready';
+        existing.failReason=item.fail_reason||'';
       }else{
         const wasEmpty=!cards.length;
-        results.forEach((d,j)=>addCard({...d,condition:d.condition||'good',status:'in_collection',notes:''},null,job.thumb,wasEmpty&&j===0,job.id,'ready'));
+        addCard(data,item.source||'scan',item.thumb,wasEmpty,item.id,item.status==='failed'?'failed':'ready',item.fail_reason||'');
         showRevPanel();
       }
       changed++;
     }
     if(changed)renderCards();
-  }catch(e){console.warn('Job poll error:',e);}
+  }catch(e){console.warn('Review poll error:',e);}
 }
+
 async function resumeInflightJobs(){
   try{
     const jobs=await fetch('/api/jobs/inflight').then(r=>r.json());
     if(!Array.isArray(jobs)||!jobs.length)return;
     let added=0;
     for(const job of jobs){
-      if(seenJobIds.has(job.id)||cards.some(c=>c.jobId===job.id))continue;
-      const card={uid:++uidSeq,data:{format:'VHS',condition:'good',status:'in_collection',notes:''},source:null,thumb:job.thumb,expanded:false,jobId:job.id,processingState:'processing',failReason:'',inflightSince:job.created_at};
+      if(seenJobIds.has(job.id)||cards.some(c=>c.srcJobId===job.id||c.jobId===job.id))continue;
+      const card={uid:++uidSeq,data:{format:'VHS',condition:'good',status:'in_collection',notes:''},source:null,thumb:job.thumb,expanded:false,jobId:job.id,srcJobId:job.id,processingState:'processing',failReason:'',inflightSince:job.created_at};
       cards.push(card);
       added++;
     }
     if(added){showRevPanel();renderCards();}
   }catch(e){console.warn('Resume inflight error:',e);}
 }
+
 function startJobPoller(){
   if(jobPollTimer)return;
-  jobPollTimer=setInterval(()=>{pollReadyJobs();updateQueueStatus();},5000);
+  jobPollTimer=setInterval(()=>{pollReviewItems();updateQueueStatus();},5000);
   resumeInflightJobs();
-  pollReadyJobs();
+  pollReviewItems();
   updateQueueStatus();
 }
 
@@ -202,22 +182,16 @@ async function updateQueueStatus(){
   try{
     const s=await fetch('/api/jobs/status').then(r=>r.json());
     const active=(s.pending||0)+(s.processing||0);
-    const failed=s.failed||0;
-    const newReady=Math.max(0,(s.done||0)-seenJobIds.size);
-    if(!active&&!failed&&!newReady){queueStatusEl.style.display='none';return;}
+    const retrying=s.failed||0;
+    const newReady=s.review_pending||0;
+    if(!active&&!retrying&&!newReady){queueStatusEl.style.display='none';return;}
     queueStatusEl.style.display='flex';
     const parts=[];
     if(s.pending)parts.push(`<span class="qs-badge qs-pending">⏳ ${s.pending} queued</span>`);
     if(s.processing)parts.push(`<span class="qs-badge qs-proc">⟳ ${s.processing} analyzing</span>`);
+    if(retrying)parts.push(`<span class="qs-badge qs-pending">↺ ${retrying} retrying</span>`);
     if(newReady)parts.push(`<span class="qs-badge" style="background:rgba(61,187,61,.15);color:var(--green);border:1px solid rgba(61,187,61,.3);cursor:pointer" title="Click to open review panel" id="qs-ready-btn">✓ ${newReady} ready</span>`);
-    if(failed)parts.push(`<span class="qs-badge qs-failed" style="cursor:pointer" title="Click to retry failed jobs" id="qs-failed-btn">⚠ ${failed} failed</span>`);
     queueStatusEl.innerHTML=`<span style="font-size:10px;color:var(--text3)">Queue:</span>${parts.join('')}`;
-    document.getElementById('qs-ready-btn')?.addEventListener('click',()=>{pollReadyJobs();showRevPanel();});
-    document.getElementById('qs-failed-btn')?.addEventListener('click',async()=>{
-      const r=await fetch('/api/jobs/retry-failed',{method:'POST'});
-      const d=await r.json();
-      if(d.requeued)toast(`Re-queued ${d.requeued} failed job${d.requeued>1?'s':''}…`,'ok');
-      updateQueueStatus();
-    });
+    document.getElementById('qs-ready-btn')?.addEventListener('click',()=>{pollReviewItems();showRevPanel();});
   }catch{}finally{queueBusy=false;}
 }

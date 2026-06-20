@@ -105,7 +105,8 @@ Return {} if completely unknown.`;
     }catch(e){console.warn('Lookup (Claude):',e);}
   }
   try{
-    const r=await fetch(`/api/lookup?title=${encodeURIComponent(title)}`,{signal:AbortSignal.timeout(35000)});
+    const hdrs={};if(omdbKey)hdrs['x-omdb-key']=omdbKey;
+    const r=await fetch(`/api/lookup?title=${encodeURIComponent(title)}`,{signal:AbortSignal.timeout(35000),headers:hdrs});
     if(r.ok){const d=await r.json();if(d&&!d.error&&Object.keys(d).length)return d;}
   }catch(e){console.warn('Lookup (server):',e);}
   return null;
@@ -113,7 +114,8 @@ Return {} if completely unknown.`;
 
 async function lookupBarcode(code){
   try{
-    const res=await fetch(`/api/lookup/barcode/${encodeURIComponent(code)}`,{signal:AbortSignal.timeout(8000)});
+    const hdrs={};if(omdbKey)hdrs['x-omdb-key']=omdbKey;
+    const res=await fetch(`/api/lookup/barcode/${encodeURIComponent(code)}`,{signal:AbortSignal.timeout(8000),headers:hdrs});
     if(!res.ok)return null;
     return await res.json();
   }catch{return null;}

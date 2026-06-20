@@ -43,13 +43,25 @@ const revBulk=document.getElementById('rev-bulk');
 function addCard(data,source=null,thumb=null,expanded=false,jobId=null,processingState='ready',failReason=''){
   cards.push({uid:++uidSeq,data:{...data},source,thumb,expanded,jobId,processingState,failReason});
 }
-function _claimJob(jobId){
-  if(!jobId)return;
-  _seenAdd(jobId); // mark claimed so poll won't recreate a card if DELETE races the next poll tick
-  fetch(`/api/jobs/${encodeURIComponent(jobId)}`,{method:'DELETE'}).catch(()=>{});
+function _claimJob(card){
+  if(!card)return;
+  const id=card.jobId;if(!id)return;
+  _seenAdd(id);
+  if(card.processingState==='processing'){
+    // Cancel the in-flight upload_job
+    fetch(`/api/jobs/${encodeURIComponent(id)}`,{method:'DELETE'}).catch(()=>{});
+  }else{
+    // Discard the review_item
+    fetch(`/api/review/${encodeURIComponent(id)}`,{method:'DELETE'}).catch(()=>{});
+  }
 }
 function showRevPanel(){revPanel.classList.add('on');revErr.style.display='none';setActiveTab('review');}
-function hideRevPanel(){cards.forEach(c=>_claimJob(c.jobId));revPanel.classList.remove('on');cards=[];revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';updateTabBadge?.();}
+function hideRevPanel(){
+  // Only claim (delete) ready/failed review items; leave processing jobs running
+  cards.forEach(c=>{if(c.processingState!=='processing')_claimJob(c);});
+  revPanel.classList.remove('on');cards=[];revCardsEl.innerHTML='';revBulk.classList.remove('on');
+  document.getElementById('rev-title').textContent='Pending Review';updateTabBadge?.();
+}
 function setRevLoading(on){revLoading.style.display=on?'flex':'none';}
 function setRevMsg(m){const el=document.getElementById('rev-msg');if(el)el.textContent=m;}
 function showRevErr(m){revErr.style.display='block';revErr.textContent=m;revCardsEl.innerHTML='';revBulk.classList.remove('on');}
@@ -140,11 +152,13 @@ function renderCards(){
     btn.addEventListener('click',async e=>{
       e.stopPropagation();
       const uid=+btn.dataset.uid;
-      const card=cards.find(c=>c.uid===uid);if(!card?.jobId)return;
+      const card=cards.find(c=>c.uid===uid);if(!card)return;
+      // Retry uses the source upload_job id (stored in srcJobId for processing cards)
+      const retryId=card.srcJobId||card.jobId;if(!retryId)return;
       btn.disabled=true;btn.textContent='…';
       try{
-        await fetch(`/api/jobs/${encodeURIComponent(card.jobId)}/retry`,{method:'POST'});
-        _seenDel(card.jobId);
+        await fetch(`/api/jobs/${encodeURIComponent(retryId)}/retry`,{method:'POST'});
+        _seenDel(retryId);
         card.processingState='processing';card.failReason='';
         renderCards();
       }catch(e2){btn.disabled=false;btn.textContent='↺';toast('Retry failed','err');}
@@ -190,11 +204,12 @@ async function confirmCard(uid){
     condition_notes:card.data.notes||'',status:card.data.status||'in_collection',
     barcode:card.data.barcode||'',tags:card.data.tags||[],
     value_low:card.data.value_low||'',value_high:card.data.value_high||'',
+    imdb_id:card.data.imdb_id||'',
     photos:thumb?[thumb]:[],
     scanned_at:new Date().toISOString(),photo_thumbnail:thumb,photo_spine:thumb,
   };
   await Promise.all([dbAdd(rec),new Promise(r=>setTimeout(r,280))]);
-  _claimJob(card.jobId);
+  _claimJob(card);
   inventory.push(rec);renderInv();updateCount();
   toast(`Saved: ${rec.title}`,'ok');
   const confirmedIdx=cards.findIndex(c=>c.uid===uid);
@@ -216,7 +231,7 @@ function _flashInvRow(id){
 
 function discardCard(uid){
   const card=cards.find(c=>c.uid===uid);
-  _claimJob(card?.jobId);
+  _claimJob(card);
   cards=cards.filter(c=>c.uid!==uid);
   if(!cards.length)hideRevPanel();else renderCards();
 }

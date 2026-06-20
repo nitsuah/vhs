@@ -16,6 +16,7 @@ let apiKey      = localStorage.getItem('vhs-apikey')       || '';
 let ollamaUrl   = localStorage.getItem('vhs-ollama-url')   || defaultOllamaUrl();
 let ollamaModel = localStorage.getItem('vhs-ollama-model') || 'llava:7b';
 let fastMode    = localStorage.getItem('vhs-fast-mode') !== 'false';
+let omdbKey     = localStorage.getItem('vhs-omdb-key')     || '';
 let ollamaAvail = false;
 let inventory      = [];
 let cards          = [];   // pending review: [{uid, data, thumb, expanded, source}]
