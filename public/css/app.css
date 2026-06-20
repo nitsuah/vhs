@@ -394,11 +394,16 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .rev-table .c-f{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:4px 6px;border-radius:4px;font-size:12px;font-family:inherit;width:100%;min-width:50px;box-sizing:border-box}
 .rev-table .c-f:focus{outline:none;border-color:var(--accent)}
 .rev-table select.c-f{padding:3px 4px}
-.rev-thumb{width:60px;height:42px;object-fit:cover;border-radius:3px;display:block}
+.rev-thumb-wrap{width:54px;height:54px;position:relative;overflow:hidden;border-radius:3px;flex-shrink:0;background:var(--bg4)}
+.rev-thumb{width:54px;height:54px;object-fit:cover;position:absolute;top:0;left:0;transform:rotate(-90deg);transform-origin:center}
 /* Processing state — fields locked except title */
 .rev-card.card-processing{opacity:.8}
 .rev-card.card-processing .c-f.locked{pointer-events:none;opacity:.35;background:transparent;border-color:transparent}
 .rev-card.card-processing select.locked{pointer-events:none;opacity:.35}
+/* Queued state — dimmer, waiting for server slot */
+.rev-card.card-queued{opacity:.5}
+.rev-card.card-queued .c-f.locked{pointer-events:none;opacity:.25;background:transparent;border-color:transparent}
+.rev-card.card-queued select.locked{pointer-events:none;opacity:.25}
 /* Failed state — red left border, error reason visible */
 .rev-card.card-failed{box-shadow:inset 3px 0 0 var(--red)}
 .fail-reason{font-size:10px;color:var(--red);margin-top:3px}

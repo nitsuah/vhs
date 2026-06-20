@@ -69,53 +69,52 @@ function showRevErr(m){revErr.style.display='block';revErr.textContent=m;revCard
 function renderCards(){
   updateTabBadge?.();
   const readyCount=cards.filter(c=>c.processingState==='ready').length;
+  const procCount=cards.filter(c=>c.processingState==='processing'||c.processingState==='queued').length;
   revBulk.classList.toggle('on',readyCount>1);
+  const stopBtn=document.getElementById('btn-stop-proc');
+  if(stopBtn)stopBtn.style.display=procCount?'':'none';
   const totalN=cards.length;
   document.getElementById('rev-title').textContent=totalN?`Pending Review (${totalN})`:'Pending Review';
   if(!totalN){revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';if(!revErr.style.display||revErr.style.display==='none')revPanel.classList.remove('on');return;}
   const cOpts=v=>['great','good','fair','poor'].map(c=>`<option value="${c}"${v===c?' selected':''}>${c}</option>`).join('');
-  const sOpts=v=>[['in_collection','In Collection'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([c,l])=>`<option value="${c}"${v===c?' selected':''}>${l}</option>`).join('');
   revCardsEl.innerHTML=`<table class="rev-table"><thead><tr>
-    <th style="width:68px"></th>
-    <th>Title</th><th style="width:55px">Year</th><th>Label</th><th style="width:65px">Format</th>
-    <th style="width:80px">Cond.</th><th style="width:110px">Status</th>
-    <th style="width:50px">$Lo</th><th style="width:50px">$Hi</th>
-    <th>Tags</th><th style="width:120px"></th>
+    <th style="width:62px"></th>
+    <th>Title</th><th>Label</th><th style="width:65px">Format</th>
+    <th style="width:80px">Cond.</th><th style="width:120px"></th>
   </tr></thead><tbody>${cards.map(card=>{
     const proc=card.processingState==='processing';
+    const queued=card.processingState==='queued';
     const fail=card.processingState==='failed';
     const stuck=proc&&card.jobId&&card.inflightSince&&(Date.now()-new Date(card.inflightSince).getTime()>10*60*1000);
     const lk='c-f locked';
-    const thumb=card.thumb?`<img class="rev-thumb" src="${card.thumb}">`:`<div class="card-hdr-ph">${proc?'<span class="spin" style="width:12px;height:12px;border-width:2px;display:inline-block"></span>':'📼'}</div>`;
-    const tags=(card.data.tags||[]).join(', ');
-    const rowClass=`rev-card${proc?(stuck?' card-failed':' card-processing'):fail?' card-failed':''}`;
+    const spinnerHTML='<span class="spin" style="width:12px;height:12px;border-width:2px;display:inline-block"></span>';
+    const thumb=card.thumb
+      ?`<div class="rev-thumb-wrap"><img class="rev-thumb" src="${card.thumb}"></div>`
+      :`<div class="card-hdr-ph">${proc?spinnerHTML:queued?'⏳':'📼'}</div>`;
+    const rowClass=`rev-card${proc?(stuck?' card-failed':' card-processing'):fail?' card-failed':queued?' card-queued':''}`;
     const isUpdate=card.source==='fill'||card.source==='revalidate';
-    const titlePlaceholder=proc?'Analyzing… (pre-fill if you know it)':fail?'Enter title manually':'Title';
-    const titleStyle=!card.data.title&&!proc?'border-color:var(--yellow)':'';
+    const titlePlaceholder=proc?'Analyzing… (pre-fill if you know it)':queued?'Queued…':fail?'Enter title manually':'Title';
+    const titleStyle=!card.data.title&&!proc&&!queued?'border-color:var(--yellow)':'';
     const updateBadge=isUpdate?`<span style="font-size:9px;background:rgba(68,136,255,.18);color:var(--blue);border:1px solid rgba(68,136,255,.3);border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap">${card.source==='revalidate'?'Re-check':'Enrich'} ↑${esc(card.data.tape_id||'')}</span>`:'';
+    const locked=proc||queued;
     return `<tr class="${rowClass}" data-uid="${card.uid}">
       <td>${thumb}</td>
       <td><div style="display:flex;flex-direction:column;gap:2px">
         <div style="display:flex;gap:4px;align-items:center">
           <input class="c-f${isUpdate?' locked':''}" data-uid="${card.uid}" data-f="title" value="${esc(card.data.title||'')}" placeholder="${titlePlaceholder}" style="${titleStyle}" ${isUpdate?'readonly':''}>
           ${updateBadge}
-          ${!proc&&!isUpdate?`<button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata">🔍</button>`:''}
+          ${!locked&&!isUpdate?`<button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata">🔍</button>`:''}
         </div>
         ${fail&&card.failReason?`<div class="fail-reason">⚠ ${esc(card.failReason)}</div>`:''}
         ${stuck?`<div class="fail-reason">⚠ Stuck — analyzing >10 min</div>`:''}
         ${proc&&card.data.title?`<div style="font-size:10px;color:var(--text3);font-style:italic">Pre-filled — won't be overwritten</div>`:''}
       </div></td>
-      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="year" value="${esc(card.data.year||'')}" placeholder="Year"></td>
-      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="label" value="${esc(card.data.label||'')}" placeholder="Label"></td>
-      <td><select class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="format" ${proc?'disabled':''}>${FORMAT_LIST.map(f=>`<option value="${esc(f)}"${(card.data.format||'VHS')===f?' selected':''}>${esc(f)}</option>`).join('')}</select></td>
-      <td><select class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="condition" ${proc?'disabled':''}>${cOpts(card.data.condition||'good')}</select></td>
-      <td><select class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="status" ${proc?'disabled':''}>${sOpts(card.data.status||'in_collection')}</select></td>
-      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="value_low" value="${esc(card.data.value_low||'')}" placeholder="$"></td>
-      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="value_high" value="${esc(card.data.value_high||'')}" placeholder="$"></td>
-      <td><input class="${proc?lk:'c-f'}" data-uid="${card.uid}" data-f="tags" value="${esc(tags)}" placeholder="genres, tags…"></td>
+      <td><input class="${locked?lk:'c-f'}" data-uid="${card.uid}" data-f="label" value="${esc(card.data.label||'')}" placeholder="Label"></td>
+      <td><select class="${locked?lk:'c-f'}" data-uid="${card.uid}" data-f="format" ${locked?'disabled':''}>${FORMAT_LIST.map(f=>`<option value="${esc(f)}"${(card.data.format||'VHS')===f?' selected':''}>${esc(f)}</option>`).join('')}</select></td>
+      <td><select class="${locked?lk:'c-f'}" data-uid="${card.uid}" data-f="condition" ${locked?'disabled':''}>${cOpts(card.data.condition||'good')}</select></td>
       <td style="white-space:nowrap;display:flex;gap:4px;align-items:center;padding:5px 6px">
-        ${(!proc||card.data.title)?`<button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}" title="${proc?'Save now (skip analysis)':'Confirm'}">${proc?'↓ Save':'✓'}</button>`:''}
-        ${(fail||stuck)&&card.jobId?`<button class="btn-retry c-retry" data-uid="${card.uid}" title="${stuck?'Stuck — re-queue for analysis':'Re-queue for analysis'}">↺${stuck?' Stuck':''}</button>`:''}
+        ${(!locked||card.data.title)?`<button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}" title="${locked?'Save now (skip analysis)':'Confirm'}">✓</button>`:''}
+        ${stuck&&card.jobId?`<button class="btn-retry c-retry" data-uid="${card.uid}" title="Stuck — re-queue for analysis">↺ Retry</button>`:''}
         <button class="btn btn-sm btn-x c-discard" data-uid="${card.uid}" title="Discard">✕</button>
       </td>
     </tr>`;
@@ -124,17 +123,16 @@ function renderCards(){
     el.addEventListener('input',()=>syncCard(+el.dataset.uid));
     el.addEventListener('change',()=>syncCard(+el.dataset.uid));
   });
-  revCardsEl.querySelectorAll('.card-processing input[data-f="title"]').forEach(el=>{
+  revCardsEl.querySelectorAll('.card-processing input[data-f="title"],.card-queued input[data-f="title"]').forEach(el=>{
     el.addEventListener('input',()=>{
       syncCard(+el.dataset.uid);
-      // Show/hide the save button as user types
       const row=el.closest('tr');
       const existing=row?.querySelector('.c-confirm');
       if(el.value.trim()&&!existing){
         const acts=row?.querySelector('td:last-child');
         if(acts){
           const btn=document.createElement('button');
-          btn.className='btn btn-sm btn-ok c-confirm';btn.dataset.uid=el.dataset.uid;btn.title='Save now (skip analysis)';btn.textContent='↓ Save';
+          btn.className='btn btn-sm btn-ok c-confirm';btn.dataset.uid=el.dataset.uid;btn.title='Save now (skip analysis)';btn.textContent='✓';
           btn.addEventListener('click',e=>{e.stopPropagation();confirmCard(+btn.dataset.uid);});
           acts.prepend(btn);
         }
@@ -278,11 +276,18 @@ function discardCard(uid){
 
 document.getElementById('btn-confirm-all').addEventListener('click',async()=>{
   for(const card of [...cards]){
-    if(card.processingState==='processing')continue;
+    if(card.processingState==='processing'||card.processingState==='queued')continue;
     syncCard(card.uid);if(card.data.title.trim())await confirmCard(card.uid);
   }
 });
 document.getElementById('btn-discard-all').addEventListener('click',hideRevPanel);
+document.getElementById('btn-stop-proc')?.addEventListener('click',()=>{
+  // Cancel all processing/queued cards — leaves ready/failed cards in place
+  const toStop=cards.filter(c=>c.processingState==='processing'||c.processingState==='queued');
+  toStop.forEach(c=>_claimJob(c));
+  cards=cards.filter(c=>c.processingState!=='processing'&&c.processingState!=='queued');
+  if(!cards.length)hideRevPanel();else renderCards();
+});
 
 // ── DUPLICATE MODAL ──────────────────────────────────────────────────────
 function askDup(existing){

@@ -102,8 +102,8 @@ async function processQueue(){
         body:JSON.stringify({image:item.base64,thumb:item.thumb})});
       if(r.ok){
         const {id:uploadJobId}=await r.json();
-        // srcJobId tracks the upload_job; jobId will be updated to review_item id when ready
-        const card={uid:++uidSeq,data:{format:'VHS',condition:'good',status:'in_collection',notes:''},source:null,thumb:item.thumb,expanded:false,jobId:uploadJobId,srcJobId:uploadJobId,processingState:'processing',failReason:'',inflightSince:new Date().toISOString()};
+        // First submitted card is processing; rest are queued until the server picks them up
+        const card={uid:++uidSeq,data:{format:'VHS',condition:'good',status:'in_collection',notes:''},source:null,thumb:item.thumb,expanded:false,jobId:uploadJobId,srcJobId:uploadJobId,processingState:submitted===0?'processing':'queued',failReason:'',inflightSince:new Date().toISOString()};
         cards.push(card);
         submitted++;
       }
@@ -140,6 +140,9 @@ async function pollReviewItems(){
         existing.data=data;
         existing.processingState=item.status==='failed'?'failed':'ready';
         existing.failReason=item.fail_reason||'';
+        // Promote the next queued card to processing now that the server has freed a slot
+        const nextQueued=cards.find(c=>c.processingState==='queued');
+        if(nextQueued)nextQueued.processingState='processing';
       }else{
         const wasEmpty=!cards.length;
         addCard(data,item.source||'scan',item.thumb,wasEmpty,item.id,item.status==='failed'?'failed':'ready',item.fail_reason||'');
@@ -156,9 +159,12 @@ async function resumeInflightJobs(){
     const jobs=await fetch('/api/jobs/inflight').then(r=>r.json());
     if(!Array.isArray(jobs)||!jobs.length)return;
     let added=0;
-    for(const job of jobs){
+    for(let i=0;i<jobs.length;i++){
+      const job=jobs[i];
       if(seenJobIds.has(job.id)||cards.some(c=>c.srcJobId===job.id||c.jobId===job.id))continue;
-      const card={uid:++uidSeq,data:{format:'VHS',condition:'good',status:'in_collection',notes:''},source:null,thumb:job.thumb,expanded:false,jobId:job.id,srcJobId:job.id,processingState:'processing',failReason:'',inflightSince:job.created_at};
+      // Pending jobs from server: first (or currently-processing) = 'processing', rest = 'queued'
+      const state=job.status==='processing'?'processing':'queued';
+      const card={uid:++uidSeq,data:{format:'VHS',condition:'good',status:'in_collection',notes:''},source:null,thumb:job.thumb,expanded:false,jobId:job.id,srcJobId:job.id,processingState:state,failReason:'',inflightSince:job.created_at};
       cards.push(card);
       added++;
     }
