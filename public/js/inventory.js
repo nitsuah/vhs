@@ -42,20 +42,30 @@ function renderInv(){
   const wall=document.getElementById('wall-view');
   const items=getFiltered();
   const empty=document.getElementById('empty-state');
-  if(wallViewOn){
-    list.style.display='none';wall.classList.add('on');
+  if(wallMode>0){
+    list.style.display='none';
+    wall.classList.add('on');
+    wall.classList.toggle('spine-mode',wallMode===2);
     if(!items.length){wall.innerHTML='<div class="empty">No tapes match.</div>';return;}
-    wall.innerHTML=items.map(t=>{
-      const wallSrc=t.photo_face||t.photo_thumbnail;
-      const img=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph">📼</div>`;
-      const meta=[t.year,t.label].filter(Boolean).join(' · ');
-      const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
-      return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
-    }).join('');
-    wall.querySelectorAll('.wall-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
+    if(wallMode===2){
+      wall.innerHTML=items.map(t=>{
+        const src=t.photo_spine||t.photo_thumbnail;
+        const img=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph">📼</div>`;
+        return `<div class="spine-card" data-id="${t.id}">${img}<div class="spine-lbl">${esc(t.title)}</div></div>`;
+      }).join('');
+    }else{
+      wall.innerHTML=items.map(t=>{
+        const wallSrc=t.photo_face||t.photo_thumbnail;
+        const img=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph">📼</div>`;
+        const meta=[t.year,t.label].filter(Boolean).join(' · ');
+        const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
+        return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
+      }).join('');
+    }
+    wall.querySelectorAll('.wall-card,.spine-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
     return;
   }
-  wall.classList.remove('on');list.style.display='';
+  wall.classList.remove('on','spine-mode');list.style.display='';
   if(!items.length){list.innerHTML='';list.appendChild(empty);empty.style.display='flex';return;}
   empty.style.display='none';
   const sort=document.getElementById('sort-sel')?.value||'scanned_desc';
@@ -350,9 +360,6 @@ document.getElementById('bulk-clear').addEventListener('click',()=>{selectedIds.
 
 document.getElementById('search')?.addEventListener('input',()=>renderInv());
 
-// Mobile column paging arrows
-document.getElementById('mob-col-prev')?.addEventListener('click',()=>{if(mobileColPage>0){mobileColPage--;renderInv();}});
-document.getElementById('mob-col-next')?.addEventListener('click',()=>{if(mobileColPage<3){mobileColPage++;renderInv();}});
 
 // Close filter popovers when clicking outside the table
 document.addEventListener('click',()=>{
@@ -366,8 +373,11 @@ document.getElementById('sort-sel')?.addEventListener('change',()=>{
 });
 
 document.getElementById('btn-wall').addEventListener('click',()=>{
-  wallViewOn=!wallViewOn;
-  document.getElementById('btn-wall').classList.toggle('active',wallViewOn);
+  wallMode=(wallMode+1)%3;
+  const btn=document.getElementById('btn-wall');
+  const labels=['⊞ Wall','⊞ Cover','☰ Spines'];
+  btn.textContent=labels[wallMode];
+  btn.classList.toggle('active',wallMode>0);
   renderInv();
 });
 
@@ -672,7 +682,7 @@ document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModa
 // ── RE-VALIDATE DIFF ─────────────────────────────────────────────────────
 async function runRevalidate(){
   const targets=inventory.filter(t=>t.photo_thumbnail);
-  if(!targets.length){toast('No tapes with photos to re-validate','');return;}
+  if(!targets.length){toast('No tapes with photos to check','');return;}
   const modal=document.getElementById('m-revalidate');
   const statusEl=document.getElementById('rv-status');
   const progBar=document.getElementById('rv-prog-bar');
