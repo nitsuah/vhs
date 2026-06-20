@@ -2,11 +2,16 @@ services:
 
   web:
     build: .
+    env_file: .env          # explicit dep — compose errors if .env is missing
     ports:
-      - "${APP_PORT:-8080}:80"
+      - "${APP_PORT:-8082}:8080"
+      - "${HTTPS_PORT:-8443}:8443"
     environment:
       - OLLAMA_UPSTREAM=${OLLAMA_UPSTREAM:-http://ollama:11434}
-      - NGINX_ENVSUBST_TEMPLATE_VARS=OLLAMA_UPSTREAM
+      - DATABASE_URL=${DATABASE_URL}
+      - HOST_IP=${HOST_IP:-}
+    volumes:
+      - certs:/app/certs
     depends_on:
       ollama:
         condition: service_healthy
@@ -19,10 +24,10 @@ services:
     build: .
     profiles: [gpu]
     ports:
-      - "${APP_PORT:-8080}:80"
+      - "${APP_PORT:-8082}:8080"
     environment:
       - OLLAMA_UPSTREAM=${OLLAMA_UPSTREAM:-http://host.docker.internal:11434}
-      - NGINX_ENVSUBST_TEMPLATE_VARS=OLLAMA_UPSTREAM
+      - DATABASE_URL=${DATABASE_URL}
     restart: unless-stopped
 
   ollama:
@@ -49,6 +54,17 @@ services:
     #           count: all
     #           capabilities: [gpu]
 
+  # ── HTTPS tunnel (mobile camera access) ───────────────────────────────────
+  # Exposes the app at a random *.trycloudflare.com HTTPS URL.
+  # URL is printed in logs: docker compose logs cloudflared | grep trycloudflare
+  # For a stable URL, replace with a named Cloudflare Tunnel (needs CF account).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://web:8080
+    depends_on:
+      - web
+    restart: unless-stopped
+
   # One-shot: pulls the vision model on first run, skips if already cached.
   ollama-pull:
     image: ollama/ollama:latest
@@ -64,3 +80,4 @@ services:
 
 volumes:
   ollama_models:
+  certs:
