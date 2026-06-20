@@ -196,3 +196,43 @@ describe('POST /api/jobs/:id/retry', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// ── Health / reliability ───────────────────────────────────────────────────────
+
+describe('GET /api/health', () => {
+  const origFetch = global.fetch;
+  afterEach(() => { global.fetch = origFetch; });
+
+  it('returns 200 with db:ok and ollama:ok when both healthy', async () => {
+    mockQuery.mockResolvedValue({ rows: [{ '?column?': 1 }] });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ models: [{ name: 'llava:7b' }] }),
+    });
+    const res = await request(app).get('/api/health');
+    expect(res.status).toBe(200);
+    expect(res.body.db).toBe('ok');
+    expect(res.body.ollama).toBe('ok');
+    expect(res.body.ollamaModels).toContain('llava:7b');
+  });
+
+  it('returns 503 with db:error when database is down', async () => {
+    mockQuery.mockRejectedValue(new Error('connection refused'));
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ models: [] }),
+    });
+    const res = await request(app).get('/api/health');
+    expect(res.status).toBe(503);
+    expect(res.body.db).toBe('error');
+  });
+
+  it('returns 200 with ollama:error when Ollama is unreachable', async () => {
+    mockQuery.mockResolvedValue({ rows: [{ '?column?': 1 }] });
+    global.fetch = jest.fn().mockRejectedValue(new Error('fetch failed'));
+    const res = await request(app).get('/api/health');
+    expect(res.status).toBe(200);
+    expect(res.body.db).toBe('ok');
+    expect(res.body.ollama).toBe('error');
+  });
+});
