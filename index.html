@@ -822,7 +822,7 @@ function lev(a,b){
   for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=a[i-1]===b[j-1]?d[i-1][j-1]:1+Math.min(d[i-1][j],d[i][j-1],d[i-1][j-1]);
   return d[m][n];
 }
-const norm=t=>t.toLowerCase().replace(/^(the |a |an )/i,'').trim();
+const norm=t=>(t||'').toLowerCase().replace(/^(the |a |an )/i,'').trim();
 function findDup(title){
   const n=norm(title);
   for(const t of inventory){const e=norm(t.title),L=Math.max(n.length,e.length);if(L&&1-lev(n,e)/L>=0.85)return t;}
@@ -1845,8 +1845,8 @@ function getFiltered(){
   items.sort((a,b)=>{
     if(sort==='title_asc')return norm(a.title).localeCompare(norm(b.title));
     if(sort==='title_desc')return norm(b.title).localeCompare(norm(a.title));
-    if(sort==='scanned_asc')return a.scanned_at.localeCompare(b.scanned_at);
-    if(sort==='id_asc')return a.id.localeCompare(b.id);
+    if(sort==='scanned_asc')return(a.scanned_at||'').localeCompare(b.scanned_at||'');
+    if(sort==='id_asc')return(a.id||'').localeCompare(b.id||'');
     if(sort==='year_asc')return(parseInt(a.year)||9999)-(parseInt(b.year)||9999);
     if(sort==='year_desc')return(parseInt(b.year)||0)-(parseInt(a.year)||0);
     if(sort==='val_desc')return(parseFloat(b.value_high)||parseFloat(b.value_low)||0)-(parseFloat(a.value_high)||parseFloat(a.value_low)||0);
@@ -1854,7 +1854,7 @@ function getFiltered(){
     const condRank={great:0,good:1,fair:2,poor:3};
     if(sort==='cond_asc')return(condRank[a.condition]??1)-(condRank[b.condition]??1);
     if(sort==='cond_desc')return(condRank[b.condition]??1)-(condRank[a.condition]??1);
-    return b.scanned_at.localeCompare(a.scanned_at);
+    return(b.scanned_at||'').localeCompare(a.scanned_at||'');
   });
   return items;
 }
@@ -2947,6 +2947,12 @@ async function retryWithBackoff(fn,retries=3,delay=800){
 
 async function init(){
   setDbDot('');
+  // Update badge immediately so it never lingers on "CHECKING"
+  updateAiBadge();
+  const _aiFallback=setTimeout(updateAiBadge,6000);
+  checkOllama(true).then(()=>{clearTimeout(_aiFallback);updateAiBadge();});
+  // Camera starts in parallel with DB — no reason to serialize
+  initCamera().then(()=>updateCrop()).catch(e=>console.warn('Camera init error:',e));
   // Show cached data immediately
   const preload=await _cacheGetAll().catch(()=>[]);
   if(preload.length){inventory=preload;renderInv();updateCount();}
@@ -2959,11 +2965,6 @@ async function init(){
     if(!preload.length){renderInv();updateCount();}
   }
   renderInv();updateCount();
-  updateAiBadge();
-  const _aiFallback=setTimeout(updateAiBadge,5000);
-  checkOllama(true).then(()=>{clearTimeout(_aiFallback);updateAiBadge();});
-  await initCamera();
-  updateCrop();
   startJobPoller();
 }
 init().catch(err=>{setDbDot('err');console.error('init error:',err);});
