@@ -89,14 +89,17 @@ function renderCards(){
     const thumb=card.thumb?`<img class="rev-thumb" src="${card.thumb}">`:`<div class="card-hdr-ph">${proc?'<span class="spin" style="width:12px;height:12px;border-width:2px;display:inline-block"></span>':'📼'}</div>`;
     const tags=(card.data.tags||[]).join(', ');
     const rowClass=`rev-card${proc?(stuck?' card-failed':' card-processing'):fail?' card-failed':''}`;
+    const isUpdate=card.source==='fill'||card.source==='revalidate';
     const titlePlaceholder=proc?'Analyzing… (pre-fill if you know it)':fail?'Enter title manually':'Title';
     const titleStyle=!card.data.title&&!proc?'border-color:var(--yellow)':'';
+    const updateBadge=isUpdate?`<span style="font-size:9px;background:rgba(68,136,255,.18);color:var(--blue);border:1px solid rgba(68,136,255,.3);border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap">${card.source==='revalidate'?'Re-check':'Enrich'} ↑${esc(card.data.tape_id||'')}</span>`:'';
     return `<tr class="${rowClass}" data-uid="${card.uid}">
       <td>${thumb}</td>
       <td><div style="display:flex;flex-direction:column;gap:2px">
         <div style="display:flex;gap:4px;align-items:center">
-          <input class="c-f" data-uid="${card.uid}" data-f="title" value="${esc(card.data.title||'')}" placeholder="${titlePlaceholder}" style="${titleStyle}">
-          ${!proc?`<button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata">🔍</button>`:''}
+          <input class="c-f${isUpdate?' locked':''}" data-uid="${card.uid}" data-f="title" value="${esc(card.data.title||'')}" placeholder="${titlePlaceholder}" style="${titleStyle}" ${isUpdate?'readonly':''}>
+          ${updateBadge}
+          ${!proc&&!isUpdate?`<button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata">🔍</button>`:''}
         </div>
         ${fail&&card.failReason?`<div class="fail-reason">⚠ ${esc(card.failReason)}</div>`:''}
         ${stuck?`<div class="fail-reason">⚠ Stuck — analyzing >10 min</div>`:''}
@@ -196,7 +199,29 @@ async function confirmCard(uid){
   const card=cards.find(c=>c.uid===uid);if(!card)return;
   // Allow saving a processing card if the user manually filled in a title
   if(card.processingState==='processing'&&!card.data.title?.trim())return;
-  const title=card.data.title.trim();
+
+  // Fill / revalidate cards update an existing tape, not create a new one
+  if(card.source==='fill'||card.source==='revalidate'){
+    const tapeId=card.data.tape_id;
+    const t=inventory.find(x=>x.id===tapeId);
+    if(!t){toast('Tape not found — may have been deleted','err');discardCard(uid);return;}
+    const APPLY_FIELDS=['title','year','label','format','value_low','value_high','imdb_id'];
+    for(const f of APPLY_FIELDS){if(card.data[f]!==undefined&&card.data[f]!=='')t[f]=card.data[f];}
+    await dbPut(t);
+    _claimJob(card);
+    toast(`Updated: ${t.title}`,'ok');
+    const idx=cards.findIndex(c=>c.uid===uid);
+    cards=cards.filter(c=>c.uid!==uid);
+    renderInv();updateCount();
+    if(!cards.length){hideRevPanel();_flashInvRow(tapeId);return;}
+    const nextCard=cards[idx]||cards[idx-1];
+    if(nextCard)nextCard.expanded=true;
+    renderCards();
+    _flashInvRow(tapeId);
+    return;
+  }
+
+  const title=card.data.title?.trim();
   if(!title){
     const el=revCardsEl.querySelector(`[data-uid="${uid}"][data-f="title"]`);
     if(el){el.style.borderColor='var(--red)';el.focus();}

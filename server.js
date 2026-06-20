@@ -198,6 +198,23 @@ app.delete('/api/review/:id', async (req, res) => {
   }
 });
 
+app.post('/api/review', async (req, res) => {
+  const { data, source, thumb } = req.body;
+  if (!data) return res.status(400).json({ error: 'data required' });
+  const id = reviewItemId();
+  const now = new Date().toISOString();
+  try {
+    await pool.query(
+      'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
+      [id, null, JSON.stringify(data), thumb || null, source || 'manual', 'pending', now]
+    );
+    logActivity('info', `Review proposal created: ${id} source=${source || 'manual'} title=${data.title || '?'}`);
+    res.status(201).json({ id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Keep /api/jobs/ready for legacy compatibility (returns empty now — review_items replaced it)
 app.get('/api/jobs/ready', async (_req, res) => {
   res.json([]);

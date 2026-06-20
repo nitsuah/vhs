@@ -668,19 +668,25 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
   for(const t of targets){
     btn.textContent=`⚡ ${done}/${targets.length}`;
     const meta=await lookupMetadata(t.title);
-    if(!meta){continue;}
-    let changed=false;
-    if(meta.year&&!t.year){t.year=meta.year;changed=true;}
-    if(meta.label&&!t.label){t.label=meta.label;changed=true;}
-    if(meta.value_low&&!t.value_low){t.value_low=meta.value_low;changed=true;}
-    if(meta.value_high&&!t.value_high){t.value_high=meta.value_high;changed=true;}
-    if(meta.format&&!t.format){t.format=meta.format;changed=true;}
-    if(meta.imdb_id&&!t.imdb_id){t.imdb_id=meta.imdb_id;changed=true;}
-    if(changed){await dbPut(t);done++;}
+    if(!meta)continue;
+    const proposed={tape_id:t.id,title:t.title};
+    let hasChanges=false;
+    if(meta.year&&!t.year){proposed.year=meta.year;hasChanges=true;}
+    if(meta.label&&!t.label){proposed.label=meta.label;hasChanges=true;}
+    if(meta.value_low&&!t.value_low){proposed.value_low=meta.value_low;hasChanges=true;}
+    if(meta.value_high&&!t.value_high){proposed.value_high=meta.value_high;hasChanges=true;}
+    if(meta.format&&!t.format){proposed.format=meta.format;hasChanges=true;}
+    if(meta.imdb_id&&!t.imdb_id){proposed.imdb_id=meta.imdb_id;hasChanges=true;}
+    if(hasChanges){
+      try{
+        await apiReq('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'fill',data:proposed})});
+        done++;
+      }catch(e){console.warn('Fill queue failed:',t.id,e);}
+    }
   }
   btn.disabled=false;btn.textContent='⚡ Fill Data';
-  renderInv();updateCount();
-  toast(`Filled data for ${done} of ${targets.length} tape${targets.length!==1?'s':''}`,done?'ok':'',4000);
+  if(done)toast(`${done} enrichment proposal${done!==1?'s':''} queued for review — open ✓ Review to accept`,'ok',5000);
+  else toast(`No new data found for ${targets.length} tape${targets.length!==1?'s':''}`,'',4000);
 });
 document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModal);
 
@@ -739,49 +745,32 @@ async function runRevalidate(){
     apiReq(`/api/jobs/${encodeURIComponent(jobId)}`,{method:'DELETE'}).catch(()=>{});
   }
 
-  const diffs=[];
+  progBar.style.width='100%';
+  let queued=0;
   for(const {jobId,tape} of batch){
     const aiResults=results.get(jobId)||[];
     if(!aiResults.length)continue;
     const r=aiResults[0];
+    const proposed={tape_id:tape.id,title:r.title||tape.title};
+    let hasDiff=false;
     for(const f of REVAL_FIELDS){
       const oldVal=(tape[f]||'').trim();
       const newVal=(r[f]||'').trim();
-      if(newVal&&newVal!==oldVal)diffs.push({tape,field:f,oldVal,newVal,id:`rv-${diffs.length}`});
+      if(newVal&&newVal!==oldVal){proposed[f]=newVal;hasDiff=true;}
     }
+    if(!hasDiff)continue;
+    try{
+      await apiReq('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'revalidate',data:proposed,thumb:tape.photo_thumbnail||null})});
+      queued++;
+    }catch(e){console.warn('Revalidate queue failed:',tape.id,e);}
   }
-
-  progBar.style.width='100%';
-  if(!diffs.length){
+  if(!queued){
     statusEl.textContent='✓ All tapes match their photos — no differences found.';
     progWrap.style.display='none';return;
   }
-  statusEl.textContent=`Found ${diffs.length} difference${diffs.length>1?'s':''} — review below:`;
+  statusEl.textContent=`${queued} difference${queued>1?'s':''} queued for review.`;
   progWrap.style.display='none';
-  diffList.innerHTML=diffs.map(d=>`
-    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:9px 12px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <input type="checkbox" id="${d.id}" checked style="width:15px;height:15px;accent-color:var(--accent);flex-shrink:0">
-        <label for="${d.id}" style="font-size:12px;font-weight:700;color:var(--text);cursor:pointer;flex:1">${esc(d.tape.title||d.tape.id)}</label>
-        <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">${esc(d.field)}</span>
-      </div>
-      <div style="display:flex;gap:8px;font-size:12px;align-items:center;flex-wrap:wrap">
-        <span style="color:var(--red);background:rgba(232,64,64,.1);border:1px solid rgba(232,64,64,.2);padding:3px 8px;border-radius:4px;flex:1;min-width:80px;word-break:break-word">${esc(d.oldVal||'(empty)')}</span>
-        <span style="color:var(--text3)">→</span>
-        <span style="color:var(--green);background:rgba(61,187,61,.1);border:1px solid rgba(61,187,61,.2);padding:3px 8px;border-radius:4px;flex:1;min-width:80px;word-break:break-word">${esc(d.newVal)}</span>
-      </div>
-    </div>`).join('');
-  btnAccAll.style.display='';btnDenyAll.style.display='';btnApply.style.display='';
-  btnDenyAll.onclick=()=>{diffList.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);};
-  btnAccAll.onclick=()=>{diffList.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=true);};
-  btnApply.onclick=async()=>{
-    let applied=0;
-    for(const d of diffs.filter(d=>document.getElementById(d.id)?.checked)){
-      d.tape[d.field]=d.newVal;await dbPut(d.tape);applied++;
-    }
-    if(applied){renderInv();updateCount();toast(`Applied ${applied} update${applied>1?'s':''}`, 'ok');}
-    modal.style.display='none';
-  };
+  setTimeout(()=>{modal.style.display='none';},1800);
 }
 document.getElementById('btn-revalidate').addEventListener('click',runRevalidate);
 document.getElementById('rv-cancel').addEventListener('click',()=>{document.getElementById('m-revalidate').style.display='none';});

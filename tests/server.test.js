@@ -169,6 +169,34 @@ describe('DELETE /api/review/:id', () => {
   });
 });
 
+describe('POST /api/review', () => {
+  it('returns 400 when data is missing', async () => {
+    const res = await request(app).post('/api/review').send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/data required/);
+  });
+
+  it('creates a fill review item and returns 201 with id', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    const res = await request(app).post('/api/review').send({
+      source: 'fill',
+      data: { tape_id: 'VHS-0001', title: 'Jaws', year: '1975' },
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.id).toMatch(/^rev_/);
+  });
+
+  it('creates a revalidate review item and returns 201 with id', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    const res = await request(app).post('/api/review').send({
+      source: 'revalidate',
+      data: { tape_id: 'VHS-0002', title: 'Alien', year: '1979' },
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.id).toMatch(/^rev_/);
+  });
+});
+
 // GET /api/jobs/ready is now a compatibility stub that always returns []
 describe('GET /api/jobs/ready', () => {
   it('returns empty array (jobs now flow through review_items)', async () => {
