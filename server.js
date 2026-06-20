@@ -452,8 +452,9 @@ app.use(
 );
 
 // ── Static ────────────────────────────────────────────────────────────────────
-const indexHtml = path.join(__dirname, 'index.html');
-app.get('*', (_req, res) => res.sendFile(indexHtml));
+const publicDir = path.join(__dirname, 'public');
+app.use(express.static(publicDir, { index: false }));
+app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 if (require.main === module) {
