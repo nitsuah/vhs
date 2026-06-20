@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VHS Shelf Scanner</title>
+<title>VHS Box</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📼</text></svg>">
 <style>
 :root {
@@ -263,9 +263,8 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .toast{background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:20px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.5);animation:toastin .2s ease;pointer-events:none}
 .toast.ok{border-color:rgba(61,187,61,.4);color:var(--green)}
 .toast.err{border-color:rgba(232,64,64,.4);color:var(--red)}
-#db-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);display:inline-block;margin-left:4px;vertical-align:middle;flex-shrink:0;transition:background .3s}
-#db-dot.ok{background:var(--green)}
-#db-dot.err{background:var(--red);cursor:pointer;box-shadow:0 0 4px var(--red)}
+#db-dot{width:7px;height:7px;border-radius:50%;display:none;margin-left:4px;vertical-align:middle;flex-shrink:0;transition:background .3s}
+#db-dot.err{display:inline-block;background:var(--red);cursor:pointer;box-shadow:0 0 4px var(--red)}
 @keyframes toastin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes card-confirm-out{0%{opacity:1;transform:translateY(0)}20%{background:rgba(61,187,61,.18)}100%{opacity:0;transform:translateY(-8px)}}
 .rev-card.confirming{animation:card-confirm-out .28s ease-out forwards;pointer-events:none}
@@ -295,9 +294,8 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 #hdr-right-desktop{display:none!important}
 .hdr-right-mob{display:flex;align-items:center;gap:8px;margin-left:auto}
 #btn-menu{background:var(--bg4);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:10px 14px;cursor:pointer;font-size:20px;line-height:1}
-#db-dot-mob{width:7px;height:7px;border-radius:50%;background:var(--border2);display:inline-block;margin-left:4px;vertical-align:middle;flex-shrink:0;transition:background .3s}
-#db-dot-mob.ok{background:var(--green)}
-#db-dot-mob.err{background:var(--red);cursor:pointer;box-shadow:0 0 4px var(--red)}
+#db-dot-mob{width:7px;height:7px;border-radius:50%;display:none;margin-left:4px;vertical-align:middle;flex-shrink:0;transition:background .3s}
+#db-dot-mob.err{display:inline-block;background:var(--red);cursor:pointer;box-shadow:0 0 4px var(--red)}
 /* Camera flip lives in cam-ctrl now */
 #btn-cam-flip{background:var(--bg4);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:14px 16px;cursor:pointer;font-size:18px;line-height:1;font-weight:700}
 #hbr-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199}
@@ -386,7 +384,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 <body>
 
 <header id="header">
-  <h1>📼 VHS <span>Shelf Scanner</span></h1>
+  <h1>VHS <span>Box</span></h1>
   <span id="ai-badge" class="loading">⟳ CHECKING</span>
   <select id="camera-select" style="display:none"></select>
   <div class="hdr-right" id="hdr-right-desktop">
@@ -483,7 +481,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
       <input type="file" id="file-input" accept="image/*" multiple>
       <!-- Row 2: Torch · Presets -->
       <span class="cam-ctrl-break"></span>
-      <button class="ctrl-btn" id="btn-torch" style="display:none">🔦</button>
+      <button class="ctrl-btn" id="btn-torch" style="display:none" title="Flash / torch">🔦</button>
       <div id="crop-presets">
         <button class="preset-btn active" data-preset="default" title="Default crop">▣</button>
         <button class="preset-btn" data-preset="cover" title="VHS cover (portrait)">▯</button>
@@ -1009,9 +1007,8 @@ async function toggleBarcodeMode(){
     btnBarcode.classList.remove('active');btnBarcode.textContent='⬡ Barcode';
     barcodeOverlay.classList.remove('on');cropEl.style.display='';btnCap.disabled=false;
     barcodeRdr=null;
-    btnTorch.style.display='none';
     if(torchOn){
-      torchOn=false;btnTorch.classList.remove('active');btnTorch.textContent='🔦 Torch';
+      torchOn=false;btnTorch.classList.remove('active');btnTorch.textContent='🔦';
     }
     await startStream(camSel.value||null);
   }else{
@@ -1019,7 +1016,7 @@ async function toggleBarcodeMode(){
     try{await loadScript('https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js');}
     catch{btnBarcode.textContent='⬡ Barcode';btnBarcode.disabled=false;return;}
     barcodeMode=true;
-    btnBarcode.classList.add('active');btnBarcode.textContent='⬡ Barcode ON';btnBarcode.disabled=false;
+    btnBarcode.classList.add('active');btnBarcode.textContent='⬡ Barcode';btnBarcode.disabled=false;
     barcodeOverlay.classList.add('on');cropEl.style.display='none';btnCap.disabled=false;
     currentFacing='environment';
     await startBarcodeStream();
@@ -1244,7 +1241,7 @@ async function toggleTorch(){
   try{
     await track.applyConstraints({advanced:[{torch:torchOn}]});
     btnTorch.classList.toggle('active',torchOn);
-    btnTorch.textContent=torchOn?'🔦 ON':'🔦 Torch';
+    btnTorch.textContent='🔦';
   }catch{
     toast('Torch not supported on this camera','err');
     torchOn=false;btnTorch.classList.remove('active');
@@ -1409,7 +1406,7 @@ async function checkOllama(silent=false){
 }
 function updateAiBadge(){
   if(apiKey)setAiBadge('claude','CLAUDE');
-  else if(ollamaAvail)setAiBadge('ollama',`OLLAMA · ${ollamaModel}`);
+  else if(ollamaAvail)setAiBadge('ollama',ollamaModel);
   else setAiBadge('noai','NO AI');
 }
 
@@ -2146,16 +2143,14 @@ window.quickFilter=function(status,cond){
 function updateClearBtn(){}
 const updateCount=()=>{
   const n=inventory.length;
-  const badge=n?`${n} tape${n!==1?'s':''}`:' 0 tapes';
-  const inColl=inventory.filter(t=>t.status==='in_collection').length;
   let totalLo=0,totalHi=0,valCount=0;
   for(const t of inventory){
     if(t.value_low||t.value_high){totalLo+=parseFloat(t.value_low)||0;totalHi+=parseFloat(t.value_high)||0;valCount++;}
   }
-  const valStr=valCount?` · <span style="color:var(--green)">$${totalLo.toFixed(0)}–$${totalHi.toFixed(0)}</span>`:'';
-  document.getElementById('count-badge').innerHTML=badge+(valStr||'');
+  const valStr=valCount?` <span style="color:var(--green);font-size:10px">$${totalLo.toFixed(0)}–$${totalHi.toFixed(0)}</span>`:'';
+  document.getElementById('count-badge').innerHTML=`📼 ${n}${valStr}`;
   const mob=document.getElementById('count-badge-mob');
-  if(mob)mob.innerHTML=n?`<span>${badge}</span>${inColl?` <span style="color:var(--green)">·&nbsp;${inColl} in coll.</span>`:''}`:'';
+  if(mob)mob.innerHTML=`📼 ${n}`;
 };
 
 function updateBulkBar(){
@@ -2848,9 +2843,10 @@ const colFilters={title:'',label:'',format:'',condition:'',status:'',tags:'',yrF
 const dbDot=document.getElementById('db-dot');
 const dbDotMob=document.getElementById('db-dot-mob');
 function setDbDot(state){
-  const titles={ok:'Neon DB connected',err:'Database error — click to retry','':'Connecting to database…'};
-  if(dbDot){dbDot.className=state;dbDot.title=titles[state]||'';}
-  if(dbDotMob){dbDotMob.className=state;dbDotMob.title=titles[state]||'';}
+  // Dot is hidden when ok or connecting — only appears (red) on error
+  const errTitle='Database error — tap to retry';
+  if(dbDot){dbDot.className=state;dbDot.title=state==='err'?errTitle:'';}
+  if(dbDotMob){dbDotMob.className=state;dbDotMob.title=state==='err'?errTitle:'';}
 }
 dbDot?.addEventListener('click',()=>{if(dbDot.className==='err')init();});
 dbDotMob?.addEventListener('click',()=>{if(dbDotMob.className==='err')init();});
@@ -3049,7 +3045,8 @@ function checkTorch(){
   setTimeout(()=>{
     const track=video.srcObject?.getVideoTracks()[0];
     const btnTorch=document.getElementById('btn-torch');
-    if(track?.getCapabilities?.()?.torch)btnTorch.style.display='';
+    // On mobile: always show torch (helps with lighting even if torch API isn't detected)
+    if(isMobile||track?.getCapabilities?.()?.torch)btnTorch.style.display='';
     else btnTorch.style.display='none';
   },400);
 }
