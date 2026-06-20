@@ -8,10 +8,6 @@
     "test": "jest",
     "test:ui": "playwright test"
   },
-  "jest": {
-    "testMatch": ["**/tests/**/*.test.js"],
-    "testEnvironment": "node"
-  },
   "dependencies": {
     "express": "^4.19.2",
     "http-proxy-middleware": "^2.0.6",
