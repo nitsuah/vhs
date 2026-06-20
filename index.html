@@ -76,6 +76,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 #bc-zoom-label{color:var(--green);font-size:11px;min-width:32px;text-align:center;font-weight:700}
 
 #cam-ctrl{background:var(--bg2);border-top:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.cam-ctrl-break{flex:0 0 100%;height:0;margin:0;padding:0}
 #btn-cap{background:var(--accent);border:none;color:#fff;font-size:16px;font-weight:700;padding:16px 26px;border-radius:8px;cursor:pointer;letter-spacing:.03em}
 #btn-cap:hover{background:var(--accent2)}
 #btn-cap:disabled{opacity:.4;cursor:not-allowed}
@@ -465,12 +466,15 @@ body[data-tab="review"] #review{max-height:none;flex:1}
       </div>
     </div>
     <div id="cam-ctrl">
+      <!-- Row 1: Flip · Stage · Barcode · Upload -->
+      <button id="btn-cam-flip" title="Flip camera">⇅</button>
       <button id="btn-cap">⬤ Stage</button>
       <button class="ctrl-btn" id="btn-barcode">⬡ Barcode</button>
-      <button class="ctrl-btn" id="btn-torch" style="display:none">🔦</button>
       <button class="ctrl-btn" id="btn-upload">⬆ Upload</button>
       <input type="file" id="file-input" accept="image/*" multiple>
-      <button id="btn-cam-flip" title="Flip camera">⇅</button>
+      <!-- Row 2: Torch · Presets -->
+      <span class="cam-ctrl-break"></span>
+      <button class="ctrl-btn" id="btn-torch" style="display:none">🔦</button>
       <div id="crop-presets">
         <button class="preset-btn active" data-preset="default" title="Default crop">▣</button>
         <button class="preset-btn" data-preset="cover" title="VHS cover (portrait)">▯</button>
@@ -1017,19 +1021,17 @@ async function toggleBarcodeMode(){
 
 async function startBarcodeStream(){
   if(video.srcObject)video.srcObject.getTracks().forEach(t=>t.stop());
-  const deviceId=camSel.value;
   try{
-    const vidConstraint=deviceId
-      ?{deviceId:{exact:deviceId},width:{ideal:1920},height:{ideal:1080}}
-      :isMobile
-        ?{facingMode:{ideal:currentFacing},width:{ideal:1920},height:{ideal:1080}}
-        :{width:{ideal:1920},height:{ideal:1080}};
+    // Always use currentFacing for barcode — toggleBarcodeMode sets it to 'environment'
+    const vidConstraint=isMobile
+      ?{facingMode:{ideal:currentFacing},width:{ideal:1920},height:{ideal:1080}}
+      :{width:{ideal:1920},height:{ideal:1080}};
     video.srcObject=await navigator.mediaDevices.getUserMedia({video:vidConstraint,audio:false});
     await video.play();
     document.getElementById('no-cam').style.display='none';
     video.style.display='';
   }catch{
-    await startStream(deviceId||null);
+    await startStream(null);
   }
 }
 
@@ -2807,9 +2809,7 @@ const btnCamFlip=document.getElementById('btn-cam-flip');
 async function populateCameras(){
   cameraDevices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
   camSel.innerHTML=cameraDevices.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
-  if(cameraDevices.length>0){
-    if(cameraDevices.length>1){camSel.style.display='';camIdx=isMobile?Math.max(0,cameraDevices.length-1):0;}
-  }
+  if(cameraDevices.length>1){camIdx=isMobile?Math.max(0,cameraDevices.length-1):0;}
 }
 btnCamFlip?.addEventListener('click',async()=>{
   if(isMobile){
@@ -2826,10 +2826,10 @@ btnCamFlip?.addEventListener('click',async()=>{
 
 // ── CROP PRESETS ─────────────────────────────────────────────────────────
 const CROP_PRESETS={
-  default:{x:.05,y:.05,w:.9,h:.9},       // full frame within video bounds
-  cover:{x:.2,y:.04,w:.6,h:.92},         // VHS cover art – portrait
-  spine:{x:.4,y:.08,w:.2,h:.84},         // single spine – narrower + shorter
-  multispine:{x:.05,y:.15,w:.9,h:.7},    // ~4 spines side-by-side
+  default:{x:.05,y:.05,w:.9,h:.9},
+  cover:{x:.2,y:.1,w:.6,h:.78},
+  spine:{x:.38,y:.12,w:.24,h:.66},
+  multispine:{x:.05,y:.15,w:.9,h:.7},
 };
 document.querySelectorAll('.preset-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -2947,10 +2947,14 @@ async function retryWithBackoff(fn,retries=3,delay=800){
 
 async function init(){
   setDbDot('');
-  // Update badge immediately so it never lingers on "CHECKING"
+  // Update badge and DB dot immediately — don't wait for the full tapes load
   updateAiBadge();
   const _aiFallback=setTimeout(updateAiBadge,6000);
   checkOllama(true).then(()=>{clearTimeout(_aiFallback);updateAiBadge();});
+  // Fast health ping updates DB dot independently of the (slower) full tapes fetch
+  fetch('/api/health',{signal:AbortSignal.timeout(5000)}).then(r=>r.json()).then(h=>{
+    setDbDot(h.db==='ok'?'ok':'err');
+  }).catch(()=>{});
   // Camera starts in parallel with DB — no reason to serialize
   initCamera().then(()=>updateCrop()).catch(e=>console.warn('Camera init error:',e));
   // Show cached data immediately
