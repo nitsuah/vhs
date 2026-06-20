@@ -1579,9 +1579,24 @@ async function pollReadyJobs(){
     if(changed)renderCards();
   }catch(e){console.warn('Job poll error:',e);}
 }
+async function resumeInflightJobs(){
+  try{
+    const jobs=await fetch('/api/jobs/inflight').then(r=>r.json());
+    if(!Array.isArray(jobs)||!jobs.length)return;
+    let added=0;
+    for(const job of jobs){
+      if(seenJobIds.has(job.id))continue;
+      // Don't add to seenJobIds — pollReadyJobs will claim it when done
+      addCard({format:'VHS',condition:'good',status:'in_collection',notes:''},null,job.thumb,false,job.id,'processing');
+      added++;
+    }
+    if(added){showRevPanel();renderCards();}
+  }catch(e){console.warn('Resume inflight error:',e);}
+}
 function startJobPoller(){
   if(jobPollTimer)return;
   jobPollTimer=setInterval(()=>{pollReadyJobs();updateQueueStatus();},5000);
+  resumeInflightJobs();
   pollReadyJobs();
   updateQueueStatus();
 }

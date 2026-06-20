@@ -168,6 +168,20 @@ app.post('/api/jobs/:id/retry', async (req, res) => {
   }
 });
 
+// Jobs that are in-flight (pending/processing) — used by client on startup to restore processing cards
+app.get('/api/jobs/inflight', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, thumb, created_at FROM upload_jobs
+       WHERE status IN ('pending','processing')
+       ORDER BY created_at ASC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/jobs/status', async (_req, res) => {
   try {
     const { rows } = await pool.query(`SELECT status, COUNT(*) as count FROM upload_jobs GROUP BY status`);

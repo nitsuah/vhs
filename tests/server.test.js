@@ -157,6 +157,29 @@ describe('GET /api/jobs/ready', () => {
   });
 });
 
+// ── In-flight jobs (queue durability) ─────────────────────────────────────────
+
+describe('GET /api/jobs/inflight', () => {
+  it('returns pending and processing jobs with id and thumb', async () => {
+    const jobs = [
+      { id: 'job_p', thumb: null, created_at: new Date().toISOString() },
+      { id: 'job_q', thumb: null, created_at: new Date().toISOString() },
+    ];
+    mockQuery.mockResolvedValue({ rows: jobs });
+    const res = await request(app).get('/api/jobs/inflight');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    expect(res.body[0].id).toBe('job_p');
+  });
+
+  it('returns empty array when no inflight jobs', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    const res = await request(app).get('/api/jobs/inflight');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+});
+
 // ── Job retry ─────────────────────────────────────────────────────────────────
 
 describe('POST /api/jobs/:id/retry', () => {
