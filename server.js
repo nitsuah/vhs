@@ -174,6 +174,46 @@ app.get('/api/jobs/:id', async (req, res) => {
   }
 });
 
+app.get('/api/lookup/barcode/:code', async (req, res) => {
+  const code = req.params.code.trim().replace(/\s/g, '');
+  if (!code) return res.status(400).json({ error: 'code required' });
+
+  // 1. UPC Item DB — covers most North American retail product codes
+  try {
+    const r = await fetch(
+      `https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`,
+      { signal: AbortSignal.timeout(5000), headers: { Accept: 'application/json' } }
+    );
+    if (r.ok) {
+      const d = await r.json();
+      const item = d.items?.[0];
+      if (item?.title?.trim()) {
+        return res.json({ title: item.title.trim(), label: item.brand || '', year: '', source: 'upcitemdb' });
+      }
+    }
+  } catch (e) { console.warn('UPC lookup:', e.message); }
+
+  // 2. Open Library — for ISBN-13 codes (978/979 prefix, 13 digits)
+  if (/^97[89]\d{10}$/.test(code)) {
+    try {
+      const r = await fetch(
+        `https://openlibrary.org/isbn/${code}.json`,
+        { signal: AbortSignal.timeout(5000) }
+      );
+      if (r.ok) {
+        const d = await r.json();
+        if (d.title) {
+          const year = (d.publish_date || '').match(/\d{4}/)?.[0] || '';
+          const label = Array.isArray(d.publishers) ? (d.publishers[0] || '') : '';
+          return res.json({ title: d.title, label, year, source: 'openlibrary' });
+        }
+      }
+    } catch (e) { console.warn('Open Library lookup:', e.message); }
+  }
+
+  res.status(404).json({ error: 'not found' });
+});
+
 app.get('/api/lookup', async (req, res) => {
   const title = (req.query.title || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });

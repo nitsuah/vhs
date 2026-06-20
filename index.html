@@ -1121,13 +1121,25 @@ function _fireBarcodeResult(code){
   const uid=++uidSeq;
   cards.push({uid,data:{title:bcDup?bcDup.title:'',barcode:code,format:'VHS',condition:'good',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true});
   renderCards();showRevPanel();
-  if(!bcDup)lookupBarcode(code).then(meta=>{
+  if(!bcDup)lookupBarcode(code).then(async meta=>{
     if(!meta)return;
     const card=cards.find(c=>c.uid===uid);if(!card||card.data.title)return;
     card.data.title=meta.title;
     if(meta.label)card.data.label=meta.label;
+    if(meta.year)card.data.year=meta.year;
     renderCards();
-    toast(`UPC matched: ${meta.title}`,'ok');
+    toast(`Barcode matched: ${meta.title}`,'ok');
+    // Enrich with year/value via Ollama or Claude
+    const enriched=await lookupMetadata(meta.title).catch(()=>null);
+    if(enriched){
+      const c2=cards.find(c=>c.uid===uid);if(!c2)return;
+      if(enriched.year&&!c2.data.year)c2.data.year=enriched.year;
+      if(enriched.label&&!c2.data.label)c2.data.label=enriched.label;
+      if(enriched.format)c2.data.format=enriched.format;
+      if(enriched.value_low)c2.data.value_low=enriched.value_low;
+      if(enriched.value_high)c2.data.value_high=enriched.value_high;
+      renderCards();
+    }
   });
 }
 
@@ -1607,14 +1619,9 @@ Return {} if completely unknown.`;
 
 async function lookupBarcode(code){
   try{
-    const res=await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`,
-      {signal:AbortSignal.timeout(4000)});
+    const res=await fetch(`/api/lookup/barcode/${encodeURIComponent(code)}`,{signal:AbortSignal.timeout(8000)});
     if(!res.ok)return null;
-    const d=await res.json();
-    const item=d.items?.[0];if(!item)return null;
-    const title=item.title||item.description||'';
-    if(!title.trim())return null;
-    return {title:title.trim(),label:item.brand||''};
+    return await res.json();
   }catch{return null;}
 }
 
