@@ -46,12 +46,21 @@ function renderInv(){
     list.style.display='none';
     wall.classList.add('on');
     wall.classList.toggle('spine-mode',wallMode===2);
+    wall.classList.toggle('stacksup-mode',wallMode===3);
     if(!items.length){wall.innerHTML='<div class="empty">No tapes match.</div>';return;}
     if(wallMode===2){
       wall.innerHTML=items.map(t=>{
         const src=t.photo_spine||t.photo_thumbnail;
         const img=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
         return `<div class="spine-card" data-id="${t.id}">${img}<div class="spine-lbl">${esc(t.title)}</div></div>`;
+      }).join('');
+    }else if(wallMode===3){
+      wall.innerHTML=items.map(t=>{
+        const src=t.photo_spine||t.photo_thumbnail;
+        const img=src
+          ?`<img class="su-img" src="${src}" alt="">`
+          :`<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
+        return `<div class="su-card" data-id="${t.id}">${img}<div class="su-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else{
       wall.innerHTML=items.map(t=>{
@@ -65,7 +74,7 @@ function renderInv(){
     wall.querySelectorAll('.wall-card,.spine-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
     return;
   }
-  wall.classList.remove('on','spine-mode');
+  wall.classList.remove('on','spine-mode','stacksup-mode');
   if(!items.length){list.style.display='none';list.innerHTML='';if(empty)empty.style.display='flex';return;}
   list.style.display='';if(empty)empty.style.display='none';
   const sort=document.getElementById('sort-sel')?.value||'scanned_desc';
@@ -420,9 +429,9 @@ document.getElementById('sort-sel')?.addEventListener('change',()=>{
 });
 
 document.getElementById('btn-wall').addEventListener('click',()=>{
-  wallMode=(wallMode+1)%3;
+  wallMode=(wallMode+1)%4;
   const btn=document.getElementById('btn-wall');
-  const labels=['⊞ Wall','⊞ Cover','☰ Stacks'];
+  const labels=['⊞ Wall','⊞ Cover','☰ Stacks','▮ StacksUp'];
   btn.textContent=labels[wallMode];
   btn.classList.toggle('active',wallMode>0);
   renderInv();
@@ -732,11 +741,17 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
       }catch(e){console.warn('Fill queue failed:',t.id,e);}
     }
   }
-  btn.disabled=false;btn.textContent='⚡ Fill Data';
-  if(done)toast(`${done} enrichment proposal${done!==1?'s':''} queued for review — open ✓ Review to accept`,'ok',5000);
-  else toast(`No new data found for ${targets.length} tape${targets.length!==1?'s':''}`,'',4000);
+  btn.disabled=false;btn.textContent='⚡ Fill';
+  if(done){
+    toast(`${done} proposal${done!==1?'s':''} queued — switching to Review`,'ok',4000);
+    setTimeout(()=>showRevPanel(),300);
+  }else{
+    toast(`No new data found for ${targets.length} tape${targets.length!==1?'s':''}`,'',4000);
+  }
 });
 document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModal);
+document.getElementById('bulk-fill')?.addEventListener('click',()=>document.getElementById('btn-fill-data').click());
+document.getElementById('bulk-check')?.addEventListener('click',()=>document.getElementById('btn-revalidate').click());
 
 // ── RE-VALIDATE DIFF ─────────────────────────────────────────────────────
 async function runRevalidate(){
@@ -811,9 +826,9 @@ async function runRevalidate(){
     statusEl.textContent='✓ All tapes match their photos — no differences found.';
     progWrap.style.display='none';return;
   }
-  statusEl.textContent=`${queued} difference${queued>1?'s':''} queued for review.`;
+  statusEl.textContent=`${queued} difference${queued>1?'s':''} queued — switching to Review…`;
   progWrap.style.display='none';
-  setTimeout(()=>{modal.style.display='none';},1800);
+  setTimeout(()=>{modal.style.display='none';showRevPanel();},1200);
 }
 document.getElementById('btn-revalidate').addEventListener('click',runRevalidate);
 document.getElementById('rv-cancel').addEventListener('click',()=>{document.getElementById('m-revalidate').style.display='none';});

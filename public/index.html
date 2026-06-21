@@ -127,11 +127,11 @@
     <div id="review">
       <div id="rev-hdr">
         <h2 id="rev-title">Pending Review</h2>
+        <button class="hbtn" id="btn-logs" title="Activity log — server ↔ Ollama" style="font-size:11px;padding:5px 8px">▶ Log</button>
         <div id="rev-bulk">
           <button class="btn btn-sm btn-ok" id="btn-confirm-all">✓ All</button>
           <button class="btn btn-sm btn-x" id="btn-discard-all">✕ All</button>
           <button class="hbtn" id="btn-stop-proc" style="display:none;font-size:11px;padding:5px 8px;color:var(--red);border-color:rgba(232,64,64,.3)" title="Cancel all queued/analyzing jobs">◼ Stop</button>
-          <button class="hbtn" id="btn-logs" title="Activity log — server ↔ Ollama" style="font-size:11px;padding:5px 8px">▶ Log</button>
         </div>
       </div>
       <div id="rev-loading" class="spin-row" style="display:none">
@@ -176,8 +176,10 @@
       </div>
       <div id="bulk-bar">
         <span id="bulk-count" style="font-size:12px;color:var(--blue);font-weight:700"></span>
+        <button class="ctrl-btn hbtn-fill" id="bulk-fill" title="Fill missing data with AI (selected)">⚡</button>
+        <button class="ctrl-btn hbtn-check" id="bulk-check" title="Re-check photos with AI (selected)">🦙</button>
         <select id="bulk-status-sel">
-          <option value="">Change status…</option>
+          <option value="">Status…</option>
           <option value="in_collection">In Collection</option>
           <option value="for_sale">For Sale</option>
           <option value="sold">Sold</option><option value="donated">Donated</option>

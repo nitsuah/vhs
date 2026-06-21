@@ -26,7 +26,7 @@ let isCapturing    = false;
 let barcodeMode    = false;
 let barcodeRdr  = null;
 let lastCode    = { val:'', t:0 };
-let wallMode    = 0; // 0=list, 1=cover wall, 2=spine wall
+let wallMode    = 0; // 0=list, 1=cover wall, 2=spine landscape, 3=stacksup (upright)
 let selectedId  = null;
 let isNewTape   = false;
 let selectedIds = new Set();
