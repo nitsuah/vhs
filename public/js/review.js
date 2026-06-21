@@ -78,15 +78,13 @@ function renderCards(){
   if(!totalN){revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';if(!revErr.style.display||revErr.style.display==='none')revPanel.classList.remove('on');return;}
   const cOpts=v=>['great','good','fair','poor'].map(c=>`<option value="${c}"${v===c?' selected':''}>${c}</option>`).join('');
   revCardsEl.innerHTML=`<table class="rev-table"><thead><tr>
-    <th style="width:62px"></th>
-    <th>Title</th><th>Label</th><th style="width:65px">Format</th>
-    <th style="width:80px">Cond.</th><th style="width:120px"></th>
+    <th style="width:170px"></th>
+    <th>Title</th><th style="width:120px"></th>
   </tr></thead><tbody>${cards.map(card=>{
     const proc=card.processingState==='processing';
     const queued=card.processingState==='queued';
     const fail=card.processingState==='failed';
     const stuck=proc&&card.jobId&&card.inflightSince&&(Date.now()-new Date(card.inflightSince).getTime()>10*60*1000);
-    const lk='c-f locked';
     const spinnerHTML='<span class="spin" style="width:12px;height:12px;border-width:2px;display:inline-block"></span>';
     const thumb=card.thumb
       ?`<div class="rev-thumb-wrap"><img class="rev-thumb" src="${card.thumb}"></div>`
@@ -97,21 +95,24 @@ function renderCards(){
     const titleStyle=!card.data.title&&!proc&&!queued?'border-color:var(--yellow)':'';
     const updateBadge=isUpdate?`<span style="font-size:9px;background:rgba(68,136,255,.18);color:var(--blue);border:1px solid rgba(68,136,255,.3);border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap">${card.source==='revalidate'?'Re-check':'Enrich'} ↑${esc(card.data.tape_id||'')}</span>`:'';
     const locked=proc||queued;
+    const hasTitle=!!(card.data.title||'').trim();
+    const lookupBtn=!locked&&!isUpdate
+      ?(hasTitle
+        ?`<button class="btn-lookup c-lk-toggle" data-uid="${card.uid}" data-mode="search" title="Look up metadata">🔍</button>`
+        :`<button class="btn-lookup c-lk-toggle" data-uid="${card.uid}" data-mode="retry" title="Discard — re-capture to retry" style="color:var(--red)">↺</button>`)
+      :'';
     return `<tr class="${rowClass}" data-uid="${card.uid}">
       <td>${thumb}</td>
       <td><div style="display:flex;flex-direction:column;gap:2px">
         <div style="display:flex;gap:4px;align-items:center">
           <input class="c-f${isUpdate?' locked':''}" data-uid="${card.uid}" data-f="title" value="${esc(card.data.title||'')}" placeholder="${titlePlaceholder}" style="${titleStyle}" ${isUpdate?'readonly':''}>
           ${updateBadge}
-          ${!locked&&!isUpdate?`<button class="btn-lookup c-lookup" data-uid="${card.uid}" title="Look up metadata">🔍</button>`:''}
+          ${lookupBtn}
         </div>
         ${fail&&card.failReason?`<div class="fail-reason">⚠ ${esc(card.failReason)}</div>`:''}
         ${stuck?`<div class="fail-reason">⚠ Stuck — analyzing >10 min</div>`:''}
         ${proc&&card.data.title?`<div style="font-size:10px;color:var(--text3);font-style:italic">Pre-filled — won't be overwritten</div>`:''}
       </div></td>
-      <td><input class="${locked?lk:'c-f'}" data-uid="${card.uid}" data-f="label" value="${esc(card.data.label||'')}" placeholder="Label"></td>
-      <td><select class="${locked?lk:'c-f'}" data-uid="${card.uid}" data-f="format" ${locked?'disabled':''}>${FORMAT_LIST.map(f=>`<option value="${esc(f)}"${(card.data.format||'VHS')===f?' selected':''}>${esc(f)}</option>`).join('')}</select></td>
-      <td><select class="${locked?lk:'c-f'}" data-uid="${card.uid}" data-f="condition" ${locked?'disabled':''}>${cOpts(card.data.condition||'good')}</select></td>
       <td style="white-space:nowrap;display:flex;gap:4px;align-items:center;padding:5px 6px">
         ${(!locked||card.data.title)?`<button class="btn btn-sm btn-ok c-confirm" data-uid="${card.uid}" title="${locked?'Save now (skip analysis)':'Confirm'}">✓</button>`:''}
         ${stuck&&card.jobId?`<button class="btn-retry c-retry" data-uid="${card.uid}" title="Stuck — re-queue for analysis">↺ Retry</button>`:''}
@@ -139,10 +140,24 @@ function renderCards(){
       }else if(!el.value.trim()&&existing){existing.remove();}
     });
   });
-  revCardsEl.querySelectorAll('.c-lookup').forEach(btn=>{
+  // Title input on ready cards → toggle lookup ↔ retry button dynamically
+  revCardsEl.querySelectorAll('tr:not(.card-processing):not(.card-queued) input[data-f="title"]').forEach(el=>{
+    el.addEventListener('input',()=>{
+      syncCard(+el.dataset.uid);
+      const btn=el.closest('td')?.querySelector('.c-lk-toggle');if(!btn)return;
+      const hasTitle=!!el.value.trim();
+      if(hasTitle&&btn.dataset.mode==='retry'){
+        btn.dataset.mode='search';btn.textContent='🔍';btn.title='Look up metadata';btn.style.color='';
+      }else if(!hasTitle&&btn.dataset.mode==='search'){
+        btn.dataset.mode='retry';btn.textContent='↺';btn.title='Discard — re-capture to retry';btn.style.color='var(--red)';
+      }
+    });
+  });
+  revCardsEl.querySelectorAll('.c-lk-toggle').forEach(btn=>{
     btn.addEventListener('click',async e=>{
       e.stopPropagation();
       const uid=+btn.dataset.uid;syncCard(uid);
+      if(btn.dataset.mode==='retry'){discardCard(uid);return;}
       const card=cards.find(c=>c.uid===uid);if(!card)return;
       const title=card.data.title.trim();if(!title)return;
       btn.disabled=true;btn.textContent='…';
@@ -280,7 +295,9 @@ document.getElementById('btn-confirm-all').addEventListener('click',async()=>{
     syncCard(card.uid);if(card.data.title.trim())await confirmCard(card.uid);
   }
 });
-document.getElementById('btn-discard-all').addEventListener('click',hideRevPanel);
+document.getElementById('btn-discard-all').addEventListener('click',()=>{
+  if(confirm('Discard all pending review items?'))hideRevPanel();
+});
 document.getElementById('btn-stop-proc')?.addEventListener('click',()=>{
   // Cancel all processing/queued cards — leaves ready/failed cards in place
   const toStop=cards.filter(c=>c.processingState==='processing'||c.processingState==='queued');

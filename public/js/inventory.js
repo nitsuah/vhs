@@ -182,18 +182,25 @@ function renderInv(){
   const tbl=list.querySelector('.tape-table');
   if(window.innerWidth<=700){
     tbl.dataset.mcpage=String(mobileColPage);
-    // Swipe left on row → highlight action buttons; swipe right → dismiss
     tbl.querySelectorAll('.tape-row').forEach(row=>{
-      let sx=0;
-      row.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;},{passive:true});
+      let sx=0,sy=0;
+      row.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
       row.addEventListener('touchend',e=>{
         const dx=e.changedTouches[0].clientX-sx;
-        if(dx<-50)row.classList.add('swipe-action');
-        else if(dx>30)row.classList.remove('swipe-action');
+        const dy=Math.abs(e.changedTouches[0].clientY-sy);
+        if(dy>30)return; // ignore vertical scroll
+        const id=row.dataset.id;
+        if(dx>50){
+          // Right swipe → delete confirm
+          deleteTape(id);
+        }else if(dx<-50){
+          // Left swipe → toggle select (checkbox)
+          if(selectedIds.has(id))selectedIds.delete(id);
+          else selectedIds.add(id);
+          updateBulkBar();renderInv();
+        }
       },{passive:true});
     });
-    // Tap outside to dismiss any open swipe
-    tbl.addEventListener('click',()=>tbl.querySelectorAll('.swipe-action').forEach(r=>r.classList.remove('swipe-action')));
   }
   tbl.querySelectorAll('.th-sort').forEach(th=>th.addEventListener('click',e=>{
     if(e.target.closest('.th-fp-btn,.th-fp,.col-rh'))return;
