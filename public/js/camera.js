@@ -502,7 +502,7 @@ document.querySelectorAll('.preset-btn').forEach(btn=>{
 const vidWrapEl=document.getElementById('vid-wrap');
 vidWrapEl.addEventListener('click',e=>{
   if(!video.srcObject)return;
-  if(e.target.id==='crop'||e.target.closest('#barcode-overlay')||e.target.id==='crop-handle')return;
+  if(e.target.id==='crop'||e.target.closest('#barcode-overlay')||e.target.id==='crop-handle'||e.target.closest('#queue-strip')||e.target.closest('#queue-status'))return;
   if(barcodeMode){
     snapAndDecode();
   } else {
