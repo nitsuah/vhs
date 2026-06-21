@@ -61,12 +61,14 @@ const queueStrip=document.getElementById('queue-strip');
 function renderQueue(){
   if(!captureQueue.length){queueStrip.classList.remove('on');queueStrip.innerHTML='';return;}
   queueStrip.classList.add('on');
-  queueStrip.innerHTML=captureQueue.map((item,i)=>
-    `<div class="q-item"><img src="${item.thumb}" alt=""><button class="q-rm" data-i="${i}">×</button></div>`
-  ).join('')+
-  `<button id="btn-process-q">⬤ Analyze ${captureQueue.length}</button>`+
-  (captureQueue.length>1?`<button id="btn-clear-q">Clear</button>`:'')+
-  `<span class="q-count">Space = stage · Enter = analyze</span>`;
+  const n=captureQueue.length;
+  // Buttons pinned left; images newest-first (index n-1) scrolling rightward
+  const imgs=[...captureQueue].reverse().map((item,displayIdx)=>{
+    const origIdx=n-1-displayIdx;
+    return `<div class="q-item"><img src="${item.thumb}" alt=""><button class="q-rm" data-i="${origIdx}">×</button></div>`;
+  }).join('');
+  queueStrip.innerHTML=
+    `<div class="q-actions"><button id="btn-process-q">⬤ Analyze ${n}</button>${n>1?`<button id="btn-clear-q">Clear</button>`:''}<span class="q-count">Space=stage · Enter=analyze</span></div><div class="q-imgs">${imgs}</div>`;
   queueStrip.querySelectorAll('.q-rm').forEach(btn=>btn.addEventListener('click',e=>{
     e.stopPropagation();captureQueue.splice(+btn.dataset.i,1);renderQueue();
   }));

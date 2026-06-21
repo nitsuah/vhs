@@ -183,18 +183,28 @@ function renderInv(){
   if(window.innerWidth<=700){
     tbl.dataset.mcpage=String(mobileColPage);
     tbl.querySelectorAll('.tape-row').forEach(row=>{
-      let sx=0,sy=0;
-      row.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
+      let sx=0,sy=0,active=false;
+      row.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;active=true;},{passive:true});
+      row.addEventListener('touchmove',e=>{
+        if(!active)return;
+        const dx=e.touches[0].clientX-sx;
+        const dy=Math.abs(e.touches[0].clientY-sy);
+        if(dy>30){active=false;row.classList.remove('swipe-delete','swipe-select');return;}
+        if(dx>20){row.classList.add('swipe-delete');row.classList.remove('swipe-select');}
+        else if(dx<-20){row.classList.add('swipe-select');row.classList.remove('swipe-delete');}
+        else{row.classList.remove('swipe-delete','swipe-select');}
+      },{passive:true});
       row.addEventListener('touchend',e=>{
+        row.classList.remove('swipe-delete','swipe-select');
+        if(!active)return;
+        active=false;
         const dx=e.changedTouches[0].clientX-sx;
         const dy=Math.abs(e.changedTouches[0].clientY-sy);
-        if(dy>30)return; // ignore vertical scroll
+        if(dy>30)return;
         const id=row.dataset.id;
-        if(dx>50){
-          // Right swipe → delete confirm
+        if(dx>80){
           deleteTape(id);
-        }else if(dx<-50){
-          // Left swipe → toggle select (checkbox)
+        }else if(dx<-80){
           if(selectedIds.has(id))selectedIds.delete(id);
           else selectedIds.add(id);
           updateBulkBar();renderInv();
@@ -361,6 +371,16 @@ function updateBulkBar(){
   bar.classList.toggle('on',n>0);
   document.getElementById('bulk-count').textContent=n>0?`${n} selected`:'';
   if(!n)document.getElementById('bulk-status-sel').value='';
+  // Mobile: bulk bar replaces the collect subheader when selection is active
+  if(window.innerWidth<=700){
+    const subhdr=document.getElementById('collect-subhdr');
+    if(subhdr)subhdr.style.display=n>0?'none':'';
+  }
+  // Update AI button labels to indicate scope when selection is active
+  const fillBtn=document.getElementById('btn-fill-data');
+  const checkBtn=document.getElementById('btn-revalidate');
+  if(fillBtn)fillBtn.textContent=n>0?`⚡ Fill (${n})`:'⚡ Fill';
+  if(checkBtn)checkBtn.textContent=n>0?`🦙 Check (${n})`:'🦙 Check';
 }
 document.getElementById('bulk-apply').addEventListener('click',async()=>{
   const status=document.getElementById('bulk-status-sel').value;
@@ -687,7 +707,8 @@ document.getElementById('del-ok').addEventListener('click',async()=>{
 
 // ── FILL DATA ─────────────────────────────────────────────────────────────
 document.getElementById('btn-fill-data').addEventListener('click',async()=>{
-  const targets=inventory.filter(t=>t.title&&(!t.year||(!t.value_low&&!t.value_high)));
+  const pool=selectedIds.size>0?inventory.filter(t=>selectedIds.has(t.id)):inventory;
+  const targets=pool.filter(t=>t.title&&(!t.year||(!t.value_low&&!t.value_high)));
   if(!targets.length){toast('All tapes already have complete data','');return;}
   const btn=document.getElementById('btn-fill-data');
   btn.disabled=true;
@@ -719,7 +740,8 @@ document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModa
 
 // ── RE-VALIDATE DIFF ─────────────────────────────────────────────────────
 async function runRevalidate(){
-  const targets=inventory.filter(t=>t.photo_thumbnail);
+  const pool=selectedIds.size>0?inventory.filter(t=>selectedIds.has(t.id)):inventory;
+  const targets=pool.filter(t=>t.photo_thumbnail);
   if(!targets.length){toast('No tapes with photos to check','');return;}
   const modal=document.getElementById('m-revalidate');
   const statusEl=document.getElementById('rv-status');

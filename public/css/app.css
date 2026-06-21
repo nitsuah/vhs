@@ -83,8 +83,13 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 #thumb-img{width:80px;height:56px;object-fit:cover;border-radius:4px;border:1px solid var(--border2)}
 #thumb-wrap span{font-size:10px;color:var(--text3)}
 
-#queue-strip{position:absolute;top:0;left:0;right:0;z-index:20;background:rgba(17,17,17,.92);border-bottom:1px solid var(--border);padding:8px 12px;display:none;align-items:center;gap:8px;overflow-x:auto;backdrop-filter:blur(4px)}
+#queue-strip{position:absolute;top:0;left:0;right:0;z-index:20;background:rgba(17,17,17,.92);border-bottom:1px solid var(--border);padding:8px 12px;display:none;align-items:center;gap:8px;overflow:hidden;backdrop-filter:blur(4px)}
 #queue-strip.on{display:flex}
+.q-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.q-imgs{display:flex;align-items:center;gap:8px;overflow-x:auto;flex:1;padding:2px 0}
+.q-imgs::-webkit-scrollbar{height:3px}
+.q-imgs::-webkit-scrollbar-track{background:transparent}
+.q-imgs::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 .q-item{position:relative;flex-shrink:0}
 .q-item img{width:60px;height:42px;object-fit:cover;border-radius:4px;border:1px solid var(--border2);display:block}
 .q-rm{position:absolute;top:-5px;right:-5px;background:var(--red);border:none;color:#fff;width:16px;height:16px;border-radius:50%;cursor:pointer;font-size:10px;line-height:16px;text-align:center;padding:0}
@@ -234,6 +239,10 @@ body[data-tab="review"] #review{max-height:none;flex:1}
   .bulk-del-ico{display:inline!important}
   .tbl-del,.tbl-edit{display:none}
 }
+/* Swipe feedback on mobile rows */
+.tape-row{transition:background .1s}
+.tape-row.swipe-delete{background:rgba(232,64,64,.18)!important}
+.tape-row.swipe-select{background:rgba(68,136,255,.18)!important}
 
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:200}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:22px;width:90%;max-width:480px;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
@@ -341,7 +350,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .tab-btn .tab-ico{font-size:24px;line-height:1;display:block}
 .tab-btn:hover{color:var(--text)}
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
-.tab-badge{position:absolute;top:-4px;right:-10px;background:var(--border2);color:var(--text2);border-radius:8px;font-size:8px;padding:1px 4px;min-width:13px;text-align:center;line-height:13px;pointer-events:none}
+.tab-badge{position:absolute;top:-4px;right:-10px;background:var(--red);color:#fff;border-radius:8px;font-size:8px;padding:1px 4px;min-width:13px;text-align:center;line-height:13px;pointer-events:none;font-weight:700}
 /* ── COLLECT SUBHEADER ───────────────────────────────────────────── */
 #collect-subhdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:6px 10px;display:flex;flex-direction:column;gap:5px;flex-shrink:0}
 .csh-row1{display:flex;align-items:center;gap:5px;flex-wrap:nowrap}
