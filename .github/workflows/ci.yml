@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/**]
+    branches: [main, feat/**, fix/**]
   pull_request:
     branches: [main]
 
@@ -27,7 +27,7 @@ jobs:
       - name: Lint HTML
         run: |
           npm install -g htmlhint@1
-          htmlhint --config .htmlhintrc index.html
+          htmlhint --config .htmlhintrc public/index.html
 
       - name: Check JS deps install cleanly
         run: npm ci --omit=dev

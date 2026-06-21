@@ -2,22 +2,30 @@
 // then: npm run test:ui
 const { test, expect } = require('@playwright/test');
 
-const FAKE_JOB = {
-  id: 'job_test_001',
-  thumb: null,
-  result: [{ title: 'Test Tape', year: '1987', label: 'Vestron', format: 'VHS' }],
-  created_at: new Date().toISOString(),
-};
+function makeRevItem(overrides = {}) {
+  return {
+    id: `rev_test_${Math.random().toString(36).slice(2, 8)}`,
+    job_id: null,
+    data: { title: 'Test Tape', year: '1987', label: 'Vestron', format: 'VHS', condition: 'good', status: 'in_collection' },
+    thumb: null,
+    source: 'scan',
+    status: 'pending',
+    fail_reason: null,
+    created_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
 
 test('confirm auto-advances to next card when multiple cards exist', async ({ page }) => {
-  const FAKE_JOB_2 = { ...FAKE_JOB, id: 'job_test_002', result: [{ title: 'Second Tape', year: '1990', label: 'Orion', format: 'VHS' }] };
+  const item1 = makeRevItem({ id: 'rev_test_001' });
+  const item2 = makeRevItem({ id: 'rev_test_002', data: { title: 'Second Tape', year: '1990', label: 'Orion', format: 'VHS', condition: 'good', status: 'in_collection' } });
 
-  await page.route('**/api/jobs/ready', route => route.fulfill({
+  await page.route('**/api/review/pending', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify([FAKE_JOB, FAKE_JOB_2]),
+    body: JSON.stringify([item1, item2]),
   }));
-  await page.route('**/api/jobs/job_test_*', route => route.fulfill({ status: 200, body: '{"ok":true}' }));
+  await page.route('**/api/review/**', route => route.fulfill({ status: 200, body: '{"ok":true}' }));
   await page.route('**/api/tapes', async route => {
     if (route.request().method() === 'POST') return route.fulfill({ status: 201, body: '{}' });
     route.continue();
@@ -39,13 +47,14 @@ test('confirm auto-advances to next card when multiple cards exist', async ({ pa
 
 test('discard removes card without posting to /api/tapes', async ({ page }) => {
   let tapePostCalled = false;
+  const item = makeRevItem({ id: 'rev_test_003' });
 
-  await page.route('**/api/jobs/ready', route => route.fulfill({
+  await page.route('**/api/review/pending', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify([FAKE_JOB]),
+    body: JSON.stringify([item]),
   }));
-  await page.route('**/api/jobs/**', route => route.fulfill({ status: 200, body: '{"ok":true}' }));
+  await page.route('**/api/review/**', route => route.fulfill({ status: 200, body: '{"ok":true}' }));
   await page.route('**/api/tapes', route => {
     if (route.request().method() === 'POST') tapePostCalled = true;
     route.continue();
@@ -60,4 +69,28 @@ test('discard removes card without posting to /api/tapes', async ({ page }) => {
   // Review panel should close (no more cards)
   await expect(page.locator('#review.on')).toBeHidden({ timeout: 3000 });
   expect(tapePostCalled).toBe(false);
+});
+
+test('failed review item shows error reason and retry button', async ({ page }) => {
+  const failedItem = makeRevItem({
+    id: 'rev_test_004',
+    status: 'failed',
+    fail_reason: 'No tapes detected in image',
+    data: {},
+  });
+
+  await page.route('**/api/review/pending', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify([failedItem]),
+  }));
+  await page.route('**/api/review/**', route => route.fulfill({ status: 200, body: '{"ok":true}' }));
+  await page.route('**/api/jobs/**/retry', route => route.fulfill({ status: 200, body: '{"ok":true}' }));
+
+  await page.goto('/');
+  await page.waitForSelector('.rev-card', { timeout: 15000 });
+
+  const card = page.locator('.rev-card').first();
+  // Should show the fail reason text
+  await expect(card.locator('.fail-reason')).toContainText('No tapes detected', { timeout: 3000 });
 });

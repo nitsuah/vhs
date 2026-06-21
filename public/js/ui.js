@@ -51,6 +51,7 @@ document.getElementById('help-close').addEventListener('click',()=>document.getE
 // ── SETTINGS MODAL ───────────────────────────────────────────────────────
 document.getElementById('btn-settings').addEventListener('click',()=>{
   document.getElementById('s-apikey').value=apiKey;
+  document.getElementById('s-omdb-key').value=omdbKey;
   document.getElementById('s-ollama-url').value=ollamaUrl;
   document.getElementById('s-ollama-model').value=ollamaModel;
   document.getElementById('s-fast-mode').checked=fastMode;
@@ -60,10 +61,12 @@ document.getElementById('btn-settings').addEventListener('click',()=>{
 document.getElementById('s-cancel').addEventListener('click',()=>document.getElementById('m-settings').style.display='none');
 document.getElementById('s-save').addEventListener('click',()=>{
   apiKey=document.getElementById('s-apikey').value.trim();
+  omdbKey=document.getElementById('s-omdb-key').value.trim();
   ollamaUrl=document.getElementById('s-ollama-url').value.trim()||defaultOllamaUrl();
   ollamaModel=document.getElementById('s-ollama-model').value;
   fastMode=document.getElementById('s-fast-mode').checked;
   apiKey?localStorage.setItem('vhs-apikey',apiKey):localStorage.removeItem('vhs-apikey');
+  omdbKey?localStorage.setItem('vhs-omdb-key',omdbKey):localStorage.removeItem('vhs-omdb-key');
   localStorage.setItem('vhs-ollama-url',ollamaUrl);
   localStorage.setItem('vhs-ollama-model',ollamaModel);
   localStorage.setItem('vhs-fast-mode',String(fastMode));
@@ -260,6 +263,36 @@ tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style>
   const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();}
   document.getElementById('exp-dd').classList.remove('on');
 });
+
+// ── ACTIVITY LOG PANEL ───────────────────────────────────────────────────
+(function(){
+  const logPanel=document.getElementById('log-panel');
+  const logOutput=document.getElementById('log-output');
+  const followChk=document.getElementById('log-follow');
+  const LEVEL_COLOR={'info':'#888','warn':'#c8a040','error':'#e84040'};
+  let sse=null;
+
+  function appendEntry(e){
+    const ts=e.ts?e.ts.slice(11,19):'';
+    const color=LEVEL_COLOR[e.level]||'#888';
+    const msgEsc=String(e.msg||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const row=document.createElement('div');
+    row.innerHTML=`<span style="color:#444">${ts}</span> <span style="color:${color}">${msgEsc}</span>`;
+    logOutput.appendChild(row);
+    if(followChk?.checked)logOutput.scrollTop=logOutput.scrollHeight;
+    if(logOutput.children.length>300)logOutput.removeChild(logOutput.firstChild);
+  }
+
+  function openLogs(){
+    logPanel.style.display='flex';
+    if(sse)return;
+    sse=new EventSource('/api/logs/stream');
+    sse.onmessage=e=>{try{appendEntry(JSON.parse(e.data));}catch{}};
+    sse.onerror=()=>{setTimeout(()=>{sse?.close();sse=null;},2000);};
+  }
+
+  document.getElementById('btn-logs')?.addEventListener('click',openLogs);
+})();
 
 // ── MOBILE FILTER TRAY ───────────────────────────────────────────────────
 const btnFilterTray=document.getElementById('btn-filter-tray');

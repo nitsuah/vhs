@@ -20,7 +20,7 @@
   </div>
   <!-- Mobile-only right side -->
   <div class="hdr-right-mob" id="hdr-right-mob">
-    <span id="count-badge-mob" style="font-size:11px;color:var(--text2)"></span>
+    <span id="count-badge-mob" style="font-size:14px;color:var(--text2)"></span>
     <span id="db-dot-mob"></span>
     <button id="btn-menu">☰</button>
   </div>
@@ -65,19 +65,19 @@
 
 <nav id="tab-nav">
   <button class="tab-btn active" data-tab="capture" id="tab-capture"><span class="tab-ico">📷</span>Capture</button>
-  <button class="tab-btn" data-tab="review" id="tab-review"><span class="tab-ico">📋</span>Review<span class="tab-badge" id="tab-review-count" style="display:none">0</span></button>
+  <button class="tab-btn" data-tab="review" id="tab-review"><span class="tab-ico-wrap"><span class="tab-ico">📋</span><span class="tab-badge" id="tab-review-count" style="display:none">0</span></span>Review</button>
   <button class="tab-btn" data-tab="collect" id="tab-collect"><span class="tab-ico">📦</span>Collect</button>
 </nav>
 <main id="main">
   <section id="cam-panel">
     <div id="vid-wrap">
+      <div id="queue-strip"></div>
+      <div id="queue-status" style="display:none"></div>
       <video id="video" autoplay playsinline muted></video>
       <div id="no-cam">
-        <svg width="44" height="44" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M4 8h11a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2z"/>
-        </svg>
+        <div id="no-cam-icon">📷</div>
         <p id="no-cam-msg">Tap to enable camera</p>
-        <button id="btn-enable-cam">📷 Enable Camera</button>
+        <button id="btn-enable-cam">Enable Camera</button>
       </div>
       <div id="crop" data-preset="default">
         <div class="cc tl"></div><div class="cc tr"></div>
@@ -101,18 +101,18 @@
     <div id="cam-ctrl">
       <!-- Row 1: Flip · Stage · Barcode · Upload -->
       <button id="btn-cam-flip" title="Flip camera">⇅</button>
-      <button id="btn-cap">⬤ Stage</button>
-      <button class="ctrl-btn" id="btn-barcode">⬡ Barcode</button>
-      <button class="ctrl-btn" id="btn-upload">⬆ Upload</button>
+      <button id="btn-cap" title="Stage capture"><svg width="22" height="18" viewBox="0 0 22 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5h3l2-2.5h10L18 5h3a1 1 0 011 1v9a1 1 0 01-1 1H1a1 1 0 01-1-1V6a1 1 0 011-1z"/><circle cx="11" cy="10" r="3"/></svg></button>
+      <button class="ctrl-btn" id="btn-barcode" title="Scan barcode"><svg width="22" height="16" viewBox="0 0 44 28" fill="currentColor"><rect x="1" y="0" width="3" height="24"/><rect x="6" y="0" width="1" height="24"/><rect x="9" y="0" width="4" height="24"/><rect x="15" y="0" width="1" height="24"/><rect x="18" y="0" width="2" height="24"/><rect x="22" y="0" width="1" height="24"/><rect x="25" y="0" width="4" height="24"/><rect x="31" y="0" width="1" height="24"/><rect x="34" y="0" width="3" height="24"/><rect x="39" y="0" width="1" height="24"/><rect x="42" y="0" width="2" height="24"/></svg></button>
+      <button class="ctrl-btn" id="btn-upload" title="Upload image"><svg width="16" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h10M8 14V4M4 8l4-4 4 4"/></svg></button>
       <input type="file" id="file-input" accept="image/*" multiple>
       <!-- Row 2: Torch · Presets -->
       <span class="cam-ctrl-break"></span>
       <button class="ctrl-btn" id="btn-torch" style="display:none" title="Flash / torch">🔦</button>
       <div id="crop-presets">
         <button class="preset-btn active" data-preset="default" title="Default crop">▣</button>
-        <button class="preset-btn" data-preset="cover" title="VHS cover (portrait)">▯</button>
+        <button class="preset-btn" data-preset="cover" title="VHS cover (portrait)"><svg width="13" height="18" viewBox="0 0 13 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="1" width="11" height="16" rx="1"/></svg></button>
         <button class="preset-btn" data-preset="spine" title="Single spine">▮</button>
-        <button class="preset-btn" data-preset="multispine" title="Multi-spine (3-4 tapes)">⬜▮▮▮</button>
+        <button class="preset-btn" data-preset="multispine" title="Multi-spine (5 tapes)"><svg width="30" height="18" viewBox="0 0 30 18" fill="none"><rect x="1" y="1" width="28" height="16" rx="1" stroke="rgba(255,120,0,.85)" stroke-width="1.5"/><line x1="6.6" y1="1" x2="6.6" y2="17" stroke="currentColor" stroke-width="1.2"/><line x1="12.2" y1="1" x2="12.2" y2="17" stroke="currentColor" stroke-width="1.2"/><line x1="17.8" y1="1" x2="17.8" y2="17" stroke="currentColor" stroke-width="1.2"/><line x1="23.4" y1="1" x2="23.4" y2="17" stroke="currentColor" stroke-width="1.2"/></svg></button>
       </div>
       <span class="key-hint">Space to stage · Enter to analyze</span>
       <span id="upload-prog"></span>
@@ -121,17 +121,17 @@
         <img id="thumb-img" src="" alt="">
       </div>
     </div>
-    <div id="queue-status" style="display:none"></div>
-    <div id="queue-strip"></div>
   </section>
 
   <section id="right">
     <div id="review">
       <div id="rev-hdr">
         <h2 id="rev-title">Pending Review</h2>
+        <button class="hbtn" id="btn-logs" title="Activity log — server ↔ Ollama" style="font-size:11px;padding:5px 8px">▶ Log</button>
         <div id="rev-bulk">
           <button class="btn btn-sm btn-ok" id="btn-confirm-all">✓ All</button>
           <button class="btn btn-sm btn-x" id="btn-discard-all">✕ All</button>
+          <button class="hbtn" id="btn-stop-proc" style="display:none;font-size:11px;padding:5px 8px;color:var(--red);border-color:rgba(232,64,64,.3)" title="Cancel all queued/analyzing jobs">◼ Stop</button>
         </div>
       </div>
       <div id="rev-loading" class="spin-row" style="display:none">
@@ -143,54 +143,61 @@
 
     <div id="inv-panel">
       <div id="collect-subhdr">
-        <button class="hbtn" id="btn-wall">⊞ Wall</button>
-        <button class="hbtn" id="btn-fill-data" title="AI fills missing year, label, and value">⚡ Fill</button>
-        <button class="hbtn" id="btn-revalidate" title="Re-run AI on tape photos">🔄 Re-validate</button>
-        <input id="search" type="text" placeholder="🔍 Search…">
-        <select id="sort-sel">
-          <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
-          <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
-          <option value="year_asc">Year ↑</option><option value="year_desc">Year ↓</option>
-          <option value="val_desc">Value ↓</option><option value="val_asc">Value ↑</option>
-          <option value="cond_asc">Cond. Best→Worst</option><option value="cond_desc">Cond. Worst→Best</option>
-        </select>
-        <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700;margin-left:auto">+ Add</button>
-        <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ Import</button>
-        <input type="file" id="import-input" accept=".json" style="display:none">
-        <div class="exp-wrap">
-          <button class="hbtn" id="btn-export">↓ Export</button>
-          <div class="exp-dd" id="exp-dd">
-            <button id="exp-json">Export JSON</button>
-            <button id="exp-csv">Export CSV</button>
-            <button id="exp-sell">For Sale Export</button>
-            <button id="exp-tags">Print Price Tags</button>
-            <button id="exp-print">Printable List</button>
+        <div class="csh-row1">
+          <button class="hbtn hbtn-view" id="btn-wall">⊞ Wall</button>
+          <button class="hbtn hbtn-view hbtn-fill" id="btn-fill-data" title="Fill with Ollama — AI enriches missing year, label and value">⚡ Fill</button>
+          <button class="hbtn hbtn-view hbtn-check" id="btn-revalidate" title="Check with Ollama — re-analyze photo vs saved data">🦙 Check</button>
+          <span style="flex:1"></span>
+          <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700">+ <span class="btn-txt">Add</span></button>
+          <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ <span class="btn-txt">Import</span></button>
+          <input type="file" id="import-input" accept=".json" style="display:none">
+          <div class="exp-wrap">
+            <button class="hbtn" id="btn-export" title="Export tapes">↓ <span class="btn-txt">Export</span></button>
+            <div class="exp-dd" id="exp-dd">
+              <button id="exp-json">Export JSON</button>
+              <button id="exp-csv">Export CSV</button>
+              <button id="exp-sell">For Sale Export</button>
+              <button id="exp-tags">Print Price Tags</button>
+              <button id="exp-print">Printable List</button>
+            </div>
           </div>
+        </div>
+        <div class="csh-row2">
+          <input id="search" type="text" placeholder="Search…">
+          <button id="btn-search" title="Search">🔍</button>
+          <select id="sort-sel">
+            <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
+            <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
+            <option value="year_asc">Year ↑</option><option value="year_desc">Year ↓</option>
+            <option value="val_desc">Value ↓</option><option value="val_asc">Value ↑</option>
+            <option value="cond_asc">Cond. Best→Worst</option><option value="cond_desc">Cond. Worst→Best</option>
+          </select>
         </div>
       </div>
       <div id="bulk-bar">
         <span id="bulk-count" style="font-size:12px;color:var(--blue);font-weight:700"></span>
+        <button class="ctrl-btn hbtn-fill" id="bulk-fill" title="Fill missing data with AI (selected)">⚡</button>
+        <button class="ctrl-btn hbtn-check" id="bulk-check" title="Re-check photos with AI (selected)">🦙</button>
         <select id="bulk-status-sel">
-          <option value="">Change status…</option>
+          <option value="">Status…</option>
           <option value="in_collection">In Collection</option>
           <option value="for_sale">For Sale</option>
           <option value="sold">Sold</option><option value="donated">Donated</option>
           <option value="missing">Missing</option><option value="wanted">Wanted</option>
         </select>
-        <button class="ctrl-btn" id="bulk-apply">Apply</button>
-        <button class="ctrl-btn" id="bulk-del" style="color:var(--red);border-color:rgba(232,64,64,.3)">Delete</button>
-        <button class="ctrl-btn" id="bulk-clear" style="margin-left:auto">Deselect All</button>
+        <button class="ctrl-btn" id="bulk-apply" title="Apply to selected" style="color:var(--green);border-color:rgba(61,187,61,.3)">✓ <span class="btn-txt">Apply</span></button>
+        <button class="ctrl-btn bulk-del-btn" id="bulk-del" style="color:var(--red);border-color:rgba(232,64,64,.3)"><span class="bulk-del-txt">Delete</span><span class="bulk-del-ico" style="display:none">🗑</span></button>
+        <button class="ctrl-btn" id="bulk-clear" style="margin-left:auto" title="Deselect all">↩</button>
       </div>
-      <div id="inv-list">
-        <div class="empty" id="empty-state" style="flex-direction:column;gap:10px;padding:40px 20px">
-          <div style="font-size:36px">📼</div>
-          <div style="font-size:14px;font-weight:700;color:var(--text)">No tapes yet</div>
-          <div style="font-size:12px;color:var(--text3);text-align:center;max-width:260px;line-height:1.6">Point the camera at a shelf and press <strong>Capture</strong>, scan a barcode, or press <kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:10px">N</kbd> to add manually.</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px">
-            <button class="hbtn" onclick="document.getElementById('btn-cap').click()" style="font-size:12px">⬤ Capture</button>
-            <button class="hbtn" onclick="openNewTapeModal()" style="font-size:12px">+ Add Manually</button>
-            <button class="hbtn" onclick="document.getElementById('btn-upload').click()" style="font-size:12px">⬆ Upload Photo</button>
-          </div>
+      <div id="inv-list"></div>
+      <div class="empty" id="empty-state" style="flex-direction:column;gap:10px;padding:40px 20px;display:none">
+        <div style="font-size:36px">📼</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text)">No tapes yet</div>
+        <div style="font-size:12px;color:var(--text3);text-align:center;max-width:260px;line-height:1.6">Point the camera at a shelf and press <strong>Capture</strong>, scan a barcode, or press <kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:10px">N</kbd> to add manually.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px">
+          <button class="hbtn" onclick="document.getElementById('btn-cap').click()" style="font-size:12px">⬤ Capture</button>
+          <button class="hbtn" onclick="openNewTapeModal()" style="font-size:12px">+ Add Manually</button>
+          <button class="hbtn" onclick="document.getElementById('btn-upload').click()" style="font-size:12px">⬆ Upload Photo</button>
         </div>
       </div>
       <div id="wall-view"></div>
@@ -258,6 +265,13 @@
     </div>
     <span class="shint">Docker proxies Ollama at <code>/api/ollama</code>. For GPU acceleration set <code>OLLAMA_UPSTREAM=http://host.docker.internal:11434</code> in <code>.env</code> to use native Windows Ollama with DirectML.</span>
     <hr class="ssep">
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">OMDb (movie metadata)</div>
+    <div class="sfield">
+      <label>OMDb API Key</label>
+      <input id="s-omdb-key" type="password" placeholder="optional — free key at omdbapi.com" autocomplete="off">
+      <span class="shint">Used for authoritative movie year and IMDB ID lookup when filling metadata. Falls back to server env key if not set.</span>
+    </div>
+    <hr class="ssep">
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Extraction mode</div>
     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text2)">
       <input type="checkbox" id="s-fast-mode" style="width:16px;height:16px;accent-color:var(--accent)">
@@ -275,20 +289,27 @@
   </div>
 </div>
 
-<!-- RE-VALIDATE DIFF MODAL -->
+<!-- RE-VALIDATE PROGRESS MODAL -->
 <div class="backdrop" id="m-revalidate" style="display:none">
-  <div class="modal" style="max-width:600px;max-height:85dvh;display:flex;flex-direction:column">
-    <h2>🔄 Re-validate Tapes</h2>
+  <div class="modal" style="max-width:480px">
+    <h2><span style="color:var(--purple)">☑</span> Check Tapes</h2>
     <p id="rv-status" style="font-size:12px;color:var(--text3);margin-bottom:8px">Analyzing photos against current data…</p>
     <div id="rv-progress" style="height:4px;background:var(--bg4);border-radius:2px;margin-bottom:10px;display:none"><div id="rv-prog-bar" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s"></div></div>
-    <div id="rv-diff-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;min-height:0"></div>
     <div class="modal-acts" style="margin-top:10px">
       <button class="btn btn-x" id="rv-cancel">Close</button>
-      <button class="btn btn-x btn-sm" id="rv-deny-all" style="display:none">✕ Deny All</button>
-      <button class="btn btn-ok" id="rv-accept-all" style="display:none">✓ Accept All</button>
-      <button class="btn btn-ok" id="rv-apply-selected" style="display:none">Apply Selected</button>
     </div>
   </div>
+</div>
+
+<!-- ACTIVITY LOG PANEL -->
+<div id="log-panel" style="display:none;position:fixed;bottom:0;left:0;right:0;height:220px;background:#0a0a0a;border-top:1px solid #2a2a2a;z-index:200;display:none;flex-direction:column">
+  <div style="display:flex;align-items:center;gap:8px;padding:4px 10px;background:#111;border-bottom:1px solid #222;flex-shrink:0">
+    <span style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.08em">▶ Activity Log</span>
+    <span style="font-size:10px;color:#444;margin-left:4px">server ↔ Ollama</span>
+    <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:#555;cursor:pointer"><input type="checkbox" id="log-follow" checked style="accent-color:#e84040"> Follow</label>
+    <button onclick="document.getElementById('log-panel').style.display='none'" style="background:none;border:none;color:#555;font-size:16px;cursor:pointer;line-height:1;padding:0 2px">✕</button>
+  </div>
+  <div id="log-output" style="flex:1;overflow-y:auto;font-family:monospace;font-size:11px;padding:6px 10px;color:#888;line-height:1.5"></div>
 </div>
 
 <!-- DUPLICATE MODAL -->
@@ -320,7 +341,7 @@
       <div class="dfield full"><label>Title</label><div style="display:flex;gap:6px;align-items:center"><input id="d-title" type="text" style="flex:1"><button class="btn-lookup" id="d-lookup" title="Look up metadata by title">🔍 Lookup</button></div></div>
       <div class="dfield"><label>Year</label><input id="d-year" type="text"></div>
       <div class="dfield"><label>Label</label><input id="d-label" type="text"></div>
-      <div class="dfield"><label>Format</label><input id="d-format" type="text"></div>
+      <div class="dfield"><label>Format</label><select id="d-format"><option value="VHS">VHS</option><option value="DVD">DVD</option><option value="Blu-ray">Blu-ray</option><option value="Betamax">Betamax</option><option value="LaserDisc">LaserDisc</option><option value="8mm/Hi8">8mm/Hi8</option><option value="Digital">Digital</option><option value="Other">Other</option></select></div>
       <div class="dfield"><label>Barcode (UPC/EAN)</label><input id="d-barcode" type="text" placeholder="0 00000 00000 0"></div>
       <div class="dfield"><label>Est. Value Low ($)</label><input id="d-value-low" type="text" placeholder="5"></div>
       <div class="dfield"><label>Est. Value High ($)</label><input id="d-value-high" type="text" placeholder="20"></div>

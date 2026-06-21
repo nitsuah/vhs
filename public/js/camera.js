@@ -56,7 +56,7 @@ async function initCamera(){
     }
   }finally{
     btnEnableCam.disabled=false;
-    btnEnableCam.textContent='📷 Enable Camera';
+    btnEnableCam.textContent='Enable Camera';
   }
 }
 let currentFacing='environment';
@@ -139,24 +139,26 @@ window.addEventListener('resize',updateCrop);
 const barcodeOverlay=document.getElementById('barcode-overlay');
 const btnBarcode=document.getElementById('btn-barcode');
 const btnCap=document.getElementById('btn-cap');
+const _barcodeBtnHTML=btnBarcode.innerHTML; // preserve the SVG icon
 
 async function toggleBarcodeMode(){
   const btnTorch=document.getElementById('btn-torch');
   if(barcodeMode){
     barcodeMode=false;
-    btnBarcode.classList.remove('active');btnBarcode.textContent='⬡ Barcode';
+    btnBarcode.classList.remove('active');btnBarcode.innerHTML=_barcodeBtnHTML;
     barcodeOverlay.classList.remove('on');cropEl.style.display='';btnCap.disabled=false;
     barcodeRdr=null;
     if(torchOn){
       torchOn=false;btnTorch.classList.remove('active');btnTorch.textContent='🔦';
     }
-    await startStream(camSel.value||null);
+    // Use currentFacing (not stale camSel) so rear camera is restored
+    await startStream(null);
   }else{
-    btnBarcode.textContent='⟳ Loading…';btnBarcode.disabled=true;
+    btnBarcode.innerHTML='<span style="font-size:11px">⟳</span>';btnBarcode.disabled=true;
     try{await loadScript('https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js');}
-    catch{btnBarcode.textContent='⬡ Barcode';btnBarcode.disabled=false;return;}
+    catch{btnBarcode.innerHTML=_barcodeBtnHTML;btnBarcode.disabled=false;return;}
     barcodeMode=true;
-    btnBarcode.classList.add('active');btnBarcode.textContent='⬡ Barcode';btnBarcode.disabled=false;
+    btnBarcode.classList.add('active');btnBarcode.innerHTML=_barcodeBtnHTML;btnBarcode.disabled=false;
     barcodeOverlay.classList.add('on');cropEl.style.display='none';btnCap.disabled=false;
     currentFacing='environment';
     await startBarcodeStream();
@@ -500,7 +502,7 @@ document.querySelectorAll('.preset-btn').forEach(btn=>{
 const vidWrapEl=document.getElementById('vid-wrap');
 vidWrapEl.addEventListener('click',e=>{
   if(!video.srcObject)return;
-  if(e.target.id==='crop'||e.target.closest('#barcode-overlay')||e.target.id==='crop-handle')return;
+  if(e.target.id==='crop'||e.target.closest('#barcode-overlay')||e.target.id==='crop-handle'||e.target.closest('#queue-strip')||e.target.closest('#queue-status'))return;
   if(barcodeMode){
     snapAndDecode();
   } else {

@@ -3,8 +3,10 @@ async function init(){
   updateAiBadge();
   const _aiFallback=setTimeout(updateAiBadge,6000);
   checkOllama(true).then(()=>{clearTimeout(_aiFallback);updateAiBadge();});
+  // Only signal ok from the health ping — apiReq handles err to avoid a race
+  // where a slow health SELECT 1 overrides a successful /api/tapes call
   fetch('/api/health',{signal:AbortSignal.timeout(5000)}).then(r=>r.json()).then(h=>{
-    setDbDot(h.db==='ok'?'ok':'err');
+    if(h.db==='ok') setDbDot('ok');
   }).catch(()=>{});
   initCamera().then(()=>updateCrop()).catch(e=>console.warn('Camera init error:',e));
   const preload=await _cacheGetAll().catch(()=>[]);
@@ -20,4 +22,4 @@ async function init(){
   renderInv();updateCount();
   startJobPoller();
 }
-init().catch(err=>{setDbDot('err');console.error('init error:',err);});
+init().catch(err=>{console.error('init error:',err);});

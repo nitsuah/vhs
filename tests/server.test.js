@@ -14,6 +14,7 @@ jest.mock('fs', () => ({
   existsSync: () => true,
   mkdirSync: jest.fn(),
   writeFileSync: jest.fn(),
+  readdirSync: () => [],        // no migrations to run in tests
   readFileSync: () => Buffer.from('test'),
 }));
 
@@ -94,7 +95,7 @@ describe('POST /api/jobs', () => {
 
 describe('GET /api/jobs/status', () => {
   // Regression: this route was shadowed by GET /api/jobs/:id — must return counts not a job
-  it('returns status counts object, not a job record', async () => {
+  it('returns status counts object with review_pending, not a job record', async () => {
     mockQuery.mockResolvedValue({
       rows: [
         { status: 'pending', count: '3' },
@@ -103,7 +104,9 @@ describe('GET /api/jobs/status', () => {
     });
     const res = await request(app).get('/api/jobs/status');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ pending: 3, processing: 0, done: 7, failed: 0 });
+    // Must include all job statuses plus review_pending from review_items table
+    expect(res.body).toMatchObject({ pending: 3, processing: 0, done: 7, failed: 0 });
+    expect(res.body).toHaveProperty('review_pending');
     // Confirm it is NOT treating 'status' as a job id
     expect(res.body).not.toHaveProperty('retry_count');
   });
@@ -125,35 +128,81 @@ describe('GET /api/jobs/:id', () => {
   });
 });
 
-// ── Jobs ready (unified queue) ─────────────────────────────────────────────────
+// ── Review items (cross-session queue) ────────────────────────────────────────
 
-describe('GET /api/jobs/ready', () => {
-  it('returns done jobs', async () => {
-    const jobs = [
-      { id: 'job_1', thumb: null, result: '[{"title":"Jaws"}]', error: null, status: 'done', retry_count: 0, created_at: new Date().toISOString() },
+describe('GET /api/review/pending', () => {
+  it('returns pending review items', async () => {
+    const items = [
+      { id: 'rev_1', job_id: 'job_1', data: { title: 'Jaws', condition: 'good' }, thumb: null, source: 'scan', status: 'pending', fail_reason: null, created_at: new Date().toISOString() },
     ];
-    mockQuery.mockResolvedValue({ rows: jobs });
-    const res = await request(app).get('/api/jobs/ready');
+    mockQuery.mockResolvedValue({ rows: items });
+    const res = await request(app).get('/api/review/pending');
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
-    expect(res.body[0].status).toBe('done');
+    expect(res.body[0].id).toBe('rev_1');
+    expect(res.body[0].status).toBe('pending');
   });
 
-  it('also returns permanently-failed jobs (retry_count >= MAX_RETRIES)', async () => {
-    const jobs = [
-      { id: 'job_2', thumb: null, result: null, error: 'Ollama timeout', status: 'failed', retry_count: 3, created_at: new Date().toISOString() },
+  it('returns failed review items alongside pending', async () => {
+    const items = [
+      { id: 'rev_2', job_id: 'job_2', data: {}, thumb: null, source: 'scan', status: 'failed', fail_reason: 'Ollama timeout', created_at: new Date().toISOString() },
     ];
-    mockQuery.mockResolvedValue({ rows: jobs });
-    const res = await request(app).get('/api/jobs/ready');
+    mockQuery.mockResolvedValue({ rows: items });
+    const res = await request(app).get('/api/review/pending');
     expect(res.status).toBe(200);
-    expect(res.body[0].status).toBe('failed');
-    expect(res.body[0].error).toBe('Ollama timeout');
+    expect(res.body[0].fail_reason).toBe('Ollama timeout');
   });
 
   it('returns 500 on db error', async () => {
     mockQuery.mockRejectedValue(new Error('db down'));
-    const res = await request(app).get('/api/jobs/ready');
+    const res = await request(app).get('/api/review/pending');
     expect(res.status).toBe(500);
+  });
+});
+
+describe('DELETE /api/review/:id', () => {
+  it('deletes a review item and returns {ok:true}', async () => {
+    mockQuery.mockResolvedValue({});
+    const res = await request(app).delete('/api/review/rev_1');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+  });
+});
+
+describe('POST /api/review', () => {
+  it('returns 400 when data is missing', async () => {
+    const res = await request(app).post('/api/review').send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/data required/);
+  });
+
+  it('creates a fill review item and returns 201 with id', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    const res = await request(app).post('/api/review').send({
+      source: 'fill',
+      data: { tape_id: 'VHS-0001', title: 'Jaws', year: '1975' },
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.id).toMatch(/^rev_/);
+  });
+
+  it('creates a revalidate review item and returns 201 with id', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    const res = await request(app).post('/api/review').send({
+      source: 'revalidate',
+      data: { tape_id: 'VHS-0002', title: 'Alien', year: '1979' },
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.id).toMatch(/^rev_/);
+  });
+});
+
+// GET /api/jobs/ready is now a compatibility stub that always returns []
+describe('GET /api/jobs/ready', () => {
+  it('returns empty array (jobs now flow through review_items)', async () => {
+    const res = await request(app).get('/api/jobs/ready');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
   });
 });
 

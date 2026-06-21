@@ -16,6 +16,7 @@ let apiKey      = localStorage.getItem('vhs-apikey')       || '';
 let ollamaUrl   = localStorage.getItem('vhs-ollama-url')   || defaultOllamaUrl();
 let ollamaModel = localStorage.getItem('vhs-ollama-model') || 'llava:7b';
 let fastMode    = localStorage.getItem('vhs-fast-mode') !== 'false';
+let omdbKey     = localStorage.getItem('vhs-omdb-key')     || '';
 let ollamaAvail = false;
 let inventory      = [];
 let cards          = [];   // pending review: [{uid, data, thumb, expanded, source}]
@@ -25,7 +26,7 @@ let isCapturing    = false;
 let barcodeMode    = false;
 let barcodeRdr  = null;
 let lastCode    = { val:'', t:0 };
-let wallViewOn  = false;
+let wallMode    = 0; // 0=list, 1=cover wall, 2=spine landscape, 3=stacksup (upright)
 let selectedId  = null;
 let isNewTape   = false;
 let selectedIds = new Set();
@@ -33,6 +34,8 @@ let cropFrac    = { x:.12, y:.08, w:.76, h:.84 };
 let bcZoom      = 0.7;
 let torchOn     = false;
 let dragging=false, resizing=false, dragOrig={};
+let editingId=null;
+const pendingEdits=new Map();
 
 function defaultOllamaUrl() {
   return location.protocol==='file:' ? 'http://localhost:11434' : '/api/ollama';

@@ -1,4 +1,9 @@
 // ── INVENTORY ─────────────────────────────────────────────────────────────
+let _resizeTh=null,_resizeX0=0,_resizeW0=0;
+let mobileColPage=0;
+function _onColResize(e){if(!_resizeTh)return;_resizeTh.style.width=Math.max(40,_resizeW0+e.clientX-_resizeX0)+'px';}
+function _onColResizeEnd(){_resizeTh=null;document.removeEventListener('mousemove',_onColResize);}
+
 function getFiltered(){
   const q=(document.getElementById('search')?.value||'').toLowerCase();
   const sort=document.getElementById('sort-sel')?.value||'scanned_desc';
@@ -37,27 +42,47 @@ function renderInv(){
   const wall=document.getElementById('wall-view');
   const items=getFiltered();
   const empty=document.getElementById('empty-state');
-  if(wallViewOn){
-    list.style.display='none';wall.classList.add('on');
+  if(wallMode>0){
+    list.style.display='none';
+    wall.classList.add('on');
+    wall.classList.toggle('spine-mode',wallMode===2);
+    wall.classList.toggle('stacksup-mode',wallMode===3);
     if(!items.length){wall.innerHTML='<div class="empty">No tapes match.</div>';return;}
-    wall.innerHTML=items.map(t=>{
-      const wallSrc=t.photo_face||t.photo_thumbnail;
-      const img=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph">📼</div>`;
-      const meta=[t.year,t.label].filter(Boolean).join(' · ');
-      const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
-      return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
-    }).join('');
-    wall.querySelectorAll('.wall-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
+    if(wallMode===2){
+      wall.innerHTML=items.map(t=>{
+        const src=t.photo_spine||t.photo_thumbnail;
+        const img=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
+        return `<div class="spine-card" data-id="${t.id}">${img}<div class="spine-lbl">${esc(t.title)}</div></div>`;
+      }).join('');
+    }else if(wallMode===3){
+      wall.innerHTML=items.map(t=>{
+        const src=t.photo_spine||t.photo_thumbnail;
+        const img=src
+          ?`<img class="su-img" src="${src}" alt="">`
+          :`<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
+        return `<div class="su-card" data-id="${t.id}">${img}<div class="su-lbl">${esc(t.title)}</div></div>`;
+      }).join('');
+    }else{
+      wall.innerHTML=items.map(t=>{
+        const wallSrc=t.photo_face||t.photo_thumbnail;
+        const img=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph-txt">${esc(t.title)}</div>`;
+        const meta=[t.year,t.label].filter(Boolean).join(' · ');
+        const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
+        return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
+      }).join('');
+    }
+    wall.querySelectorAll('.wall-card,.spine-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
     return;
   }
-  wall.classList.remove('on');list.style.display='';
-  if(!items.length){list.innerHTML='';list.appendChild(empty);empty.style.display='flex';return;}
-  empty.style.display='none';
+  wall.classList.remove('on','spine-mode','stacksup-mode');
+  if(!items.length){list.style.display='none';list.innerHTML='';if(empty)empty.style.display='flex';return;}
+  list.style.display='';if(empty)empty.style.display='none';
   const sort=document.getElementById('sort-sel')?.value||'scanned_desc';
   const condOpts=v=>['great','good','fair','poor'].map(c=>`<option value="${c}"${(v||'good')===c?' selected':''}>${c}</option>`).join('');
   const statOpts=v=>[['in_collection','In Collection'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([c,l])=>`<option value="${c}"${v===c?' selected':''}>${l}</option>`).join('');
   const fmtOpts=v=>{const opts=[...FORMAT_LIST];if(v&&!opts.includes(v))opts.unshift(v);return opts.map(f=>`<option value="${f}"${(v||'VHS')===f?' selected':''}>${esc(f)}</option>`).join('');};
   const sa=(col,a,d)=>{const s=sort;return`<span class="sort-arr${s===a||s===d?' on':''}">${s===a?'↑':s===d?'↓':'↕'}</span>`;};
+  const rh='<span class="col-rh"></span>';
   const years=inventory.map(t=>parseInt(t.year)).filter(y=>y>=1900&&y<=2030);
   const minYr=years.length?Math.min(...years):1970;
   const maxYr=years.length?Math.max(...years):2025;
@@ -66,60 +91,153 @@ function renderInv(){
   const yrLbl=(yrFrom<=minYr&&yrTo>=maxYr)?'All':yrFrom+'–'+yrTo;
   list.innerHTML=`<table class="tape-table"><thead>
   <tr>
-    <th style="width:28px"><input type="checkbox" id="tbl-chk-all" title="Select all"></th>
-    <th style="width:188px"></th>
-    <th class="th-sort" data-sa="title_asc" data-sd="title_desc">Title ${sa('title','title_asc','title_desc')}</th>
-    <th class="th-sort" data-sa="year_asc" data-sd="year_desc" style="min-width:90px">Year ${sa('year','year_asc','year_desc')}</th>
-    <th>Label</th><th style="width:95px">Format</th>
-    <th class="th-sort" data-sa="cond_asc" data-sd="cond_desc" style="width:80px">Cond. ${sa('cond','cond_asc','cond_desc')}</th>
-    <th style="width:110px">Status</th>
-    <th class="th-sort" data-sa="val_asc" data-sd="val_desc" style="width:50px">$Lo ${sa('val','val_asc','val_desc')}</th>
-    <th style="width:50px">$Hi</th><th>Tags</th><th>Notes</th><th style="width:28px"></th>
-  </tr>
-  <tr class="thead-filter">
-    <td colspan="2"></td>
-    <td><input class="col-f" data-cf="title" value="${esc(colFilters.title)}" placeholder="filter…"></td>
-    <td><div class="yr-dual">
-      <div class="yr-lbl">${esc(yrLbl)}</div>
-      <div class="yr-track"></div>
-      <input type="range" class="yr-slider" data-cf="yrFrom" min="${minYr}" max="${maxYr}" value="${yrFrom}" step="1">
-      <input type="range" class="yr-slider" data-cf="yrTo" min="${minYr}" max="${maxYr}" value="${yrTo}" step="1">
-    </div></td>
-    <td><input class="col-f" data-cf="label" value="${esc(colFilters.label)}" placeholder="filter…"></td>
-    <td><select class="col-f" data-cf="format"><option value="">All</option>${FORMAT_LIST.map(f=>`<option value="${f}"${colFilters.format===f?' selected':''}>${f}</option>`).join('')}</select></td>
-    <td><select class="col-f" data-cf="condition"><option value="">All</option>${['great','good','fair','poor'].map(c=>`<option value="${c}"${colFilters.condition===c?' selected':''}>${c}</option>`).join('')}</select></td>
-    <td><select class="col-f" data-cf="status"><option value="">All</option>${[['in_collection','In Coll.'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([v,l])=>`<option value="${v}"${colFilters.status===v?' selected':''}>${l}</option>`).join('')}</select></td>
-    <td colspan="2"></td>
-    <td><input class="col-f" data-cf="tags" value="${esc(colFilters.tags)}" placeholder="tag…"></td>
-    <td colspan="2"></td>
+    <th style="width:28px">${rh}<input type="checkbox" id="tbl-chk-all" title="Select all"></th>
+    <th style="width:188px" class="mc-2">${rh}</th>
+    <th class="th-sort mc-3" data-sa="title_asc" data-sd="title_desc" style="width:200px">
+      ${rh}<span class="th-lbl">Title ${sa('title','title_asc','title_desc')}</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.title?' style="display:block"':''}>
+        <input class="col-f" data-cf="title" value="${esc(colFilters.title)}" placeholder="search…">
+      </div>
+    </th>
+    <th class="th-sort mc-4" data-sa="year_asc" data-sd="year_desc" style="min-width:90px">
+      ${rh}<span class="th-lbl">Year ${sa('year','year_asc','year_desc')}</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${(colFilters.yrFrom||colFilters.yrTo)?' style="display:block"':''}>
+        <div class="yr-dual">
+          <div class="yr-lbl">${esc(yrLbl)}</div>
+          <div class="yr-track"></div>
+          <input type="range" class="yr-slider" data-cf="yrFrom" min="${minYr}" max="${maxYr}" value="${yrFrom}" step="1">
+          <input type="range" class="yr-slider" data-cf="yrTo" min="${minYr}" max="${maxYr}" value="${yrTo}" step="1">
+        </div>
+      </div>
+    </th>
+    <th class="mc-5" style="width:120px">
+      ${rh}<span class="th-lbl">Label</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.label?' style="display:block"':''}>
+        <input class="col-f" data-cf="label" value="${esc(colFilters.label)}" placeholder="search…">
+      </div>
+    </th>
+    <th style="width:95px" class="mc-6">
+      ${rh}<span class="th-lbl">Format</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.format?' style="display:block"':''}>
+        <select class="col-f" data-cf="format"><option value="">All</option>${FORMAT_LIST.map(f=>`<option value="${f}"${colFilters.format===f?' selected':''}>${f}</option>`).join('')}</select>
+      </div>
+    </th>
+    <th class="th-sort mc-7" data-sa="cond_asc" data-sd="cond_desc" style="width:80px">
+      ${rh}<span class="th-lbl">Cond. ${sa('cond','cond_asc','cond_desc')}</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.condition?' style="display:block"':''}>
+        <select class="col-f" data-cf="condition"><option value="">All</option>${['great','good','fair','poor'].map(c=>`<option value="${c}"${colFilters.condition===c?' selected':''}>${c}</option>`).join('')}</select>
+      </div>
+    </th>
+    <th style="width:110px" class="mc-8">
+      ${rh}<span class="th-lbl">Status</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.status?' style="display:block"':''}>
+        <select class="col-f" data-cf="status"><option value="">All</option>${[['in_collection','In Coll.'],['for_sale','For Sale'],['sold','Sold'],['donated','Donated'],['missing','Missing'],['wanted','Wanted']].map(([v,l])=>`<option value="${v}"${colFilters.status===v?' selected':''}>${l}</option>`).join('')}</select>
+      </div>
+    </th>
+    <th class="th-sort mc-9" data-sa="val_asc" data-sd="val_desc" style="width:50px">
+      ${rh}<span class="th-lbl">$Lo ${sa('val','val_asc','val_desc')}</span>
+    </th>
+    <th style="width:50px" class="mc-10">${rh}<span class="th-lbl">$Hi</span></th>
+    <th class="mc-11" style="width:120px">
+      ${rh}<span class="th-lbl">Tags</span>
+      <button class="th-fp-btn" title="Filter">⊽</button>
+      <div class="th-fp"${colFilters.tags?' style="display:block"':''}>
+        <input class="col-f" data-cf="tags" value="${esc(colFilters.tags)}" placeholder="tag…">
+      </div>
+    </th>
+    <th class="mc-12" style="width:150px">${rh}<span class="th-lbl">Notes</span></th>
+    <th style="width:52px"></th>
   </tr>
   </thead><tbody>${items.map(t=>{
     const spineSrc=t.photo_spine||t.photo_thumbnail;
     const thumb=spineSrc?`<img class="tbl-thumb" src="${spineSrc}" loading="lazy">`:`<div class="tbl-thumb-ph">📼</div>`;
     const checked=selectedIds.has(t.id);
-    return `<tr class="tape-row${checked?' selected':''}" data-id="${t.id}">
+    const isEd=t.id===editingId;
+    const pe=pendingEdits.get(t.id)||{};
+    const edCell=(field,mc,isArr=false)=>{
+      const curVal=isArr?(t.tags||[]).join(', '):(t[field]||'');
+      const pv=pe[field];
+      const pend=isEd&&pv!==undefined&&pv!==curVal;
+      if(isEd)return`<td class="${mc}${pend?' tbl-td-pending':''}" data-id="${t.id}" data-field="${field}"><input class="tbl-input${pend?' pending':''}" data-id="${t.id}" data-field="${field}" value="${esc(pv!==undefined?pv:curVal)}"></td>`;
+      return`<td class="${mc} editable" data-id="${t.id}" data-field="${field}">${esc(curVal)}</td>`;
+    };
+    const selCurVal=(field,def)=>pe[field]!==undefined?pe[field]:(t[field]||def||'');
+    const selPend=(field,def)=>isEd&&pe[field]!==undefined&&pe[field]!==(t[field]||def||'');
+    const actCell=isEd
+      ?`<td style="white-space:nowrap;text-align:center"><button class="tbl-save" data-id="${t.id}" title="Save">✓</button><button class="tbl-cancel" data-id="${t.id}" title="Cancel">✕</button></td>`
+      :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button><button class="tbl-edit" data-id="${t.id}" title="Edit row">✎</button></td>`;
+    return `<tr class="tape-row${checked?' selected':''}${isEd?' editing':''}" data-id="${t.id}">
       <td style="text-align:center"><input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''}></td>
-      <td class="tbl-open" data-id="${t.id}">${thumb}</td>
-      <td class="editable" data-id="${t.id}" data-field="title">${esc(t.title||'')}</td>
-      <td class="editable" data-id="${t.id}" data-field="year">${esc(t.year||'')}</td>
-      <td class="editable" data-id="${t.id}" data-field="label">${esc(t.label||'')}</td>
-      <td><select class="tbl-sel" data-id="${t.id}" data-field="format">${fmtOpts(t.format)}</select></td>
-      <td><select class="tbl-sel" data-id="${t.id}" data-field="condition">${condOpts(t.condition)}</select></td>
-      <td><select class="tbl-sel" data-id="${t.id}" data-field="status">${statOpts(t.status||'in_collection')}</select></td>
-      <td class="editable" data-id="${t.id}" data-field="value_low">${esc(t.value_low||'')}</td>
-      <td class="editable" data-id="${t.id}" data-field="value_high">${esc(t.value_high||'')}</td>
-      <td class="editable" data-id="${t.id}" data-field="tags">${esc((t.tags||[]).join(', '))}</td>
-      <td class="editable" data-id="${t.id}" data-field="notes">${esc(t.notes||'')}</td>
-      <td><button class="tbl-del" data-id="${t.id}" title="Delete">×</button></td>
+      <td class="tbl-open mc-2" data-id="${t.id}">${thumb}</td>
+      ${edCell('title','mc-3')}
+      ${edCell('year','mc-4')}
+      ${edCell('label','mc-5')}
+      <td class="mc-6${selPend('format','VHS')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('format','VHS')?' pending':''}" data-id="${t.id}" data-field="format">${fmtOpts(selCurVal('format','VHS'))}</select></td>
+      <td class="mc-7${selPend('condition','good')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('condition','good')?' pending':''}" data-id="${t.id}" data-field="condition">${condOpts(selCurVal('condition','good'))}</select></td>
+      <td class="mc-8${selPend('status','in_collection')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('status','in_collection')?' pending':''}" data-id="${t.id}" data-field="status">${statOpts(selCurVal('status','in_collection'))}</select></td>
+      ${edCell('value_low','mc-9')}
+      ${edCell('value_high','mc-10')}
+      ${edCell('tags','mc-11',true)}
+      ${edCell('notes','mc-12')}
+      ${actCell}
     </tr>`;
   }).join('')}</tbody></table>`;
   const tbl=list.querySelector('.tape-table');
-  tbl.querySelectorAll('.th-sort').forEach(th=>th.addEventListener('click',()=>{
+  if(window.innerWidth<=700){
+    tbl.dataset.mcpage=String(mobileColPage);
+    tbl.querySelectorAll('.tape-row').forEach(row=>{
+      let sx=0,sy=0,active=false;
+      row.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;active=true;},{passive:true});
+      row.addEventListener('touchmove',e=>{
+        if(!active)return;
+        const dx=e.touches[0].clientX-sx;
+        const dy=Math.abs(e.touches[0].clientY-sy);
+        if(dy>30){active=false;row.classList.remove('swipe-delete','swipe-select');return;}
+        if(dx>20){row.classList.add('swipe-delete');row.classList.remove('swipe-select');}
+        else if(dx<-20){row.classList.add('swipe-select');row.classList.remove('swipe-delete');}
+        else{row.classList.remove('swipe-delete','swipe-select');}
+      },{passive:true});
+      row.addEventListener('touchend',e=>{
+        row.classList.remove('swipe-delete','swipe-select');
+        if(!active)return;
+        active=false;
+        const dx=e.changedTouches[0].clientX-sx;
+        const dy=Math.abs(e.changedTouches[0].clientY-sy);
+        if(dy>30)return;
+        const id=row.dataset.id;
+        if(dx>80){
+          deleteTape(id);
+        }else if(dx<-80){
+          if(selectedIds.has(id))selectedIds.delete(id);
+          else selectedIds.add(id);
+          updateBulkBar();renderInv();
+        }
+      },{passive:true});
+    });
+  }
+  tbl.querySelectorAll('.th-sort').forEach(th=>th.addEventListener('click',e=>{
+    if(e.target.closest('.th-fp-btn,.th-fp,.col-rh'))return;
     const sel=document.getElementById('sort-sel');if(!sel)return;
     const cur=sel.value,a=th.dataset.sa,d=th.dataset.sd;
     sel.value=(cur===a&&d)?d:a;
     renderInv();
   }));
+  tbl.querySelectorAll('.th-fp-btn').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const pop=btn.closest('th').querySelector('.th-fp');if(!pop)return;
+      const wasOn=pop.style.display==='block';
+      tbl.querySelectorAll('.th-fp').forEach(p=>{p.style.display='none';});
+      if(!wasOn)pop.style.display='block';
+    });
+  });
+  tbl.querySelectorAll('.th-fp').forEach(pop=>pop.addEventListener('click',e=>e.stopPropagation()));
   tbl.querySelectorAll('.col-f').forEach(el=>{
     const fire=()=>{colFilters[el.dataset.cf]=el.value;renderInv();};
     el.addEventListener('input',fire);
@@ -137,34 +255,78 @@ function renderInv(){
     });
     sl.addEventListener('change',()=>renderInv());
   });
+  // Column resize
+  tbl.querySelectorAll('.col-rh').forEach(handle=>{
+    handle.addEventListener('mousedown',e=>{
+      e.preventDefault();e.stopPropagation();
+      _resizeTh=handle.closest('th');
+      _resizeX0=e.clientX;_resizeW0=_resizeTh.offsetWidth;
+      document.addEventListener('mousemove',_onColResize);
+      document.addEventListener('mouseup',_onColResizeEnd,{once:true});
+    });
+  });
   tbl.addEventListener('click',e=>{
-    if(e.target.closest('.col-f,.yr-slider,.th-sort'))return;
+    if(e.target.closest('.col-f,.yr-slider,.th-sort,.col-rh'))return;
+    const saveBtn=e.target.closest('.tbl-save');
+    if(saveBtn){
+      const id=saveBtn.dataset.id;
+      const t=inventory.find(x=>x.id===id);if(!t)return;
+      const pe=pendingEdits.get(id)||{};
+      if('tags' in pe)t.tags=pe.tags?pe.tags.split(',').map(s=>s.trim()).filter(Boolean):[];
+      const fields=['title','year','label','format','condition','status','value_low','value_high','notes'];
+      fields.forEach(f=>{if(f in pe&&f!=='tags')t[f]=pe[f];});
+      dbPut(t).then(()=>{
+        const row=list.querySelector(`tr[data-id="${id}"]`);
+        if(row){row.classList.add('just-saved');setTimeout(()=>row.classList.remove('just-saved'),1400);}
+      }).catch(e2=>toast('Save failed: '+e2.message,'err'));
+      editingId=null;pendingEdits.delete(id);renderInv();return;
+    }
+    const cancelBtn=e.target.closest('.tbl-cancel');
+    if(cancelBtn){editingId=null;pendingEdits.delete(cancelBtn.dataset.id);renderInv();return;}
+    const editBtn=e.target.closest('.tbl-edit');
+    if(editBtn){
+      if(window.innerWidth<=700){openDetail(editBtn.dataset.id);}
+      else{editingId=editBtn.dataset.id;pendingEdits.delete(editingId);renderInv();}
+      return;
+    }
     const del=e.target.closest('.tbl-del');
     if(del){deleteTape(del.dataset.id);return;}
     const open=e.target.closest('.tbl-open');
     if(open){openDetail(open.dataset.id);return;}
     const td=e.target.closest('.editable');
-    if(!td||td.querySelector('input'))return;
-    const t=inventory.find(x=>x.id===td.dataset.id);if(!t)return;
-    const field=td.dataset.field,isArr=field==='tags';
-    const cur=isArr?(t.tags||[]).join(', '):(t[field]||'');
-    const inp=document.createElement('input');inp.className='tbl-input';inp.value=cur;
-    td.textContent='';td.appendChild(inp);inp.focus();inp.select();
-    const save=async()=>{
-      const v=inp.value.trim();
-      if(isArr)t.tags=v?v.split(',').map(s=>s.trim()).filter(Boolean):[];else t[field]=v;
-      td.textContent=isArr?t.tags.join(', '):v;
-      dbPut(t).catch(e2=>toast('Save failed: '+e2.message,'err'));
-    };
-    inp.addEventListener('blur',save);
-    inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();inp.blur();}if(ev.key==='Escape')td.textContent=cur;});
+    if(td&&!editingId){openDetail(td.dataset.id);return;}
   });
+  // Track pending changes from edit-mode inputs
+  if(editingId){
+    tbl.querySelectorAll('.editing .tbl-input').forEach(inp=>{
+      inp.addEventListener('input',()=>{
+        const id=inp.dataset.id,field=inp.dataset.field;
+        if(!pendingEdits.has(id))pendingEdits.set(id,{});
+        pendingEdits.get(id)[field]=inp.value;
+        const t2=inventory.find(x=>x.id===id);
+        const orig=field==='tags'?(t2?.tags||[]).join(', '):(t2?.[field]||'');
+        const changed=inp.value!==orig;
+        inp.classList.toggle('pending',changed);
+        inp.closest('td')?.classList.toggle('tbl-td-pending',changed);
+      });
+    });
+  }
   tbl.addEventListener('change',async e=>{
     if(e.target.closest('.col-f'))return;
     const sel=e.target.closest('.tbl-sel');
     if(sel){
-      const t=inventory.find(x=>x.id===sel.dataset.id);if(!t)return;
-      const field=sel.dataset.field,val=sel.value;
+      const id=sel.dataset.id,field=sel.dataset.field,val=sel.value;
+      const t=inventory.find(x=>x.id===id);if(!t)return;
+      if(editingId===id){
+        // In edit mode: buffer in pendingEdits, don't save yet
+        if(!pendingEdits.has(id))pendingEdits.set(id,{});
+        const orig=t[field]||'';
+        if(val!==orig)pendingEdits.get(id)[field]=val;else delete pendingEdits.get(id)[field];
+        sel.classList.toggle('pending',val!==orig);
+        sel.closest('td')?.classList.toggle('tbl-td-pending',val!==orig);
+        return;
+      }
+      // Not editing: save immediately
       if(field==='format'&&val&&!FORMAT_LIST.includes(val)){FORMAT_LIST.splice(FORMAT_LIST.length-1,0,val);}
       t[field]=val;
       dbPut(t).catch(e2=>toast('Save failed: '+e2.message,'err'));
@@ -205,6 +367,11 @@ const updateCount=()=>{
   document.getElementById('count-badge').innerHTML=`📼 ${n}${valStr}`;
   const mob=document.getElementById('count-badge-mob');
   if(mob)mob.innerHTML=`📼 ${n}`;
+  // Show/hide AI buttons based on whether collection has items
+  const fillBtn=document.getElementById('btn-fill-data');
+  const checkBtn=document.getElementById('btn-revalidate');
+  if(fillBtn)fillBtn.style.display=n?'':'none';
+  if(checkBtn)checkBtn.style.display=n?'':'none';
 };
 
 function updateBulkBar(){
@@ -213,6 +380,16 @@ function updateBulkBar(){
   bar.classList.toggle('on',n>0);
   document.getElementById('bulk-count').textContent=n>0?`${n} selected`:'';
   if(!n)document.getElementById('bulk-status-sel').value='';
+  // Mobile: bulk bar replaces the collect subheader when selection is active
+  if(window.innerWidth<=700){
+    const subhdr=document.getElementById('collect-subhdr');
+    if(subhdr)subhdr.style.display=n>0?'none':'';
+  }
+  // Update AI button labels to indicate scope when selection is active
+  const fillBtn=document.getElementById('btn-fill-data');
+  const checkBtn=document.getElementById('btn-revalidate');
+  if(fillBtn)fillBtn.textContent=n>0?`⚡ Fill (${n})`:'⚡ Fill';
+  if(checkBtn)checkBtn.textContent=n>0?`🦙 Check (${n})`:'🦙 Check';
 }
 document.getElementById('bulk-apply').addEventListener('click',async()=>{
   const status=document.getElementById('bulk-status-sel').value;
@@ -237,6 +414,13 @@ document.getElementById('bulk-del').addEventListener('click',async()=>{
 document.getElementById('bulk-clear').addEventListener('click',()=>{selectedIds.clear();renderInv();updateBulkBar();});
 
 document.getElementById('search')?.addEventListener('input',()=>renderInv());
+document.getElementById('btn-search')?.addEventListener('click',()=>{document.getElementById('search')?.focus();renderInv();});
+
+
+// Close filter popovers when clicking outside the table
+document.addEventListener('click',()=>{
+  document.querySelectorAll('.tape-table .th-fp[style*="display:block"]').forEach(p=>{p.style.display='none';});
+});
 const savedSort=localStorage.getItem('vhs-sort');
 if(savedSort)document.getElementById('sort-sel').value=savedSort;
 document.getElementById('sort-sel')?.addEventListener('change',()=>{
@@ -245,8 +429,11 @@ document.getElementById('sort-sel')?.addEventListener('change',()=>{
 });
 
 document.getElementById('btn-wall').addEventListener('click',()=>{
-  wallViewOn=!wallViewOn;
-  document.getElementById('btn-wall').classList.toggle('active',wallViewOn);
+  wallMode=(wallMode+1)%4;
+  const btn=document.getElementById('btn-wall');
+  const labels=['⊞ Wall','⊞ Cover','☰ Stacks','▮ StacksUp'];
+  btn.textContent=labels[wallMode];
+  btn.classList.toggle('active',wallMode>0);
   renderInv();
 });
 
@@ -262,7 +449,7 @@ function openDetail(id){
   document.getElementById('d-barcode').value=t.barcode||'';
   document.getElementById('d-value-low').value=t.value_low||'';
   document.getElementById('d-value-high').value=t.value_high||'';
-  document.getElementById('d-cond').value=t.condition||'great';
+  document.getElementById('d-cond').value=t.condition||'good';
   document.getElementById('d-status').value=t.status||'in_collection';
   document.getElementById('d-sold-price').value=t.sold_price||'';
   document.getElementById('d-notes').value=t.condition_notes||'';
@@ -463,6 +650,10 @@ document.getElementById('d-lookup').addEventListener('click',async()=>{
   if(meta.format)document.getElementById('d-format').value=meta.format;
   if(meta.value_low)document.getElementById('d-value-low').value=meta.value_low;
   if(meta.value_high)document.getElementById('d-value-high').value=meta.value_high;
+  // Store imdb_id on the in-progress edit so it's saved with the tape
+  if(meta.imdb_id&&selectedId){
+    const t=inventory.find(x=>x.id===selectedId);if(t&&!t.imdb_id)t.imdb_id=meta.imdb_id;
+  }
 });
 document.getElementById('d-save').addEventListener('click',async()=>{
   const titleVal=document.getElementById('d-title').value.trim();
@@ -525,7 +716,8 @@ document.getElementById('del-ok').addEventListener('click',async()=>{
 
 // ── FILL DATA ─────────────────────────────────────────────────────────────
 document.getElementById('btn-fill-data').addEventListener('click',async()=>{
-  const targets=inventory.filter(t=>t.title&&(!t.year||(!t.value_low&&!t.value_high)));
+  const pool=selectedIds.size>0?inventory.filter(t=>selectedIds.has(t.id)):inventory;
+  const targets=pool.filter(t=>t.title&&(!t.year||(!t.value_low&&!t.value_high)));
   if(!targets.length){toast('All tapes already have complete data','');return;}
   const btn=document.getElementById('btn-fill-data');
   btn.disabled=true;
@@ -533,37 +725,45 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
   for(const t of targets){
     btn.textContent=`⚡ ${done}/${targets.length}`;
     const meta=await lookupMetadata(t.title);
-    if(!meta){continue;}
-    let changed=false;
-    if(meta.year&&!t.year){t.year=meta.year;changed=true;}
-    if(meta.label&&!t.label){t.label=meta.label;changed=true;}
-    if(meta.value_low&&!t.value_low){t.value_low=meta.value_low;changed=true;}
-    if(meta.value_high&&!t.value_high){t.value_high=meta.value_high;changed=true;}
-    if(meta.format&&!t.format){t.format=meta.format;changed=true;}
-    if(changed){await dbPut(t);done++;}
+    if(!meta)continue;
+    const proposed={tape_id:t.id,title:t.title};
+    let hasChanges=false;
+    if(meta.year&&!t.year){proposed.year=meta.year;hasChanges=true;}
+    if(meta.label&&!t.label){proposed.label=meta.label;hasChanges=true;}
+    if(meta.value_low&&!t.value_low){proposed.value_low=meta.value_low;hasChanges=true;}
+    if(meta.value_high&&!t.value_high){proposed.value_high=meta.value_high;hasChanges=true;}
+    if(meta.format&&!t.format){proposed.format=meta.format;hasChanges=true;}
+    if(meta.imdb_id&&!t.imdb_id){proposed.imdb_id=meta.imdb_id;hasChanges=true;}
+    if(hasChanges){
+      try{
+        await apiReq('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'fill',data:proposed})});
+        done++;
+      }catch(e){console.warn('Fill queue failed:',t.id,e);}
+    }
   }
-  btn.disabled=false;btn.textContent='⚡ Fill Data';
-  renderInv();updateCount();
-  toast(`Filled data for ${done} of ${targets.length} tape${targets.length!==1?'s':''}`,done?'ok':'',4000);
+  btn.disabled=false;btn.textContent='⚡ Fill';
+  if(done){
+    toast(`${done} proposal${done!==1?'s':''} queued — switching to Review`,'ok',4000);
+    setTimeout(()=>showRevPanel(),300);
+  }else{
+    toast(`No new data found for ${targets.length} tape${targets.length!==1?'s':''}`,'',4000);
+  }
 });
 document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModal);
+document.getElementById('bulk-fill')?.addEventListener('click',()=>document.getElementById('btn-fill-data').click());
+document.getElementById('bulk-check')?.addEventListener('click',()=>document.getElementById('btn-revalidate').click());
 
 // ── RE-VALIDATE DIFF ─────────────────────────────────────────────────────
 async function runRevalidate(){
-  const targets=inventory.filter(t=>t.photo_thumbnail);
-  if(!targets.length){toast('No tapes with photos to re-validate','');return;}
+  const pool=selectedIds.size>0?inventory.filter(t=>selectedIds.has(t.id)):inventory;
+  const targets=pool.filter(t=>t.photo_thumbnail);
+  if(!targets.length){toast('No tapes with photos to check','');return;}
   const modal=document.getElementById('m-revalidate');
   const statusEl=document.getElementById('rv-status');
   const progBar=document.getElementById('rv-prog-bar');
   const progWrap=document.getElementById('rv-progress');
-  const diffList=document.getElementById('rv-diff-list');
-  const btnAccAll=document.getElementById('rv-accept-all');
-  const btnDenyAll=document.getElementById('rv-deny-all');
-  const btnApply=document.getElementById('rv-apply-selected');
   statusEl.textContent=`Queuing ${targets.length} photo${targets.length>1?'s':''} for analysis…`;
   progWrap.style.display='';progBar.style.width='0%';
-  diffList.innerHTML='';
-  btnAccAll.style.display='none';btnDenyAll.style.display='none';btnApply.style.display='none';
   modal.style.display='flex';
   const REVAL_FIELDS=['title','year','label','format'];
 
@@ -603,49 +803,32 @@ async function runRevalidate(){
     apiReq(`/api/jobs/${encodeURIComponent(jobId)}`,{method:'DELETE'}).catch(()=>{});
   }
 
-  const diffs=[];
+  progBar.style.width='100%';
+  let queued=0;
   for(const {jobId,tape} of batch){
     const aiResults=results.get(jobId)||[];
     if(!aiResults.length)continue;
     const r=aiResults[0];
+    const proposed={tape_id:tape.id,title:r.title||tape.title};
+    let hasDiff=false;
     for(const f of REVAL_FIELDS){
       const oldVal=(tape[f]||'').trim();
       const newVal=(r[f]||'').trim();
-      if(newVal&&newVal!==oldVal)diffs.push({tape,field:f,oldVal,newVal,id:`rv-${diffs.length}`});
+      if(newVal&&newVal!==oldVal){proposed[f]=newVal;hasDiff=true;}
     }
+    if(!hasDiff)continue;
+    try{
+      await apiReq('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'revalidate',data:proposed,thumb:tape.photo_thumbnail||null})});
+      queued++;
+    }catch(e){console.warn('Revalidate queue failed:',tape.id,e);}
   }
-
-  progBar.style.width='100%';
-  if(!diffs.length){
+  if(!queued){
     statusEl.textContent='✓ All tapes match their photos — no differences found.';
     progWrap.style.display='none';return;
   }
-  statusEl.textContent=`Found ${diffs.length} difference${diffs.length>1?'s':''} — review below:`;
+  statusEl.textContent=`${queued} difference${queued>1?'s':''} queued — switching to Review…`;
   progWrap.style.display='none';
-  diffList.innerHTML=diffs.map(d=>`
-    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:9px 12px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <input type="checkbox" id="${d.id}" checked style="width:15px;height:15px;accent-color:var(--accent);flex-shrink:0">
-        <label for="${d.id}" style="font-size:12px;font-weight:700;color:var(--text);cursor:pointer;flex:1">${esc(d.tape.title||d.tape.id)}</label>
-        <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">${esc(d.field)}</span>
-      </div>
-      <div style="display:flex;gap:8px;font-size:12px;align-items:center;flex-wrap:wrap">
-        <span style="color:var(--red);background:rgba(232,64,64,.1);border:1px solid rgba(232,64,64,.2);padding:3px 8px;border-radius:4px;flex:1;min-width:80px;word-break:break-word">${esc(d.oldVal||'(empty)')}</span>
-        <span style="color:var(--text3)">→</span>
-        <span style="color:var(--green);background:rgba(61,187,61,.1);border:1px solid rgba(61,187,61,.2);padding:3px 8px;border-radius:4px;flex:1;min-width:80px;word-break:break-word">${esc(d.newVal)}</span>
-      </div>
-    </div>`).join('');
-  btnAccAll.style.display='';btnDenyAll.style.display='';btnApply.style.display='';
-  btnDenyAll.onclick=()=>{diffList.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);};
-  btnAccAll.onclick=()=>{diffList.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=true);};
-  btnApply.onclick=async()=>{
-    let applied=0;
-    for(const d of diffs.filter(d=>document.getElementById(d.id)?.checked)){
-      d.tape[d.field]=d.newVal;await dbPut(d.tape);applied++;
-    }
-    if(applied){renderInv();updateCount();toast(`Applied ${applied} update${applied>1?'s':''}`, 'ok');}
-    modal.style.display='none';
-  };
+  setTimeout(()=>{modal.style.display='none';showRevPanel();},1200);
 }
 document.getElementById('btn-revalidate').addEventListener('click',runRevalidate);
 document.getElementById('rv-cancel').addEventListener('click',()=>{document.getElementById('m-revalidate').style.display='none';});
