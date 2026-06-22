@@ -57,6 +57,8 @@ btnCap.addEventListener('click',capture);
 
 // ── CAPTURE QUEUE ─────────────────────────────────────────────────────────
 const queueStrip=document.getElementById('queue-strip');
+// Prevent any click inside the staging strip from bubbling up to vid-wrap (which would trigger capture)
+queueStrip.addEventListener('click',e=>e.stopPropagation());
 
 function renderQueue(){
   if(!captureQueue.length){queueStrip.classList.remove('on');queueStrip.innerHTML='';return;}
@@ -65,15 +67,18 @@ function renderQueue(){
   // Buttons pinned left; images newest-first (index n-1) scrolling rightward
   const imgs=[...captureQueue].reverse().map((item,displayIdx)=>{
     const origIdx=n-1-displayIdx;
-    return `<div class="q-item"><img src="${item.thumb}" alt=""><button class="q-rm" data-i="${origIdx}">×</button></div>`;
+    const preview=item.thumb
+      ?`<img src="${item.thumb}" alt="">`
+      :`<span style="font-size:20px;width:60px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:4px;border:1px solid var(--border2);background:var(--bg3);pointer-events:none;flex-shrink:0">📼</span>`;
+    return `<div class="q-item">${preview}<button class="q-rm" data-i="${origIdx}">×</button></div>`;
   }).join('');
   queueStrip.innerHTML=
     `<div class="q-actions"><button id="btn-process-q">⬤ Analyze ${n}</button>${n>1?`<button id="btn-clear-q">Clear</button>`:''}<span class="q-count">Space=stage · Enter=analyze</span></div><div class="q-imgs">${imgs}</div>`;
   queueStrip.querySelectorAll('.q-rm').forEach(btn=>btn.addEventListener('click',e=>{
     e.stopPropagation();captureQueue.splice(+btn.dataset.i,1);renderQueue();
   }));
-  document.getElementById('btn-process-q')?.addEventListener('click',processQueue);
-  document.getElementById('btn-clear-q')?.addEventListener('click',()=>{captureQueue=[];renderQueue();});
+  document.getElementById('btn-process-q')?.addEventListener('click',e=>{e.stopPropagation();processQueue();});
+  document.getElementById('btn-clear-q')?.addEventListener('click',e=>{e.stopPropagation();captureQueue=[];renderQueue();});
 }
 
 async function processQueue(){
@@ -81,31 +86,67 @@ async function processQueue(){
   const queue=[...captureQueue];
   captureQueue=[];renderQueue();
 
+  const barcodeItems=queue.filter(item=>item.barcode);
+  const imageItems=queue.filter(item=>!item.barcode);
+
+  // Process barcode items: lookup metadata and add to review as processing cards
+  for(const item of barcodeItems){
+    const uid=++uidSeq;
+    cards.push({uid,data:{barcode:item.barcode,format:'VHS',condition:'good',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true,jobId:null,processingState:'processing',failReason:''});
+    lookupBarcode(item.barcode).then(async meta=>{
+      const card=cards.find(c=>c.uid===uid);
+      if(card&&meta&&!card.data.title){
+        card.data.title=meta.title;
+        if(meta.label)card.data.label=meta.label;
+        if(meta.year)card.data.year=meta.year;
+        toast(`Barcode matched: ${meta.title}`,'ok');
+        const enriched=await lookupMetadata(meta.title).catch(()=>null);
+        if(enriched){
+          const c2=cards.find(c=>c.uid===uid);if(!c2)return;
+          if(enriched.year&&!c2.data.year)c2.data.year=enriched.year;
+          if(enriched.label&&!c2.data.label)c2.data.label=enriched.label;
+          if(enriched.format)c2.data.format=enriched.format;
+          if(enriched.value_low)c2.data.value_low=enriched.value_low;
+          if(enriched.value_high)c2.data.value_high=enriched.value_high;
+        }
+      }else if(card&&!meta){
+        toast('No barcode match — enter title manually','warn',3000);
+      }
+      const c3=cards.find(c=>c.uid===uid);
+      if(c3){c3.processingState='ready';renderCards();}
+    }).catch(()=>{
+      const c=cards.find(c=>c.uid===uid);
+      if(c){c.processingState='ready';renderCards();}
+    });
+  }
+  if(barcodeItems.length){showRevPanel();renderCards();}
+
+  if(!imageItems.length)return;
+
   if(apiKey){
     showRevPanel();setRevLoading(true);
-    for(let i=0;i<queue.length;i++){
-      setRevMsg(`Analyzing image ${i+1} of ${queue.length}…`);
+    for(let i=0;i<imageItems.length;i++){
+      setRevMsg(`Analyzing image ${i+1} of ${imageItems.length}…`);
       try{
-        const results=await callAI(queue[i].base64);
+        const results=await callAI(imageItems[i].base64);
         const wasEmpty=!cards.length;
-        results.forEach((d,j)=>addCard({...d,condition:d.condition||'good',status:'in_collection',notes:''},null,queue[i].thumb,wasEmpty&&i===0&&j===0));
+        results.forEach((d,j)=>addCard({...d,condition:d.condition||'good',status:'in_collection',notes:''},null,imageItems[i].thumb,wasEmpty&&i===0&&j===0));
         if(results.length)renderCards();
       }catch(e){console.warn('Queue process (client):',e);}
     }
     setRevLoading(false);
-    if(!cards.length)showRevErr("Couldn't identify any tapes — try adjusting the crop box or improve lighting.");
+    if(!cards.length&&!barcodeItems.length)showRevErr("Couldn't identify any tapes — try adjusting the crop box or improve lighting.");
     return;
   }
 
   let submitted=0;
-  for(const item of queue){
+  for(const item of imageItems){
     try{
       const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({image:item.base64,thumb:item.thumb})});
       if(r.ok){
         const {id:uploadJobId}=await r.json();
-        // First submitted card is processing; rest are queued until the server picks them up
-        const card={uid:++uidSeq,data:{format:'VHS',condition:'good',status:'in_collection',notes:''},source:null,thumb:item.thumb,expanded:false,jobId:uploadJobId,srcJobId:uploadJobId,processingState:submitted===0?'processing':'queued',failReason:'',inflightSince:new Date().toISOString()};
+        const card={uid:++uidSeq,data:{format:'VHS',condition:'good',status:'in_collection',notes:''},source:null,thumb:item.thumb,expanded:false,jobId:uploadJobId,srcJobId:uploadJobId,processingState:submitted===0&&!barcodeItems.length?'processing':'queued',failReason:'',inflightSince:new Date().toISOString()};
         cards.push(card);
         submitted++;
       }
@@ -200,6 +241,6 @@ async function updateQueueStatus(){
     if(retrying)parts.push(`<span class="qs-badge qs-pending">↺ ${retrying} retrying</span>`);
     if(newReady)parts.push(`<span class="qs-badge" style="background:rgba(61,187,61,.15);color:var(--green);border:1px solid rgba(61,187,61,.3);cursor:pointer" title="Click to open review panel" id="qs-ready-btn">✓ ${newReady} ready</span>`);
     queueStatusEl.innerHTML=`<span style="font-size:10px;color:var(--text3)">Queue:</span>${parts.join('')}`;
-    document.getElementById('qs-ready-btn')?.addEventListener('click',()=>{pollReviewItems();showRevPanel();});
+    document.getElementById('qs-ready-btn')?.addEventListener('click',()=>{pollReviewItems();showRevPanel();setActiveTab('review');});
   }catch{}finally{queueBusy=false;}
 }

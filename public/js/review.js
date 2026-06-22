@@ -55,7 +55,7 @@ function _claimJob(card){
     fetch(`/api/review/${encodeURIComponent(id)}`,{method:'DELETE'}).catch(()=>{});
   }
 }
-function showRevPanel(){revPanel.classList.add('on');revErr.style.display='none';setActiveTab('review');}
+function showRevPanel(){revPanel.classList.add('on');revErr.style.display='none';updateTabBadge?.();}
 function hideRevPanel(){
   // Only claim (delete) ready/failed review items; leave processing jobs running
   cards.forEach(c=>{if(c.processingState!=='processing')_claimJob(c);});

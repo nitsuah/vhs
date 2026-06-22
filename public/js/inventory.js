@@ -743,8 +743,8 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
   }
   btn.disabled=false;btn.textContent='⚡ Fill';
   if(done){
-    toast(`${done} proposal${done!==1?'s':''} queued — switching to Review`,'ok',4000);
-    setTimeout(()=>showRevPanel(),300);
+    toast(`${done} proposal${done!==1?'s':''} queued — check the Review tab`,'ok',4000);
+    showRevPanel();
   }else{
     toast(`No new data found for ${targets.length} tape${targets.length!==1?'s':''}`,'',4000);
   }
@@ -826,7 +826,7 @@ async function runRevalidate(){
     statusEl.textContent='✓ All tapes match their photos — no differences found.';
     progWrap.style.display='none';return;
   }
-  statusEl.textContent=`${queued} difference${queued>1?'s':''} queued — switching to Review…`;
+  statusEl.textContent=`${queued} difference${queued>1?'s':''} queued — check the Review tab`;
   progWrap.style.display='none';
   setTimeout(()=>{modal.style.display='none';showRevPanel();},1200);
 }
