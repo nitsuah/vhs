@@ -84,6 +84,23 @@ function playAkiraDing(){
   }catch{}
 }
 
+function buzz(){
+  try{
+    const ctx=new AudioContext(),g=ctx.createGain();
+    g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.4,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.35);
+    [180,220,270].forEach(freq=>{
+      const osc=ctx.createOscillator();
+      osc.type='sawtooth';
+      osc.frequency.value=freq;
+      osc.connect(g);
+      osc.start();osc.stop(ctx.currentTime+0.35);
+    });
+    setTimeout(()=>ctx.close(),600);
+  }catch{}
+}
+
 // ── IMAGE UTILITIES ───────────────────────────────────────────────────────
 function fileToB64(f){
   return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(',')[1]);fr.onerror=j;fr.readAsDataURL(f);});

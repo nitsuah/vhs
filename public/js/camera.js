@@ -258,12 +258,18 @@ function _fireBarcodeResult(code){
   const now=Date.now();
   if(code===lastCode.val&&now-lastCode.t<4000)return;
   lastCode={val:code,t:now};
-  beep();flashBcTarget();
+  flashBcTarget();
   const bcLabelEl=document.getElementById('bc-label');
+  const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
+  if(bcDup){
+    buzz();
+    if(bcLabelEl)bcLabelEl.textContent=`✗ ${code}`;
+    setTimeout(()=>{if(bcLabelEl)bcLabelEl.textContent='Hold barcode in box — or tap 📷';},3500);
+    toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);return;
+  }
+  beep();
   if(bcLabelEl)bcLabelEl.textContent=`✓ ${code}`;
   setTimeout(()=>{if(bcLabelEl)bcLabelEl.textContent='Hold barcode in box — or tap 📷';},3500);
-  const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
-  if(bcDup){toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);return;}
   // Skip queue — immediately open a review card and run lookup in background.
   // Guard against scanning the same barcode twice while lookup is in flight.
   if(Array.isArray(cards)&&cards.some(c=>c.data&&c.data.barcode===code))return;
@@ -373,7 +379,7 @@ async function snapAndDecode(){
     }
   }
   if(code){_fireBarcodeResult(code);}
-  else{toast('No barcode detected — try adjusting zoom or lighting','err');}
+  else{buzz();toast('No barcode detected — try adjusting zoom or lighting','err');}
 }
 document.getElementById('btn-torch').addEventListener('click',toggleTorch);
 btnBarcode.addEventListener('click',toggleBarcodeMode);
