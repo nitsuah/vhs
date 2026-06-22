@@ -109,11 +109,25 @@ function ensureCerts() {
 }
 
 // ── Ollama server-side caller ─────────────────────────────────────────────────
-const SCAN_PROMPT = `You are reading VHS tape labels from a photo. The photo may show one or more tapes.
-VHS spines are the narrow edges of cassettes — title text is often printed sideways (rotated 90°).
-For each tape, read: title (required), year (4 digits if visible), label (studio name if visible), format (almost always "VHS").
-Output ONLY a JSON array: [{"title":"Title Here","year":"1984","label":"Orion","format":"VHS"}]
-Include every tape you can make out, even partial readings. Return [] if truly unreadable.`;
+const SCAN_PROMPT = `You are cataloging VHS tapes from a photo for a collection database.
+
+First, determine what the image shows:
+- SPINE view: narrow vertical tape edge, text printed sideways/rotated 90° along the edge
+- COVER view: full box face with artwork and prominently placed title text
+
+For each tape visible, extract:
+- title: the main title text (REQUIRED — your best reading even if partially obscured)
+- year: 4-digit release year only if clearly visible (omit if uncertain)
+- label: studio or distributor name only if clearly readable (omit if uncertain)
+- format: almost always "VHS"
+- confidence: "high" if clearly readable, "medium" if partially legible, "low" if a best guess
+
+Output ONLY a JSON array — no other text:
+[{"title":"Title Here","year":"1984","label":"Orion","format":"VHS","confidence":"high"}]
+
+Rules: SPINE = mentally rotate 90° to read vertical text. COVER = largest/most prominent text is the title.
+Do NOT hallucinate titles — only output text you can actually see in the image.
+A "low" confidence entry is better than omitting it. Return [] only if truly unreadable.`;
 
 function parseJsonArray(txt) {
   const m = (txt || '').trim().match(/\[[\s\S]*\]/);
@@ -160,6 +174,20 @@ function jobId() {
 function reviewItemId() {
   return `rev_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
+function analyticsId() {
+  return `anl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function logScanAnalytics(pool, { jobId: jid, aiModel, suggestions, omdbVerified = false }) {
+  try {
+    await pool.query(
+      'INSERT INTO scan_analytics(id,captured_at,job_id,ai_model,suggestions,omdb_verified,action) VALUES($1,$2,$3,$4,$5,$6,$7)',
+      [analyticsId(), new Date().toISOString(), jid, aiModel, JSON.stringify(suggestions), omdbVerified, 'pending']
+    );
+  } catch (e) {
+    console.warn('Analytics log error:', e.message);
+  }
+}
 
 app.post('/api/jobs', async (req, res) => {
   const { image, thumb } = req.body;
@@ -192,6 +220,22 @@ app.get('/api/review/pending', async (_req, res) => {
 app.delete('/api/review/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM review_items WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Record final outcome (accepted/corrected/discarded) for scan analytics
+app.post('/api/analytics/outcome', async (req, res) => {
+  const { job_id, action, final_title, final_year, final_label, imdb_id } = req.body;
+  if (!job_id || !action) return res.status(400).json({ error: 'job_id and action required' });
+  try {
+    await pool.query(
+      `UPDATE scan_analytics SET action=$1, final_title=$2, final_year=$3, final_label=$4, imdb_id=$5
+       WHERE job_id=$6`,
+      [action, final_title || null, final_year || null, final_label || null, imdb_id || null, job_id]
+    );
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -437,17 +481,43 @@ async function processJobs() {
     console.log(`⟳ Ollama: sending job ${job.id} to ${OLLAMA} (model: ${OLLAMA_MODEL})`);
 
     try {
+      // Guard against duplicate review_items if a stuck-job reset caused double-processing
+      const { rows: existingItems } = await pool.query(
+        'SELECT id FROM review_items WHERE job_id=$1 LIMIT 1', [job.id]
+      );
+      if (existingItems.length) {
+        await pool.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
+        console.log(`↷ Job ${job.id}: review_item already exists — skipping duplicate`);
+        return;
+      }
+
       const result = await callOllamaServer(job.image_data);
       const ts = new Date().toISOString();
       console.log(`✓ Ollama: job ${job.id} → ${result.length} tape(s): ${result.map(r=>r.title||'?').join(', ')}`);
+
       if (!result.length) {
-        // No tapes detected — surface as a failed review_item so user is notified
+        // Honest no-detection — do NOT retry, surface immediately so user can re-scan
         await pool.query(
           'INSERT INTO review_items(id,job_id,data,thumb,source,status,fail_reason,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
-          [reviewItemId(), job.id, '{}', job.thumb, 'scan', 'failed', 'No tapes detected in image', ts]
+          [reviewItemId(), job.id, '{}', job.thumb, 'scan', 'failed', 'No tapes detected — try better lighting or adjust the crop box', ts]
         );
+        await logScanAnalytics(pool, { jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: [] });
       } else {
-        for (const item of result) {
+        // Enrich each detected tape with OMDb if available (verifies title + gets imdb_id)
+        const enriched = await Promise.all(result.map(async item => {
+          if (!item.title || !OMDB_API_KEY) return item;
+          const omdb = await callOmdb({ title: item.title }, OMDB_API_KEY).catch(() => null);
+          if (omdb?.imdb_id) {
+            console.log(`  OMDb verified "${item.title}" → "${omdb.title}" (${omdb.imdb_id})`);
+            return { ...item, title: omdb.title || item.title, year: omdb.year || item.year, imdb_id: omdb.imdb_id };
+          }
+          return item;
+        }));
+
+        const omdbVerified = enriched.some(i => i.imdb_id);
+        await logScanAnalytics(pool, { jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: enriched, omdbVerified });
+
+        for (const item of enriched) {
           await pool.query(
             'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
             [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', ts]

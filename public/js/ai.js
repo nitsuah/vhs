@@ -44,21 +44,47 @@ function preprocessForAI(base64){
   });
 }
 
+// Verify AI-detected titles against OMDb to correct spelling and add imdb_id.
+// Only runs when omdbKey is set; skips low-confidence entries to avoid false matches.
+async function verifyWithOmdb(results){
+  if(!omdbKey||!results.length)return results;
+  return Promise.all(results.map(async item=>{
+    if(!item.title||item.confidence==='low')return item;
+    try{
+      const r=await fetch(`/api/lookup?title=${encodeURIComponent(item.title)}`,{
+        signal:AbortSignal.timeout(6000),
+        headers:{'x-omdb-key':omdbKey}
+      });
+      if(r.ok){
+        const d=await r.json();
+        if(d&&d.imdb_id)return{...item,year:d.year||item.year,imdb_id:d.imdb_id,label:d.label||item.label};
+      }
+    }catch{}
+    return item;
+  }));
+}
+
 async function callAI(base64){
   const b64=base64?await preprocessForAI(base64):base64;
+  let results=[];
   if(apiKey&&b64){
-    try{setRevMsg('Analyzing with Claude…');return await callClaude(b64);}
+    try{setRevMsg('Analyzing with Claude…');results=await callClaude(b64);}
     catch(e){console.warn('Claude failed:',e.message);}
   }
-  if(b64){
+  if(!results.length&&b64){
     const ok=await pingOllama();
     if(ok){
-      try{setRevMsg(`Analyzing with ${ollamaModel}…`);return await callOllama(b64);}
+      try{setRevMsg(`Analyzing with ${ollamaModel}…`);results=await callOllama(b64);}
       catch(e){console.warn('Ollama failed:',e.message);}
     }
   }
-  setRevMsg('No AI available');
-  return [];
+  if(!results.length){setRevMsg('No AI available');return[];}
+  // Enrich results with OMDb verification when key is configured
+  if(omdbKey&&results.length){
+    setRevMsg('Verifying titles…');
+    results=await verifyWithOmdb(results);
+  }
+  return results;
 }
 async function callClaude(base64){
   const res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -75,7 +101,7 @@ async function callClaude(base64){
 async function callOllama(base64){
   const res=await fetch(`${ollamaUrl}/api/generate`,{
     method:'POST',headers:{'content-type':'application/json'},
-    body:JSON.stringify({model:ollamaModel,prompt:fastMode?VISION_PROMPT_FAST:VISION_PROMPT_FULL,images:[base64],stream:false,options:{num_predict:fastMode?60:150}})
+    body:JSON.stringify({model:ollamaModel,prompt:fastMode?VISION_PROMPT_FAST:VISION_PROMPT_FULL,images:[base64],stream:false,options:{num_predict:fastMode?100:256}})
   });
   if(!res.ok)throw new Error(`Ollama ${res.status}`);
   const d=await res.json();return parseJson(d.response||'[]');

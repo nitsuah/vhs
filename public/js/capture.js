@@ -81,6 +81,44 @@ function renderQueue(){
   document.getElementById('btn-clear-q')?.addEventListener('click',e=>{e.stopPropagation();captureQueue=[];renderQueue();});
 }
 
+// Called directly by camera.js when a barcode is detected — bypasses the staging queue
+// so barcode lookups never block or compete with Ollama image analysis jobs.
+function addBarcodeCard(code){
+  const uid=++uidSeq;
+  const card={uid,data:{barcode:code,format:'VHS',condition:'good',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true,jobId:null,processingState:'processing',failReason:''};
+  cards.push(card);
+  showRevPanel();
+  renderCards();
+  lookupBarcode(code).then(async meta=>{
+    const c=cards.find(c=>c.uid===uid);if(!c)return;
+    if(meta&&meta.title&&!c.data.title){
+      c.data.title=meta.title;
+      if(meta.label)c.data.label=meta.label;
+      if(meta.year)c.data.year=meta.year;
+      if(meta.imdb_id)c.data.imdb_id=meta.imdb_id;
+      toast(`Barcode matched: ${meta.title}`,'ok');
+      // Enrich further with metadata (value range, format confirmation)
+      const enriched=await lookupMetadata(meta.title).catch(()=>null);
+      const c2=cards.find(c=>c.uid===uid);if(!c2)return;
+      if(enriched){
+        if(enriched.year&&!c2.data.year)c2.data.year=enriched.year;
+        if(enriched.label&&!c2.data.label)c2.data.label=enriched.label;
+        if(enriched.format)c2.data.format=enriched.format;
+        if(enriched.value_low)c2.data.value_low=enriched.value_low;
+        if(enriched.value_high)c2.data.value_high=enriched.value_high;
+        if(enriched.imdb_id&&!c2.data.imdb_id)c2.data.imdb_id=enriched.imdb_id;
+      }
+    }else if(!meta){
+      toast(`No match for ${code} — enter title manually`,'warn',4000);
+    }
+    const c3=cards.find(c=>c.uid===uid);
+    if(c3){c3.processingState='ready';renderCards();}
+  }).catch(()=>{
+    const c=cards.find(c=>c.uid===uid);
+    if(c){c.processingState='ready';renderCards();}
+  });
+}
+
 async function processQueue(){
   if(!captureQueue.length)return;
   const queue=[...captureQueue];
@@ -172,7 +210,9 @@ async function pollReviewItems(){
     if(!Array.isArray(items))return;
     let changed=0;
     for(const item of items){
-      if(seenJobIds.has(item.id))continue;
+      // Skip if we've seen this review_item OR its parent upload_job (handles race where
+      // user confirmed a queued card but server already finished before the DELETE arrived)
+      if(seenJobIds.has(item.id)||seenJobIds.has(item.job_id))continue;
       // Check if a processing card from the same upload_job already exists → transition it
       const existing=cards.find(c=>c.srcJobId===item.job_id&&c.processingState==='processing');
       if(!existing&&cards.some(c=>c.jobId===item.id))continue; // already shown

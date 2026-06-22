@@ -264,11 +264,11 @@ function _fireBarcodeResult(code){
   setTimeout(()=>{if(bcLabelEl)bcLabelEl.textContent='Hold barcode in box — or tap 📷';},3500);
   const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
   if(bcDup){toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);return;}
-  if(captureQueue.some(i=>i.barcode===code))return;
-  // Stage to capture queue — user can scan multiple barcodes then press Analyze
-  captureQueue.push({barcode:code});
-  renderQueue();
-  toast(`Barcode staged: ${code}`,'ok',2500);
+  // Skip queue — immediately open a review card and run lookup in background.
+  // Guard against scanning the same barcode twice while lookup is in flight.
+  if(Array.isArray(cards)&&cards.some(c=>c.data&&c.data.barcode===code))return;
+  if(typeof addBarcodeCard==='function')addBarcodeCard(code);
+  else{captureQueue.push({barcode:code});renderQueue();toast(`Barcode staged: ${code}`,'ok',2500);}
 }
 
 function startBarcodeLoop(){

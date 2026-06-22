@@ -1,15 +1,35 @@
 // ── PROMPTS ──────────────────────────────────────────────────────────────
-const VISION_PROMPT_FAST = `Read all text visible on VHS tape spines or labels in this image.
-A VHS spine is the narrow edge of the cassette. The printed title text is often rotated 90 degrees sideways — tilt your head or rotate the image mentally to read it.
-Focus only on reading the actual text characters. Return your best reading even if partially obscured.
-Output ONLY a JSON array: [{"title":"exact title text"}]
-One object per distinct tape. Return [] only if you truly cannot make out any text.`;
+const VISION_PROMPT_FAST = `You are reading VHS tape titles from a photo for a cataloging system.
 
-const VISION_PROMPT_FULL = `Read all text on VHS tape spines and labels in this image.
-VHS spines are the narrow edges of cassettes — title text is often printed sideways (rotated 90°).
-For each tape, read: title (the main text, required), year (4 digits if visible), label (studio name if visible), format (almost always "VHS").
-Output ONLY a JSON array: [{"title":"Title Here","year":"1984","label":"Orion","format":"VHS"}]
-Include every tape you can make out, even partial readings. Return [] only if truly unreadable.`;
+The image may show:
+- SPINE: narrow tape edge with text printed sideways/rotated 90° — mentally rotate to read vertical text
+- COVER: full box face with artwork — the title is the largest/most prominent text
+
+Output ONLY a JSON array:
+[{"title":"exact title text","confidence":"high"|"medium"|"low"}]
+
+One entry per distinct tape. Include a "low" confidence guess rather than omitting it.
+Do NOT hallucinate — only read text actually visible. Return [] only if truly unreadable.`;
+
+const VISION_PROMPT_FULL = `You are cataloging VHS tapes from a photo.
+
+Determine what the image shows:
+- SPINE view: narrow vertical tape edge, text printed sideways/rotated 90° along the edge
+- COVER view: full box face with artwork and prominently placed title text
+
+For each tape visible, extract:
+- title: the main title text (REQUIRED — best reading even if partial)
+- year: 4-digit year only if clearly visible (omit if uncertain)
+- label: studio/distributor only if clearly readable (omit if uncertain)
+- format: almost always "VHS"
+- confidence: "high" | "medium" | "low" based on how clearly you can read the title
+
+Output ONLY a JSON array:
+[{"title":"Title Here","year":"1984","label":"Orion","format":"VHS","confidence":"high"}]
+
+Do NOT hallucinate titles — only output text you can actually see.
+A "low" confidence entry is better than omitting it — the user will verify.
+Return [] only if genuinely unreadable.`;
 
 // ── STATE ────────────────────────────────────────────────────────────────
 let apiKey      = localStorage.getItem('vhs-apikey')       || '';

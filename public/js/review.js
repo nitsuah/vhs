@@ -41,19 +41,36 @@ const revErr=document.getElementById('rev-err');
 const revBulk=document.getElementById('rev-bulk');
 
 function addCard(data,source=null,thumb=null,expanded=false,jobId=null,processingState='ready',failReason=''){
-  cards.push({uid:++uidSeq,data:{...data},source,thumb,expanded,jobId,processingState,failReason});
+  cards.push({uid:++uidSeq,data:{...data},source,thumb,expanded,jobId,processingState,failReason,_aiTitle:data.title||null});
 }
 function _claimJob(card){
   if(!card)return;
   const id=card.jobId;if(!id)return;
   _seenAdd(id);
-  if(card.processingState==='processing'){
-    // Cancel the in-flight upload_job
+  // processing/queued = still an upload_job on the server → cancel it
+  // ready/failed = already a review_item → delete it
+  if(card.processingState==='processing'||card.processingState==='queued'){
     fetch(`/api/jobs/${encodeURIComponent(id)}`,{method:'DELETE'}).catch(()=>{});
   }else{
-    // Discard the review_item
     fetch(`/api/review/${encodeURIComponent(id)}`,{method:'DELETE'}).catch(()=>{});
   }
+}
+
+function _reportOutcome(card,action){
+  const srcId=card.srcJobId||card.jobId;
+  if(!srcId)return;
+  fetch('/api/analytics/outcome',{
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body:JSON.stringify({
+      job_id:srcId,
+      action,
+      final_title:card.data.title||null,
+      final_year:card.data.year||null,
+      final_label:card.data.label||null,
+      imdb_id:card.data.imdb_id||null,
+    })
+  }).catch(()=>{});
 }
 function showRevPanel(){revPanel.classList.add('on');revErr.style.display='none';updateTabBadge?.();}
 function hideRevPanel(){
@@ -210,8 +227,8 @@ function syncCard(uid){
 async function confirmCard(uid){
   syncCard(uid);
   const card=cards.find(c=>c.uid===uid);if(!card)return;
-  // Allow saving a processing card if the user manually filled in a title
-  if(card.processingState==='processing'&&!card.data.title?.trim())return;
+  // Allow saving a processing or queued card if the user manually filled in a title
+  if((card.processingState==='processing'||card.processingState==='queued')&&!card.data.title?.trim())return;
 
   // Fill / revalidate cards update an existing tape, not create a new one
   if(card.source==='fill'||card.source==='revalidate'){
@@ -262,6 +279,9 @@ async function confirmCard(uid){
     scanned_at:new Date().toISOString(),photo_thumbnail:thumb,photo_spine:thumb,
   };
   await Promise.all([dbAdd(rec),new Promise(r=>setTimeout(r,280))]);
+  const aiTitle=card._aiTitle||null;
+  const action=aiTitle&&aiTitle!==rec.title?'corrected':'accepted';
+  _reportOutcome(card,action);
   _claimJob(card);
   inventory.push(rec);renderInv();updateCount();
   toast(`Saved: ${rec.title}`,'ok');
@@ -284,6 +304,7 @@ function _flashInvRow(id){
 
 function discardCard(uid){
   const card=cards.find(c=>c.uid===uid);
+  if(card&&card.source==='scan')_reportOutcome(card,'discarded');
   _claimJob(card);
   cards=cards.filter(c=>c.uid!==uid);
   if(!cards.length)hideRevPanel();else renderCards();
