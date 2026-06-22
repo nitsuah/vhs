@@ -329,6 +329,12 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .qs-proc{background:rgba(153,102,255,.15);color:var(--purple);border:1px solid rgba(153,102,255,.3)}
 .qs-failed{background:rgba(232,64,64,.15);color:var(--red);border:1px solid rgba(232,64,64,.3)}
 
+/* ── CRT SCANLINES ──────────────────────────────────────────────── */
+#crt-overlay{display:none;position:fixed;inset:0;pointer-events:none;z-index:9998;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.13) 2px,rgba(0,0,0,.13) 3px),radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.42) 100%)}
+body.crt-on #crt-overlay{display:block}
+.hbtn.active{border-color:var(--accent);color:var(--accent);background:rgba(232,64,64,.08)}
+.hbr-section-last{border-bottom:none;padding-bottom:0;margin-bottom:0}
+
 /* ── HAMBURGER (always visible) ─────────────────────────────────── */
 #hdr-right-desktop{display:none!important}
 .hdr-right-mob{display:flex;align-items:center;gap:8px;margin-left:auto}

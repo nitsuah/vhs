@@ -122,6 +122,18 @@ document.getElementById('btn-health').addEventListener('click',()=>{
 });
 document.getElementById('health-retry').addEventListener('click',runHealthCheck);
 document.getElementById('health-close').addEventListener('click',()=>document.getElementById('m-health').style.display='none');
+// ── CRT SCANLINES TOGGLE ─────────────────────────────────────────────────
+(function(){
+  const btn=document.getElementById('btn-crt');
+  function setCrt(on){
+    document.body.classList.toggle('crt-on',on);
+    btn.classList.toggle('active',on);
+    localStorage.setItem('vhs-crt',on?'1':'');
+  }
+  if(localStorage.getItem('vhs-crt')==='1')setCrt(true);
+  btn.addEventListener('click',()=>setCrt(!document.body.classList.contains('crt-on')));
+})();
+
 document.getElementById('btn-import-mob')?.addEventListener('click',()=>{closeDrawer();document.getElementById('import-input').click();});
 document.getElementById('btn-revalidate-mob')?.addEventListener('click',()=>{closeDrawer();document.getElementById('btn-revalidate').click();});
 document.getElementById('btn-export-mob')?.addEventListener('click',e=>{
