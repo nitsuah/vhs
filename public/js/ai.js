@@ -120,6 +120,8 @@ The label is the original VHS distributor or studio.
 value_low/value_high are estimated USD resale ranges for a VHS in good condition.
 Rough guide: common mainstream $1-5, out-of-print/cult $5-30, horror/SOV/anime/rare $20-100+.
 Return {} if completely unknown.`;
+
+  let claudeResult=null;
   if(apiKey){
     try{
       const res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -127,15 +129,28 @@ Return {} if completely unknown.`;
         headers:{'x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'},
         body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:150,messages:[{role:'user',content:prompt}]})
       });
-      if(res.ok){const d=await res.json();const r=parseJsonObj(d.content?.[0]?.text||'{}');if(r)return r;}
+      if(res.ok){const d=await res.json();claudeResult=parseJsonObj(d.content?.[0]?.text||'{}')||null;}
     }catch(e){console.warn('Lookup (Claude):',e);}
   }
+
+  // Always call server for OMDb enrichment (imdb_id, poster, authoritative year/label)
+  let serverResult=null;
   try{
     const hdrs={};if(omdbKey)hdrs['x-omdb-key']=omdbKey;
     const r=await fetch(`/api/lookup?title=${encodeURIComponent(title)}`,{signal:AbortSignal.timeout(35000),headers:hdrs});
-    if(r.ok){const d=await r.json();if(d&&!d.error&&Object.keys(d).length)return d;}
+    if(r.ok){const d=await r.json();if(d&&!d.error&&Object.keys(d).length)serverResult=d;}
   }catch(e){console.warn('Lookup (server):',e);}
-  return null;
+
+  if(!claudeResult&&!serverResult)return null;
+  // Merge: Claude supplies value estimates; server/OMDb supplies authoritative metadata + poster
+  const merged={...(claudeResult||{}),...{}};
+  if(serverResult){
+    if(serverResult.imdb_id)merged.imdb_id=serverResult.imdb_id;
+    if(serverResult.year)merged.year=serverResult.year;
+    if(serverResult.label)merged.label=serverResult.label;
+    if(serverResult.poster)merged.poster=serverResult.poster;
+  }
+  return Object.keys(merged).length?merged:null;
 }
 
 async function lookupBarcode(code){

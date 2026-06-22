@@ -56,9 +56,10 @@ function renderInv(){
       }).join('');
     }else if(wallMode===3){
       wall.innerHTML=items.map(t=>{
-        const src=t.photo_spine||t.photo_thumbnail;
+        const isSpine=!!t.photo_spine;
+        const src=t.photo_spine||t.photo_face||t.photo_thumbnail;
         const img=src
-          ?`<img class="su-img" src="${src}" alt="">`
+          ?`<img class="su-img${isSpine?' su-img-spine':''}" src="${src}" alt="">`
           :`<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
         return `<div class="su-card" data-id="${t.id}">${img}<div class="su-lbl">${esc(t.title)}</div></div>`;
       }).join('');
@@ -71,7 +72,7 @@ function renderInv(){
         return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
       }).join('');
     }
-    wall.querySelectorAll('.wall-card,.spine-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
+    wall.querySelectorAll('.wall-card,.spine-card,.su-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
     return;
   }
   wall.classList.remove('on','spine-mode','stacksup-mode');
@@ -715,9 +716,23 @@ document.getElementById('del-ok').addEventListener('click',async()=>{
 });
 
 // ── FILL DATA ─────────────────────────────────────────────────────────────
+async function _fetchPosterImage(url){
+  try{
+    const r=await fetch(`/api/fetch-image?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(12000)});
+    if(!r.ok)return null;
+    const d=await r.json();
+    return d.dataUrl||null;
+  }catch{return null;}
+}
+
 document.getElementById('btn-fill-data').addEventListener('click',async()=>{
   const pool=selectedIds.size>0?inventory.filter(t=>selectedIds.has(t.id)):inventory;
-  const targets=pool.filter(t=>t.title&&(!t.year||(!t.value_low&&!t.value_high)));
+  // Target tapes missing any enrichable field
+  const targets=pool.filter(t=>t.title&&(
+    !t.year||!t.label||!t.imdb_id||
+    (!t.value_low&&!t.value_high)||
+    !t.photos?.length
+  ));
   if(!targets.length){toast('All tapes already have complete data','');return;}
   const btn=document.getElementById('btn-fill-data');
   btn.disabled=true;
@@ -725,28 +740,33 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
   for(const t of targets){
     btn.textContent=`⚡ ${done}/${targets.length}`;
     const meta=await lookupMetadata(t.title);
-    if(!meta)continue;
-    const proposed={tape_id:t.id,title:t.title};
+    // Require an imdb_id match before filling anything — confirms we have the right title
+    if(!meta||!meta.imdb_id)continue;
     let hasChanges=false;
-    if(meta.year&&!t.year){proposed.year=meta.year;hasChanges=true;}
-    if(meta.label&&!t.label){proposed.label=meta.label;hasChanges=true;}
-    if(meta.value_low&&!t.value_low){proposed.value_low=meta.value_low;hasChanges=true;}
-    if(meta.value_high&&!t.value_high){proposed.value_high=meta.value_high;hasChanges=true;}
-    if(meta.format&&!t.format){proposed.format=meta.format;hasChanges=true;}
-    if(meta.imdb_id&&!t.imdb_id){proposed.imdb_id=meta.imdb_id;hasChanges=true;}
+    if(meta.year&&!t.year){t.year=meta.year;hasChanges=true;}
+    if(meta.label&&!t.label){t.label=meta.label;hasChanges=true;}
+    if(meta.imdb_id&&!t.imdb_id){t.imdb_id=meta.imdb_id;hasChanges=true;}
+    if(meta.value_low&&!t.value_low){t.value_low=meta.value_low;hasChanges=true;}
+    if(meta.value_high&&!t.value_high){t.value_high=meta.value_high;hasChanges=true;}
+    // Fetch cover art from OMDb poster URL if tape has no photos yet
+    if(meta.poster&&!t.photos?.length){
+      const dataUrl=await _fetchPosterImage(meta.poster);
+      if(dataUrl){
+        t.photos=[dataUrl];t.photo_thumbnail=dataUrl;t.photo_face=dataUrl;
+        hasChanges=true;
+      }
+    }
     if(hasChanges){
-      try{
-        await apiReq('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'fill',data:proposed})});
-        done++;
-      }catch(e){console.warn('Fill queue failed:',t.id,e);}
+      try{await dbPut(t);done++;}
+      catch(e){console.warn('Fill save failed:',t.id,e);}
     }
   }
   btn.disabled=false;btn.textContent='⚡ Fill';
   if(done){
-    toast(`${done} proposal${done!==1?'s':''} queued — check the Review tab`,'ok',4000);
-    showRevPanel();
+    renderInv();updateCount();
+    toast(`Filled ${done} tape${done!==1?'s':''}`, 'ok',4000);
   }else{
-    toast(`No new data found for ${targets.length} tape${targets.length!==1?'s':''}`,'',4000);
+    toast(`No reliable matches found for ${targets.length} tape${targets.length!==1?'s':''}`,'',4000);
   }
 });
 document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModal);

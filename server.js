@@ -164,6 +164,7 @@ async function callOmdb({ title, imdbId }, apiKey) {
     year:    (d.Year || '').match(/\d{4}/)?.[0] || '',
     label:   d.Production || '',
     imdb_id: d.imdbID || '',
+    poster:  d.Poster && d.Poster !== 'N/A' ? d.Poster : '',
   };
 }
 
@@ -410,6 +411,7 @@ Omit fields you are unsure about. Return {} if completely unknown.`;
   if (omdb?.year)    merged.year    = omdb.year;
   if (omdb?.imdb_id) merged.imdb_id = omdb.imdb_id;
   if (omdb?.label && !merged.label) merged.label = omdb.label;
+  if (omdb?.poster)  merged.poster  = omdb.poster;
 
   res.json(merged);
 });
@@ -622,6 +624,25 @@ app.delete('/api/tapes/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM tapes WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Image proxy (avoids CORS for poster URLs from OMDb/IMDB) ─────────────────
+app.get('/api/fetch-image', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try {
+    const r = await fetch(url, {
+      signal: AbortSignal.timeout(10000),
+      headers: { 'User-Agent': 'VHS-Scanner/1.0' },
+    });
+    if (!r.ok) return res.status(r.status).json({ error: `Upstream ${r.status}` });
+    const buffer = await r.arrayBuffer();
+    const b64 = Buffer.from(buffer).toString('base64');
+    const ct = r.headers.get('content-type') || 'image/jpeg';
+    res.json({ dataUrl: `data:${ct};base64,${b64}` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

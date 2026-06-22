@@ -83,40 +83,55 @@ function renderQueue(){
 
 // Called directly by camera.js when a barcode is detected — bypasses the staging queue
 // so barcode lookups never block or compete with Ollama image analysis jobs.
-function addBarcodeCard(code){
-  const uid=++uidSeq;
-  const card={uid,data:{barcode:code,format:'VHS',condition:'good',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true,jobId:null,processingState:'processing',failReason:''};
-  cards.push(card);
-  showRevPanel();
-  renderCards();
-  lookupBarcode(code).then(async meta=>{
-    const c=cards.find(c=>c.uid===uid);if(!c)return;
-    if(meta&&meta.title&&!c.data.title){
-      c.data.title=meta.title;
-      if(meta.label)c.data.label=meta.label;
-      if(meta.year)c.data.year=meta.year;
-      if(meta.imdb_id)c.data.imdb_id=meta.imdb_id;
-      toast(`Barcode matched: ${meta.title}`,'ok');
-      // Enrich further with metadata (value range, format confirmation)
-      const enriched=await lookupMetadata(meta.title).catch(()=>null);
-      const c2=cards.find(c=>c.uid===uid);if(!c2)return;
-      if(enriched){
-        if(enriched.year&&!c2.data.year)c2.data.year=enriched.year;
-        if(enriched.label&&!c2.data.label)c2.data.label=enriched.label;
-        if(enriched.format)c2.data.format=enriched.format;
-        if(enriched.value_low)c2.data.value_low=enriched.value_low;
-        if(enriched.value_high)c2.data.value_high=enriched.value_high;
-        if(enriched.imdb_id&&!c2.data.imdb_id)c2.data.imdb_id=enriched.imdb_id;
-      }
-    }else if(!meta){
-      toast(`No match for ${code} — enter title manually`,'warn',4000);
-    }
-    const c3=cards.find(c=>c.uid===uid);
-    if(c3){c3.processingState='ready';renderCards();}
-  }).catch(()=>{
-    const c=cards.find(c=>c.uid===uid);
-    if(c){c.processingState='ready';renderCards();}
-  });
+// If the barcode resolves to a title via UPC/OMDb, auto-confirms straight to collection
+// (no review card, no Ollama call). If lookup fails, falls back to a review card.
+async function addBarcodeCard(code){
+  const meta=await lookupBarcode(code).catch(()=>null);
+
+  if(meta&&meta.title){
+    // Duplicate guard (title-based)
+    const dup=findDup(meta.title);
+    if(dup){toast(`Already in collection: "${dup.title}"`, 'err', 5000);return;}
+    // Also check barcode-based dup
+    const bcDup=inventory.find(t=>t.barcode===code);
+    if(bcDup){toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);return;}
+
+    const useUpcId=code&&/^\d{8,14}$/.test(code)&&!inventory.find(t=>t.id===code);
+    const recId=useUpcId?code:await nextId();
+    const rec={
+      id:recId,
+      title:meta.title,
+      year:meta.year||'',
+      label:meta.label||'',
+      format:'VHS',
+      condition:'good',
+      condition_notes:'',
+      status:'in_collection',
+      barcode:code,
+      tags:[],
+      value_low:'',
+      value_high:'',
+      imdb_id:meta.imdb_id||'',
+      photos:[],
+      photo_thumbnail:'',
+      photo_spine:null,
+      photo_face:null,
+      scanned_at:new Date().toISOString(),
+    };
+    await dbAdd(rec);
+    inventory.push(rec);
+    renderInv();updateCount();
+    toast(`Added: ${rec.title}`,'ok',3000);
+    _flashInvRow(rec.id);
+  } else {
+    // No match — show a review card so user can enter the title manually
+    const uid=++uidSeq;
+    const card={uid,data:{barcode:code,format:'VHS',condition:'good',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true,jobId:null,processingState:'ready',failReason:''};
+    cards.push(card);
+    showRevPanel();
+    renderCards();
+    toast(`No match for ${code} — enter title manually`,'warn',4000);
+  }
 }
 
 async function processQueue(){
@@ -127,37 +142,10 @@ async function processQueue(){
   const barcodeItems=queue.filter(item=>item.barcode);
   const imageItems=queue.filter(item=>!item.barcode);
 
-  // Process barcode items: lookup metadata and add to review as processing cards
+  // Process barcode items: same auto-confirm logic as addBarcodeCard
   for(const item of barcodeItems){
-    const uid=++uidSeq;
-    cards.push({uid,data:{barcode:item.barcode,format:'VHS',condition:'good',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true,jobId:null,processingState:'processing',failReason:''});
-    lookupBarcode(item.barcode).then(async meta=>{
-      const card=cards.find(c=>c.uid===uid);
-      if(card&&meta&&!card.data.title){
-        card.data.title=meta.title;
-        if(meta.label)card.data.label=meta.label;
-        if(meta.year)card.data.year=meta.year;
-        toast(`Barcode matched: ${meta.title}`,'ok');
-        const enriched=await lookupMetadata(meta.title).catch(()=>null);
-        if(enriched){
-          const c2=cards.find(c=>c.uid===uid);if(!c2)return;
-          if(enriched.year&&!c2.data.year)c2.data.year=enriched.year;
-          if(enriched.label&&!c2.data.label)c2.data.label=enriched.label;
-          if(enriched.format)c2.data.format=enriched.format;
-          if(enriched.value_low)c2.data.value_low=enriched.value_low;
-          if(enriched.value_high)c2.data.value_high=enriched.value_high;
-        }
-      }else if(card&&!meta){
-        toast('No barcode match — enter title manually','warn',3000);
-      }
-      const c3=cards.find(c=>c.uid===uid);
-      if(c3){c3.processingState='ready';renderCards();}
-    }).catch(()=>{
-      const c=cards.find(c=>c.uid===uid);
-      if(c){c.processingState='ready';renderCards();}
-    });
+    await addBarcodeCard(item.barcode);
   }
-  if(barcodeItems.length){showRevPanel();renderCards();}
 
   if(!imageItems.length)return;
 
