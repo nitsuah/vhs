@@ -2,6 +2,11 @@
 function setActiveTab(tab){
   document.body.dataset.tab=tab;
   ['capture','review','collect'].forEach(t=>document.getElementById(`tab-${t}`)?.classList.toggle('active',t===tab));
+  const onCapture=tab==='capture';
+  const btnCapEl=document.getElementById('btn-cap');
+  const btnBcEl=document.getElementById('btn-barcode');
+  if(btnCapEl)btnCapEl.disabled=!onCapture;
+  if(btnBcEl)btnBcEl.disabled=!onCapture;
   if(tab==='review'&&cards.length&&!revPanel.classList.contains('on'))showRevPanel();
 }
 function updateTabBadge(){
@@ -19,8 +24,9 @@ setActiveTab('capture');
 document.addEventListener('keydown',e=>{
   const tag=document.activeElement?.tagName;
   const inp=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
-  if(e.code==='Space'&&!inp&&!barcodeMode){e.preventDefault();capture();}
-  if(e.code==='Enter'&&!inp&&!barcodeMode&&captureQueue.length){e.preventDefault();processQueue();}
+  const onCapture=document.body.dataset.tab==='capture';
+  if(e.code==='Space'&&!inp&&!barcodeMode&&onCapture){e.preventDefault();capture();}
+  if(e.code==='Enter'&&!inp&&!barcodeMode&&captureQueue.length&&onCapture){e.preventDefault();processQueue();}
   if(e.code==='Escape'){
     if(document.getElementById('m-del-confirm').style.display!=='none'){document.getElementById('m-del-confirm').style.display='none';return;}
     if(document.getElementById('m-help').style.display!=='none'){document.getElementById('m-help').style.display='none';return;}

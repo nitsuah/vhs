@@ -263,37 +263,12 @@ function _fireBarcodeResult(code){
   if(bcLabelEl)bcLabelEl.textContent=`✓ ${code}`;
   setTimeout(()=>{if(bcLabelEl)bcLabelEl.textContent='Hold barcode in box — or tap 📷';},3500);
   const bcDup=inventory.find(t=>t.barcode&&t.barcode===code);
-  if(bcDup)toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);
-  const uid=++uidSeq;
-  cards.push({uid,data:{title:bcDup?bcDup.title:'',barcode:code,format:'VHS',condition:'good',status:'in_collection',notes:''},source:'barcode',thumb:null,expanded:true,jobId:null,processingState:bcDup?'ready':'processing',failReason:''});
-  renderCards();showRevPanel();
-  if(!bcDup){
-    lookupBarcode(code).then(async meta=>{
-      const card=cards.find(c=>c.uid===uid);
-      if(card&&meta&&!card.data.title){
-        card.data.title=meta.title;
-        if(meta.label)card.data.label=meta.label;
-        if(meta.year)card.data.year=meta.year;
-        toast(`Barcode matched: ${meta.title}`,'ok');
-        const enriched=await lookupMetadata(meta.title).catch(()=>null);
-        if(enriched){
-          const c2=cards.find(c=>c.uid===uid);if(!c2){return;}
-          if(enriched.year&&!c2.data.year)c2.data.year=enriched.year;
-          if(enriched.label&&!c2.data.label)c2.data.label=enriched.label;
-          if(enriched.format)c2.data.format=enriched.format;
-          if(enriched.value_low)c2.data.value_low=enriched.value_low;
-          if(enriched.value_high)c2.data.value_high=enriched.value_high;
-        }
-      }else if(card&&!meta){
-        toast('No barcode match — enter title manually','warn',3000);
-      }
-      const c3=cards.find(c=>c.uid===uid);
-      if(c3){c3.processingState='ready';renderCards();}
-    }).catch(()=>{
-      const c=cards.find(c=>c.uid===uid);
-      if(c){c.processingState='ready';renderCards();}
-    });
-  }
+  if(bcDup){toast(`Already in collection: "${bcDup.title||code}"`, 'err', 5000);return;}
+  if(captureQueue.some(i=>i.barcode===code))return;
+  // Stage to capture queue — user can scan multiple barcodes then press Analyze
+  captureQueue.push({barcode:code});
+  renderQueue();
+  toast(`Barcode staged: ${code}`,'ok',2500);
 }
 
 function startBarcodeLoop(){
