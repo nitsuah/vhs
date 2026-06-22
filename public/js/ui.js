@@ -17,7 +17,10 @@ function updateTabBadge(){
 }
 document.getElementById('tab-capture')?.addEventListener('click',()=>setActiveTab('capture'));
 document.getElementById('tab-review')?.addEventListener('click',()=>setActiveTab('review'));
-document.getElementById('tab-collect')?.addEventListener('click',()=>setActiveTab('collect'));
+document.getElementById('tab-collect')?.addEventListener('click',()=>{
+  if(document.body.dataset.tab!=='collect')playRewindSound();
+  setActiveTab('collect');
+});
 setActiveTab('capture');
 
 // ── KEYBOARD ─────────────────────────────────────────────────────────────
@@ -310,6 +313,37 @@ tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style>
   }
 
   document.getElementById('btn-logs')?.addEventListener('click',openLogs);
+})();
+
+// ── VHS EASTER EGGS ──────────────────────────────────────────────────────
+// "Be Kind, Rewind" — 1-in-50 chance on load
+if(Math.random()<1/50)setTimeout(()=>toast('📼 Be Kind, Rewind!','vhs-sticker',5000),1500);
+
+// Shake to static (mobile)
+(function(){
+  let _lastShake=0,_px=0,_py=0,_pz=0;
+  function onMotion(e){
+    const a=e.accelerationIncludingGravity;if(!a)return;
+    const now=Date.now();
+    if(now-_lastShake<4000)return;
+    const d=Math.abs(a.x-_px)+Math.abs(a.y-_py)+Math.abs(a.z-_pz);
+    _px=a.x;_py=a.y;_pz=a.z;
+    if(d>35){
+      _lastShake=now;
+      const c=document.getElementById('static-canvas');
+      if(c)startStaticAnim(c,1000);
+      setTimeout(()=>setActiveTab('capture'),400);
+    }
+  }
+  if(typeof DeviceMotionEvent!=='undefined'){
+    if(typeof DeviceMotionEvent.requestPermission==='function'){
+      document.addEventListener('touchstart',()=>{
+        DeviceMotionEvent.requestPermission().then(p=>{if(p==='granted')window.addEventListener('devicemotion',onMotion);}).catch(()=>{});
+      },{once:true});
+    }else{
+      window.addEventListener('devicemotion',onMotion);
+    }
+  }
 })();
 
 // ── MOBILE FILTER TRAY ───────────────────────────────────────────────────

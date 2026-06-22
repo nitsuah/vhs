@@ -101,6 +101,95 @@ function buzz(){
   }catch{}
 }
 
+// ── REWIND SOUND ─────────────────────────────────────────────────────────
+let _rewindCooldown=0;
+function playRewindSound(){
+  const now=Date.now();
+  if(now-_rewindCooldown<5000)return;
+  _rewindCooldown=now;
+  try{
+    const ctx=new AudioContext(),dur=1.8;
+    const g=ctx.createGain();
+    g.gain.setValueAtTime(0.12,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    g.connect(ctx.destination);
+    [320,480,640].forEach(freq=>{
+      const osc=ctx.createOscillator();
+      osc.type='sawtooth';
+      osc.frequency.setValueAtTime(freq,ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freq*.25,ctx.currentTime+dur);
+      osc.connect(g);osc.start();osc.stop(ctx.currentTime+dur);
+    });
+    setTimeout(()=>ctx.close(),(dur+.3)*1000);
+  }catch{}
+}
+
+// ── JAWS THEME ────────────────────────────────────────────────────────────
+let _jawsTimer=null,_jawsTempo=2000,_jawsNote=false;
+function startJawsTheme(){
+  stopJawsTheme();
+  _jawsTempo=2000;_jawsNote=false;
+  const tick=()=>{
+    _jawsNote=!_jawsNote;
+    try{
+      const ctx=new AudioContext(),osc=ctx.createOscillator(),g=ctx.createGain();
+      osc.type='triangle';
+      osc.frequency.value=_jawsNote?73.4:82.4;
+      osc.connect(g);g.connect(ctx.destination);
+      g.gain.setValueAtTime(.28,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.45);
+      osc.start();osc.stop(ctx.currentTime+.5);
+      setTimeout(()=>ctx.close(),700);
+    }catch{}
+    _jawsTempo=Math.max(180,Math.floor(_jawsTempo*.82));
+    _jawsTimer=setTimeout(tick,_jawsTempo);
+  };
+  tick();
+}
+function stopJawsTheme(){
+  if(_jawsTimer){clearTimeout(_jawsTimer);_jawsTimer=null;}
+  _jawsTempo=2000;_jawsNote=false;
+}
+
+// ── TV STATIC ─────────────────────────────────────────────────────────────
+function startStaticAnim(canvas,ms){
+  canvas.style.display='block';
+  const W=canvas.width=window.innerWidth,H=canvas.height=window.innerHeight;
+  const ctx=canvas.getContext('2d');
+  const off=document.createElement('canvas');
+  const sc=5;off.width=Math.ceil(W/sc);off.height=Math.ceil(H/sc);
+  const octx=off.getContext('2d');
+  const start=Date.now();let raf;
+  const draw=()=>{
+    if(Date.now()-start>=ms){ctx.clearRect(0,0,W,H);canvas.style.display='none';return;}
+    const img=octx.createImageData(off.width,off.height),d=img.data;
+    for(let i=0;i<d.length;i+=4){const v=Math.random()*220|0;d[i]=v;d[i+1]=v;d[i+2]=v;d[i+3]=200;}
+    octx.putImageData(img,0,0);
+    ctx.imageSmoothingEnabled=false;ctx.drawImage(off,0,0,W,H);
+    ctx.fillStyle='rgba(255,255,255,.06)';
+    ctx.fillRect(0,(Math.random()*H)|0,W,(2+Math.random()*6)|0);
+    raf=requestAnimationFrame(draw);
+  };
+  draw();
+}
+
+// ── MATRIX SCRAMBLE ───────────────────────────────────────────────────────
+const _KAT='アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+function scrambleToReal(el,finalVal,totalMs){
+  const isInp=el.tagName==='INPUT'||el.tagName==='TEXTAREA';
+  const set=v=>isInp?(el.value=v):(el.textContent=v);
+  const len=Math.max(1,finalVal.length);
+  const steps=28,stepMs=totalMs/steps;
+  let step=0;
+  const rand=()=>_KAT[(_KAT.length*Math.random())|0];
+  const tick=()=>{
+    const done=Math.floor(step/steps*len);
+    set(finalVal.slice(0,done)+Array.from({length:len-done},rand).join(''));
+    step++;if(step<=steps)setTimeout(tick,stepMs);else set(finalVal);
+  };
+  tick();
+}
+
 // ── IMAGE UTILITIES ───────────────────────────────────────────────────────
 function fileToB64(f){
   return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(',')[1]);fr.onerror=j;fr.readAsDataURL(f);});

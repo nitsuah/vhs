@@ -335,6 +335,31 @@ body.crt-on #crt-overlay{display:block}
 .hbtn.active{border-color:var(--accent);color:var(--accent);background:rgba(232,64,64,.08)}
 .hbr-section-last{border-bottom:none;padding-bottom:0;margin-bottom:0}
 
+/* ── TV STATIC CANVAS ───────────────────────────────────────────── */
+#static-canvas{display:none;position:fixed;inset:0;z-index:10000;pointer-events:none}
+
+/* ── FBI WARNING ─────────────────────────────────────────────────── */
+#fbi-overlay{display:none;position:fixed;inset:0;z-index:10001;background:#00004a;color:#fff;font-family:'Courier New',monospace;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;cursor:pointer}
+#fbi-overlay.active{display:flex}
+#fbi-inner{max-width:480px;width:90%}
+#fbi-seal{font-size:20px;font-weight:700;letter-spacing:.18em;color:#ffdd80;margin-bottom:10px}
+.fbi-rule{border-top:2px solid #ffdd80;margin:8px 0}
+#fbi-warn{font-size:26px;font-weight:900;letter-spacing:.3em;color:#ffdd80;margin:4px 0 14px}
+.fbi-body{font-size:11px;line-height:1.65;text-transform:uppercase;margin:6px 0;letter-spacing:.03em}
+#fbi-cite{font-size:9.5px;color:#ffdd80;margin-top:14px;text-transform:uppercase;letter-spacing:.1em}
+#fbi-tape-label{font-size:13px;color:#aaa;margin-top:18px;font-style:italic}
+#fbi-trailer{margin-top:10px;background:rgba(255,221,128,.12);border:1px solid #ffdd80;color:#ffdd80;padding:7px 16px;border-radius:4px;cursor:pointer;font-family:'Courier New',monospace;font-size:12px}
+#fbi-trailer:hover{background:rgba(255,221,128,.28)}
+
+/* ── MATRIX GLITCH ───────────────────────────────────────────────── */
+#m-detail.matrix-mode{background:rgba(0,0,0,.97)}
+#m-detail.matrix-mode .modal{border:1px solid #00ff44;box-shadow:0 0 24px rgba(0,255,68,.25)}
+#m-detail.matrix-mode h2{color:#00ff44}
+#m-detail.matrix-mode input,#m-detail.matrix-mode select{color:#00ff44!important;border-color:#00ff44!important;background:#001400!important;font-family:'Courier New',monospace!important}
+
+/* ── VHS STICKER TOAST ───────────────────────────────────────────── */
+.toast.vhs-sticker{background:#f0c030;color:#1a0f00;font-weight:700;font-size:14px;border:2px dashed #b08000;transform:rotate(-1.5deg);font-family:'Courier New',monospace;box-shadow:2px 3px 10px rgba(0,0,0,.5)}
+
 /* ── HAMBURGER (always visible) ─────────────────────────────────── */
 #hdr-right-desktop{display:none!important}
 .hdr-right-mob{display:flex;align-items:center;gap:8px;margin-left:auto}
