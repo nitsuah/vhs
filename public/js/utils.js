@@ -57,6 +57,33 @@ function beep(){
   }catch{}
 }
 
+// ── AKIRA EASTER EGG ─────────────────────────────────────────────────────
+let _akiraLastDing=0;
+function playAkiraDing(){
+  const now=Date.now();
+  if(now-_akiraLastDing<5000)return;
+  _akiraLastDing=now;
+  try{
+    const ctx=new AudioContext();
+    const master=ctx.createGain();
+    master.gain.value=0.18;
+    master.connect(ctx.destination);
+    const bell=(freq,vol,decay)=>{
+      const osc=ctx.createOscillator(),g=ctx.createGain();
+      osc.type='sine';osc.frequency.value=freq;
+      osc.connect(g);g.connect(master);
+      g.gain.setValueAtTime(vol,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+decay);
+      osc.start();osc.stop(ctx.currentTime+decay);
+    };
+    bell(880,1,2.2);   // fundamental
+    bell(1320,0.35,1.6); // 3rd harmonic
+    bell(2200,0.2,1.1);  // 5th harmonic
+    bell(440,0.15,2.8);  // sub octave for warmth
+    setTimeout(()=>ctx.close(),3200);
+  }catch{}
+}
+
 // ── IMAGE UTILITIES ───────────────────────────────────────────────────────
 function fileToB64(f){
   return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(',')[1]);fr.onerror=j;fr.readAsDataURL(f);});

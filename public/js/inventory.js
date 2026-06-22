@@ -52,7 +52,7 @@ function renderInv(){
       wall.innerHTML=items.map(t=>{
         const src=t.photo_spine||t.photo_thumbnail;
         const img=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
-        return `<div class="spine-card" data-id="${t.id}">${img}<div class="spine-lbl">${esc(t.title)}</div></div>`;
+        return `<div class="spine-card" data-id="${t.id}"${/\bakira\b/i.test(t.title)?' data-akira="1"':''}>${img}<div class="spine-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else if(wallMode===3){
       wall.innerHTML=items.map(t=>{
@@ -61,7 +61,7 @@ function renderInv(){
         const img=src
           ?`<img class="su-img${isSpine?' su-img-spine':''}" src="${src}" alt="">`
           :`<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
-        return `<div class="su-card" data-id="${t.id}">${img}<div class="su-lbl">${esc(t.title)}</div></div>`;
+        return `<div class="su-card" data-id="${t.id}"${/\bakira\b/i.test(t.title)?' data-akira="1"':''}>${img}<div class="su-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else{
       wall.innerHTML=items.map(t=>{
@@ -69,10 +69,14 @@ function renderInv(){
         const img=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph-txt">${esc(t.title)}</div>`;
         const meta=[t.year,t.label].filter(Boolean).join(' · ');
         const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
-        return `<div class="wall-card" data-id="${t.id}">${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
+        return `<div class="wall-card" data-id="${t.id}"${/\bakira\b/i.test(t.title)?' data-akira="1"':''}>${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
       }).join('');
     }
     wall.querySelectorAll('.wall-card,.spine-card,.su-card').forEach(c=>c.addEventListener('click',()=>openDetail(c.dataset.id)));
+    wall.querySelectorAll('[data-akira]').forEach(c=>{
+      c.addEventListener('mouseenter',playAkiraDing);
+      c.addEventListener('touchstart',playAkiraDing,{passive:true});
+    });
     return;
   }
   wall.classList.remove('on','spine-mode','stacksup-mode');
@@ -84,6 +88,7 @@ function renderInv(){
   const fmtOpts=v=>{const opts=[...FORMAT_LIST];if(v&&!opts.includes(v))opts.unshift(v);return opts.map(f=>`<option value="${f}"${(v||'VHS')===f?' selected':''}>${esc(f)}</option>`).join('');};
   const sa=(col,a,d)=>{const s=sort;return`<span class="sort-arr${s===a||s===d?' on':''}">${s===a?'↑':s===d?'↓':'↕'}</span>`;};
   const rh='<span class="col-rh"></span>';
+  const isAkira=t=>/\bakira\b/i.test(t.title);
   const years=inventory.map(t=>parseInt(t.year)).filter(y=>y>=1900&&y<=2030);
   const minYr=years.length?Math.min(...years):1970;
   const maxYr=years.length?Math.max(...years):2025;
@@ -173,7 +178,7 @@ function renderInv(){
     const actCell=isEd
       ?`<td style="white-space:nowrap;text-align:center"><button class="tbl-save" data-id="${t.id}" title="Save">✓</button><button class="tbl-cancel" data-id="${t.id}" title="Cancel">✕</button></td>`
       :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button><button class="tbl-edit" data-id="${t.id}" title="Edit row">✎</button></td>`;
-    return `<tr class="tape-row${checked?' selected':''}${isEd?' editing':''}" data-id="${t.id}">
+    return `<tr class="tape-row${checked?' selected':''}${isEd?' editing':''}" data-id="${t.id}"${isAkira(t)?' data-akira="1"':''}>
       <td style="text-align:center"><input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''}></td>
       <td class="tbl-open mc-2" data-id="${t.id}">${thumb}</td>
       ${edCell('title','mc-3')}
@@ -342,6 +347,10 @@ function renderInv(){
     const ca=e.target.closest('#tbl-chk-all');
     if(ca){items.forEach(t=>{if(ca.checked)selectedIds.add(t.id);else selectedIds.delete(t.id);});renderInv();updateBulkBar();}
   });
+  tbl.querySelectorAll('tr[data-akira]').forEach(row=>{
+    row.addEventListener('mouseenter',playAkiraDing);
+    row.addEventListener('touchstart',playAkiraDing,{passive:true});
+  });
 }
 
 const statusLbl=s=>({in_collection:'In Coll.',for_sale:'For Sale',sold:'Sold',donated:'Donated',missing:'Missing',wanted:'Wanted'}[s]||s);
@@ -441,6 +450,7 @@ document.getElementById('btn-wall').addEventListener('click',()=>{
 // ── DETAIL MODAL ─────────────────────────────────────────────────────────
 function openDetail(id){
   const t=inventory.find(x=>x.id===id);if(!t)return;
+  if(/\bakira\b/i.test(t.title))playAkiraDing();
   selectedId=id;
   document.getElementById('d-heading').textContent=t.title;
   document.getElementById('d-title').value=t.title;
