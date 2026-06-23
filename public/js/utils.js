@@ -226,5 +226,115 @@ function fileToThumb(f){
   });
 }
 
+// ── GHOSTBUSTERS DING ─────────────────────────────────────────────────────
+let _gbLastDing=0;
+function playGhostbustersDing(el){
+  const now=Date.now();if(now-_gbLastDing<5000)return;_gbLastDing=now;
+  if(el){el.classList.add('gb-flash');setTimeout(()=>el.classList.remove('gb-flash'),600);}
+  try{
+    const ctx=new AudioContext();
+    const master=ctx.createGain();master.gain.value=0.14;master.connect(ctx.destination);
+    const note=(freq,t,dur,vol=1)=>{
+      [[0,'triangle'],[1.005,'sine']].forEach(([det,type])=>{
+        const osc=ctx.createOscillator(),g=ctx.createGain();
+        osc.type=type;osc.frequency.value=freq+det;osc.connect(g);g.connect(master);
+        g.gain.setValueAtTime(vol*(det?0.25:1),ctx.currentTime+t);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+dur);
+        osc.start(ctx.currentTime+t);osc.stop(ctx.currentTime+t+dur);
+      });
+    };
+    note(587,0,0.12,1);note(659,0.10,0.12,.85);note(784,0.19,0.20,.9);note(988,0.36,0.45,.7);
+    setTimeout(()=>ctx.close(),1200);
+  }catch{}
+}
+
+// ── NIGHT OF THE LIVING DEAD FLICKER + GROAN ──────────────────────────────
+let _notldGroanLast=0,_notldFlickerTimer=null;
+function _playNotldGroan(){
+  const now=Date.now();if(now-_notldGroanLast<5000)return;_notldGroanLast=now;
+  try{
+    const ctx=new AudioContext(),dur=0.85;
+    const g=ctx.createGain();g.gain.setValueAtTime(0.22,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);g.connect(ctx.destination);
+    const osc=ctx.createOscillator();osc.type='sine';osc.frequency.setValueAtTime(145,ctx.currentTime);osc.frequency.setValueAtTime(130,ctx.currentTime+0.3);osc.frequency.exponentialRampToValueAtTime(100,ctx.currentTime+dur);osc.connect(g);osc.start();osc.stop(ctx.currentTime+dur);
+    const osc2=ctx.createOscillator(),g2=ctx.createGain();osc2.type='sawtooth';osc2.frequency.setValueAtTime(290,ctx.currentTime);osc2.frequency.exponentialRampToValueAtTime(210,ctx.currentTime+dur);g2.gain.setValueAtTime(0.07,ctx.currentTime);g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);osc2.connect(g2);g2.connect(ctx.destination);osc2.start();osc2.stop(ctx.currentTime+dur);
+    setTimeout(()=>ctx.close(),(dur+0.3)*1000);
+  }catch{}
+}
+function startNotldEffect(el){
+  if(_notldFlickerTimer){clearTimeout(_notldFlickerTimer);_notldFlickerTimer=null;}
+  _playNotldGroan();let step=0;
+  const flicker=()=>{
+    if(!el||!el.isConnected){stopNotldEffect(el);return;}
+    step++;el.style.opacity=step%2===0?'1':String(0.2+Math.random()*0.45);
+    _notldFlickerTimer=setTimeout(flicker,70+Math.random()*90);
+  };
+  flicker();
+}
+function stopNotldEffect(el){
+  if(_notldFlickerTimer){clearTimeout(_notldFlickerTimer);_notldFlickerTimer=null;}
+  if(el)el.style.opacity='';
+}
+
+// ── SPEED RACER ENGINE REV ────────────────────────────────────────────────
+let _revTimer=null,_revFreq=110,_revTempo=520;
+function startRevSound(){
+  stopRevSound();_revFreq=110;_revTempo=520;
+  const tick=()=>{
+    try{
+      const ctx=new AudioContext(),dur=0.18;
+      const g=ctx.createGain();g.gain.setValueAtTime(0.18,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);g.connect(ctx.destination);
+      const osc=ctx.createOscillator();osc.type='sawtooth';osc.frequency.setValueAtTime(_revFreq,ctx.currentTime);osc.frequency.exponentialRampToValueAtTime(_revFreq*1.18,ctx.currentTime+dur);osc.connect(g);osc.start();osc.stop(ctx.currentTime+dur);
+      setTimeout(()=>ctx.close(),350);
+    }catch{}
+    _revFreq=Math.min(520,_revFreq*1.07);_revTempo=Math.max(75,Math.floor(_revTempo*0.87));
+    _revTimer=setTimeout(tick,_revTempo);
+  };
+  tick();
+}
+function stopRevSound(){
+  if(_revTimer){clearTimeout(_revTimer);_revTimer=null;}
+  _revFreq=110;_revTempo=520;
+}
+
+// ── TAPE INSERT ANIMATION ─────────────────────────────────────────────────
+function triggerTapeInsertAnim(srcRect){
+  const badge=document.getElementById('count-badge');if(!badge)return;
+  const dst=badge.getBoundingClientRect();
+  const sx=(srcRect?.left||window.innerWidth/2)+(srcRect?.width||0)/2;
+  const sy=(srcRect?.top||window.innerHeight/2)+(srcRect?.height||0)/2;
+  const el=document.createElement('div');el.textContent='📼';
+  el.style.cssText=`position:fixed;left:${sx}px;top:${sy}px;font-size:22px;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);transition:left .65s cubic-bezier(.4,0,.2,1),top .65s cubic-bezier(.4,0,.2,1),opacity .55s .1s,transform .65s;opacity:1`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    el.style.left=(dst.left+dst.width/2)+'px';el.style.top=(dst.top+dst.height/2)+'px';
+    el.style.transform='translate(-50%,-50%) scale(0.25)';el.style.opacity='0';
+  }));
+  setTimeout(()=>el.remove(),850);
+}
+
+// ── MILESTONE CONFETTI ────────────────────────────────────────────────────
+let _milestoneSeen=null;
+function checkMilestoneConfetti(n){
+  if(!_milestoneSeen)_milestoneSeen=new Set((localStorage.getItem('vhs-milestones')||'').split(',').filter(Boolean));
+  const hit=[50,100,200].find(m=>n>=m&&!_milestoneSeen.has(String(m)));
+  if(!hit)return;
+  _milestoneSeen.add(String(hit));localStorage.setItem('vhs-milestones',[..._milestoneSeen].join(','));
+  const badge=document.getElementById('count-badge');if(!badge)return;
+  const rect=badge.getBoundingClientRect();const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+  for(let i=0;i<26;i++){
+    const el=document.createElement('div');el.textContent='📼';
+    const angle=(i/26)*360,dist=55+Math.random()*90,dur=0.9+Math.random()*0.5;
+    el.style.cssText=`position:fixed;left:${cx}px;top:${cy}px;font-size:${(14+Math.random()*10)|0}px;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);transition:all ${dur.toFixed(2)}s cubic-bezier(.1,.8,.3,1);opacity:1`;
+    document.body.appendChild(el);
+    const rad=angle*Math.PI/180;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      el.style.transform=`translate(calc(-50% + ${(Math.cos(rad)*dist).toFixed(1)}px),calc(-50% + ${(Math.sin(rad)*dist).toFixed(1)}px)) scale(0.4) rotate(${(Math.random()*360).toFixed(0)}deg)`;
+      el.style.opacity='0';
+    }));
+    setTimeout(()=>el.remove(),(dur+0.25)*1000);
+  }
+  toast(`🎉 ${hit} tapes in the collection! 📼`,'ok',5000);
+}
+
 // ── DOWNLOAD ─────────────────────────────────────────────────────────────
 function dl(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}

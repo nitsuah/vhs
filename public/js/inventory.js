@@ -87,7 +87,8 @@ function renderInv(){
       wall.innerHTML=items.map(t=>{
         const src=t.photo_spine||t.photo_thumbnail;
         const img=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
-        return `<div class="spine-card" data-id="${t.id}"${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}>${img}<div class="spine-lbl">${esc(t.title)}</div></div>`;
+        const _eggAttrs=t=>`${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}${/\bghostbusters?\b/i.test(t.title)?' data-ghostbusters="1"':''}${/\b(living dead|zombie|night of)\b/i.test(t.title)?' data-notld="1"':''}${/\b(speed racer|fast and furious|fast furious)\b/i.test(t.title)?' data-speedracer="1"':''}`;
+        return `<div class="spine-card" data-id="${t.id}"${_eggAttrs(t)}>${img}<div class="spine-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else if(wallMode===3){
       wall.innerHTML=items.map(t=>{
@@ -96,7 +97,8 @@ function renderInv(){
         const img=src
           ?`<img class="su-img${isSpine?' su-img-spine':''}" src="${src}" alt="">`
           :`<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
-        return `<div class="su-card" data-id="${t.id}"${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}>${img}<div class="su-lbl">${esc(t.title)}</div></div>`;
+        const _eggAttrs2=t=>`${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}${/\bghostbusters?\b/i.test(t.title)?' data-ghostbusters="1"':''}${/\b(living dead|zombie|night of)\b/i.test(t.title)?' data-notld="1"':''}${/\b(speed racer|fast and furious|fast furious)\b/i.test(t.title)?' data-speedracer="1"':''}`;
+        return `<div class="su-card" data-id="${t.id}"${_eggAttrs2(t)}>${img}<div class="su-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else{
       wall.innerHTML=items.map(t=>{
@@ -104,7 +106,8 @@ function renderInv(){
         const img=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph-txt">${esc(t.title)}</div>`;
         const meta=[t.year,t.label].filter(Boolean).join(' · ');
         const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
-        return `<div class="wall-card" data-id="${t.id}"${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}>${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
+        const _eggAttrs3=t=>`${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}${/\bghostbusters?\b/i.test(t.title)?' data-ghostbusters="1"':''}${/\b(living dead|zombie|night of)\b/i.test(t.title)?' data-notld="1"':''}${/\b(speed racer|fast and furious|fast furious)\b/i.test(t.title)?' data-speedracer="1"':''}`;
+        return `<div class="wall-card" data-id="${t.id}"${_eggAttrs3(t)}>${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
       }).join('');
     }
     wall.querySelectorAll('.wall-card,.spine-card,.su-card').forEach(c=>{
@@ -121,6 +124,22 @@ function renderInv(){
       c.addEventListener('touchstart',startJawsTheme,{passive:true});
       c.addEventListener('touchend',stopJawsTheme);
     });
+    wall.querySelectorAll('[data-ghostbusters]').forEach(c=>{
+      c.addEventListener('mouseenter',()=>playGhostbustersDing(c));
+      c.addEventListener('touchstart',()=>playGhostbustersDing(c),{passive:true});
+    });
+    wall.querySelectorAll('[data-notld]').forEach(c=>{
+      c.addEventListener('mouseenter',()=>startNotldEffect(c));
+      c.addEventListener('mouseleave',()=>stopNotldEffect(c));
+      c.addEventListener('touchstart',()=>startNotldEffect(c),{passive:true});
+      c.addEventListener('touchend',()=>stopNotldEffect(c));
+    });
+    wall.querySelectorAll('[data-speedracer]').forEach(c=>{
+      c.addEventListener('mouseenter',startRevSound);
+      c.addEventListener('mouseleave',stopRevSound);
+      c.addEventListener('touchstart',startRevSound,{passive:true});
+      c.addEventListener('touchend',stopRevSound);
+    });
     return;
   }
   wall.classList.remove('on','spine-mode','stacksup-mode');
@@ -134,6 +153,9 @@ function renderInv(){
   const rh='<span class="col-rh"></span>';
   const isAkira=t=>/\bakira\b/i.test(t.title);
   const isJaws=t=>/\bjaws\b/i.test(t.title);
+  const isGhostbusters=t=>/\bghostbusters?\b/i.test(t.title);
+  const isNotld=t=>/\b(living dead|zombie|night of)\b/i.test(t.title);
+  const isSpeedRacer=t=>/\b(speed racer|fast and furious|fast furious)\b/i.test(t.title);
   const years=inventory.map(t=>parseInt(t.year)).filter(y=>y>=1900&&y<=2030);
   const minYr=years.length?Math.min(...years):1970;
   const maxYr=years.length?Math.max(...years):2025;
@@ -223,7 +245,7 @@ function renderInv(){
     const actCell=isEd
       ?`<td style="white-space:nowrap;text-align:center"><button class="tbl-save" data-id="${t.id}" title="Save">✓</button><button class="tbl-cancel" data-id="${t.id}" title="Cancel">✕</button></td>`
       :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button><button class="tbl-edit" data-id="${t.id}" title="Edit row">✎</button></td>`;
-    return `<tr class="tape-row${checked?' selected':''}${isEd?' editing':''}" data-id="${t.id}"${isAkira(t)?' data-akira="1"':''}${isJaws(t)?' data-jaws="1"':''}>
+    return `<tr class="tape-row${checked?' selected':''}${isEd?' editing':''}" data-id="${t.id}"${isAkira(t)?' data-akira="1"':''}${isJaws(t)?' data-jaws="1"':''}${isGhostbusters(t)?' data-ghostbusters="1"':''}${isNotld(t)?' data-notld="1"':''}${isSpeedRacer(t)?' data-speedracer="1"':''}>
       <td style="text-align:center"><input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''}></td>
       <td class="tbl-open mc-2" data-id="${t.id}">${thumb}</td>
       ${edCell('title','mc-3')}
@@ -403,6 +425,22 @@ function renderInv(){
     row.addEventListener('touchstart',startJawsTheme,{passive:true});
     row.addEventListener('touchend',stopJawsTheme);
   });
+  tbl.querySelectorAll('tr[data-ghostbusters]').forEach(row=>{
+    row.addEventListener('mouseenter',()=>playGhostbustersDing(row));
+    row.addEventListener('touchstart',()=>playGhostbustersDing(row),{passive:true});
+  });
+  tbl.querySelectorAll('tr[data-notld]').forEach(row=>{
+    row.addEventListener('mouseenter',()=>startNotldEffect(row));
+    row.addEventListener('mouseleave',()=>stopNotldEffect(row));
+    row.addEventListener('touchstart',()=>startNotldEffect(row),{passive:true});
+    row.addEventListener('touchend',()=>stopNotldEffect(row));
+  });
+  tbl.querySelectorAll('tr[data-speedracer]').forEach(row=>{
+    row.addEventListener('mouseenter',startRevSound);
+    row.addEventListener('mouseleave',stopRevSound);
+    row.addEventListener('touchstart',startRevSound,{passive:true});
+    row.addEventListener('touchend',stopRevSound);
+  });
   tbl.querySelectorAll('tr.tape-row').forEach(row=>_initLongPress(row,row.dataset.id));
 }
 
@@ -435,6 +473,7 @@ const updateCount=()=>{
   const checkBtn=document.getElementById('btn-revalidate');
   if(fillBtn)fillBtn.style.display=n?'':'none';
   if(checkBtn)checkBtn.style.display=n?'':'none';
+  checkMilestoneConfetti(n);
 };
 
 function updateBulkBar(){
@@ -526,6 +565,7 @@ function openDetail(id){
   const getTags=()=>(inventory.find(x=>x.id===selectedId)||{}).tags||[];
   tagWrap.innerHTML=renderTagChips(t.tags||[]);
   initTagChips(tagWrap,getTags,tags=>{const rec=inventory.find(x=>x.id===selectedId);if(rec)rec.tags=tags;});
+  window._resetDetailTabs?.();
   document.getElementById('m-detail').style.display='flex';
   if(/matrix/i.test(t.title)){
     const mdl=document.getElementById('m-detail');
@@ -561,6 +601,7 @@ async function openNewTapeModal(){
   const tagWrap=document.getElementById('d-tag-chips');
   tagWrap.innerHTML=renderTagChips([]);
   initTagChips(tagWrap,()=>newTapeTags,tags=>{newTapeTags.length=0;tags.forEach(t=>newTapeTags.push(t));});
+  window._resetDetailTabs?.();
   document.getElementById('m-detail').style.display='flex';
   setTimeout(()=>document.getElementById('d-title').focus(),50);
 }
@@ -574,14 +615,17 @@ function renderDetailPhotos(t){
   wrap.innerHTML=photos.map((src,i)=>{
     const isFace=t.photo_face===src;
     const isSpine=t.photo_spine===src;
-    return `<div style="position:relative;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px">
-      <img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:4px;border:2px solid ${isFace?'var(--blue)':isSpine?'var(--green)':'var(--border2)'};cursor:pointer" onclick="window.open('${src}','_blank')" title="Click to view full size">
-      <div style="display:flex;gap:2px">
-        <button onclick="rotateDetailPhotoCCW(${i})" style="background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:1px 4px;border-radius:3px;cursor:pointer;font-size:10px" title="Rotate CCW">↺</button>
-        <button onclick="rotateDetailPhoto(${i})" style="background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:1px 4px;border-radius:3px;cursor:pointer;font-size:10px" title="Rotate CW">↻</button>
-        <button onclick="pinDetailPhoto(${i},'face')" style="background:${isFace?'rgba(68,136,255,.25)':'var(--bg4)'};border:1px solid ${isFace?'var(--blue)':'var(--border2)'};color:${isFace?'var(--blue)':'var(--text3)'};padding:1px 4px;border-radius:3px;cursor:pointer;font-size:9px" title="Pin as face (wall view)">🖼</button>
-        <button onclick="pinDetailPhoto(${i},'spine')" style="background:${isSpine?'rgba(61,187,61,.25)':'var(--bg4)'};border:1px solid ${isSpine?'var(--green)':'var(--border2)'};color:${isSpine?'var(--green)':'var(--text3)'};padding:1px 4px;border-radius:3px;cursor:pointer;font-size:9px" title="Pin as spine (list view)">▮</button>
-        <button onclick="removeDetailPhoto(${i})" style="background:rgba(232,64,64,.15);border:1px solid rgba(232,64,64,.3);color:var(--red);padding:1px 4px;border-radius:3px;cursor:pointer;font-size:10px" title="Remove">×</button>
+    const photoRoleBadge=isFace?'<span style="font-size:9px;background:rgba(68,136,255,.2);color:var(--blue);border:1px solid rgba(68,136,255,.3);border-radius:3px;padding:1px 4px">Cover</span>':isSpine?'<span style="font-size:9px;background:rgba(61,187,61,.2);color:var(--green);border:1px solid rgba(61,187,61,.3);border-radius:3px;padding:1px 4px">Spine</span>':'';
+    const btnBase='background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:5px 8px;border-radius:5px;cursor:pointer;font-size:14px;min-height:32px;min-width:32px';
+    return `<div style="position:relative;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:4px">
+      <div style="position:relative"><img src="${src}" style="width:88px;height:88px;object-fit:cover;border-radius:5px;border:2px solid ${isFace?'var(--blue)':isSpine?'var(--green)':'var(--border2)'};cursor:pointer;display:block" onclick="window.open('${src}','_blank')" title="Click to view full size">
+      ${photoRoleBadge?`<div style="position:absolute;bottom:2px;left:2px">${photoRoleBadge}</div>`:''}</div>
+      <div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:center;max-width:88px">
+        <button onclick="rotateDetailPhotoCCW(${i})" style="${btnBase}" title="Rotate CCW">↺</button>
+        <button onclick="rotateDetailPhoto(${i})" style="${btnBase}" title="Rotate CW">↻</button>
+        <button onclick="pinDetailPhoto(${i},'face')" style="background:${isFace?'rgba(68,136,255,.25)':'var(--bg4)'};border:1px solid ${isFace?'var(--blue)':'var(--border2)'};color:${isFace?'var(--blue)':'var(--text3)'};padding:5px 8px;border-radius:5px;cursor:pointer;font-size:14px;min-height:32px;min-width:32px" title="Pin as cover (wall view)">🖼</button>
+        <button onclick="pinDetailPhoto(${i},'spine')" style="background:${isSpine?'rgba(61,187,61,.25)':'var(--bg4)'};border:1px solid ${isSpine?'var(--green)':'var(--border2)'};color:${isSpine?'var(--green)':'var(--text3)'};padding:5px 8px;border-radius:5px;cursor:pointer;font-size:14px;min-height:32px;min-width:32px" title="Pin as spine (list view)">▮</button>
+        <button onclick="removeDetailPhoto(${i})" style="background:rgba(232,64,64,.15);border:1px solid rgba(232,64,64,.3);color:var(--red);padding:5px 8px;border-radius:5px;cursor:pointer;font-size:14px;min-height:32px;min-width:32px" title="Remove photo">×</button>
       </div>
     </div>`;
   }).join('');
@@ -749,6 +793,8 @@ document.getElementById('d-save').addEventListener('click',async()=>{
     };
     await dbAdd(rec);inventory.push(rec);renderInv();updateCount();
     toast(`Added: ${rec.title}`,'ok');
+    const saveBtn=document.getElementById('d-save');
+    triggerTapeInsertAnim(saveBtn?.getBoundingClientRect());
     isNewTape=false;
     document.getElementById('d-delete').style.display='';
     document.getElementById('m-detail').style.display='none';

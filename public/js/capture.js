@@ -206,9 +206,10 @@ async function pollReviewItems(){
       if(!existing&&cards.some(c=>c.jobId===item.id))continue; // already shown
       const data={...((typeof item.data==='object'?item.data:{})||{}),condition:item.data?.condition||'good',status:item.data?.status||'in_collection'};
       if(existing){
-        // Upgrade the processing card to this review_item
+        // Upgrade the processing card to this review_item; preserve any title the user typed
+        const userTitle=(existing.data.title||'').trim();
         existing.jobId=item.id; // now tracks review_item id for cleanup
-        existing.data=data;
+        existing.data=userTitle?{...data,title:userTitle}:data;
         existing.processingState=item.status==='failed'?'failed':'ready';
         existing.failReason=item.fail_reason||'';
         // Promote the next queued card to processing now that the server has freed a slot

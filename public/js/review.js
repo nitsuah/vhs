@@ -87,9 +87,11 @@ function renderCards(){
   updateTabBadge?.();
   const readyCount=cards.filter(c=>c.processingState==='ready').length;
   const procCount=cards.filter(c=>c.processingState==='processing'||c.processingState==='queued').length;
-  revBulk.classList.toggle('on',readyCount>1);
+  revBulk.classList.toggle('on',readyCount>0||procCount>0);
   const stopBtn=document.getElementById('btn-stop-proc');
   if(stopBtn)stopBtn.style.display=procCount?'':'none';
+  const discardAllBtn=document.getElementById('btn-discard-all');
+  if(discardAllBtn)discardAllBtn.style.display=procCount?'none':'';
   const totalN=cards.length;
   document.getElementById('rev-title').textContent=totalN?`Pending Review (${totalN})`:'Pending Review';
   if(!totalN){revCardsEl.innerHTML='';revBulk.classList.remove('on');document.getElementById('rev-title').textContent='Pending Review';if(!revErr.style.display||revErr.style.display==='none')revPanel.classList.remove('on');return;}
@@ -260,6 +262,7 @@ async function confirmCard(uid){
   const dup=findDup(title);
   if(dup&&!(await askDup(dup)))return;
   const cardEl=revCardsEl.querySelector(`.rev-card[data-uid="${uid}"]`);
+  const confirmBtnEl=revCardsEl.querySelector(`.c-confirm[data-uid="${uid}"]`);
   if(cardEl)cardEl.classList.add('confirming');
   const bcode=card.data.barcode||'';
   const useUpcId=bcode&&/^\d{8,14}$/.test(bcode)&&!inventory.find(t=>t.id===bcode);
@@ -284,6 +287,7 @@ async function confirmCard(uid){
   _reportOutcome(card,action);
   _claimJob(card);
   inventory.push(rec);renderInv();updateCount();
+  triggerTapeInsertAnim(confirmBtnEl?.getBoundingClientRect());
   toast(`Saved: ${rec.title}`,'ok');
   const confirmedIdx=cards.findIndex(c=>c.uid===uid);
   cards=cards.filter(c=>c.uid!==uid);
