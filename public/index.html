@@ -349,36 +349,48 @@
 <div class="backdrop" id="m-detail" style="display:none">
   <div class="modal">
     <h2 id="d-heading">Tape Details</h2>
-    <img id="detail-thumb" src="" alt="">
-    <div id="detail-photos" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
-    <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
-      <button class="btn-lookup" id="d-add-photo-file" title="Upload a photo for this tape">📎 Add Photo</button>
-      <span id="d-photo-count" style="font-size:11px;color:var(--text3)"></span>
-      <input type="file" id="d-photo-input" accept="image/*" multiple style="display:none">
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-tab="main">Main</button>
+      <button class="modal-tab" data-tab="details">Details</button>
     </div>
-    <div class="dgrid">
-      <div class="dfield full"><label>Title</label><div style="display:flex;gap:6px;align-items:center"><input id="d-title" type="text" style="flex:1"><button class="btn-lookup" id="d-lookup" title="Look up metadata by title">🔍 Lookup</button></div></div>
-      <div class="dfield"><label>Year</label><input id="d-year" type="text"></div>
-      <div class="dfield"><label>Label</label><input id="d-label" type="text"></div>
-      <div class="dfield"><label>Format</label><select id="d-format"><option value="VHS">VHS</option><option value="DVD">DVD</option><option value="Blu-ray">Blu-ray</option><option value="Betamax">Betamax</option><option value="LaserDisc">LaserDisc</option><option value="8mm/Hi8">8mm/Hi8</option><option value="Digital">Digital</option><option value="Other">Other</option></select></div>
-      <div class="dfield"><label>Barcode (UPC/EAN)</label><input id="d-barcode" type="text" placeholder="0 00000 00000 0"></div>
-      <div class="dfield"><label>Est. Value Low ($)</label><input id="d-value-low" type="text" placeholder="5"></div>
-      <div class="dfield"><label>Est. Value High ($)</label><input id="d-value-high" type="text" placeholder="20"></div>
-      <div class="dfield"><label>Condition</label>
-        <select id="d-cond"><option value="great">Great</option><option value="good">Good</option><option value="fair">Fair</option><option value="poor">Poor</option></select>
+    <!-- TAB: Main -->
+    <div class="modal-tab-pane active" id="dtab-main">
+      <img id="detail-thumb" src="" alt="">
+      <div id="detail-photos" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn-lookup" id="d-add-photo-file" title="Upload a photo for this tape">📎 Add Photo</button>
+        <span id="d-photo-count" style="font-size:11px;color:var(--text3)"></span>
+        <input type="file" id="d-photo-input" accept="image/*" multiple style="display:none">
       </div>
-      <div class="dfield"><label>Status</label>
-        <select id="d-status">
-          <option value="in_collection">In Collection</option><option value="for_sale">For Sale</option>
-          <option value="sold">Sold</option><option value="donated">Donated</option>
-          <option value="missing">Missing</option><option value="wanted">Wanted</option>
-        </select>
+      <div class="dgrid">
+        <div class="dfield full"><label>Title</label><div style="display:flex;gap:6px;align-items:center"><input id="d-title" type="text" style="flex:1"><button class="btn-lookup" id="d-lookup" title="Look up metadata by title">🔍 Lookup</button></div></div>
+        <div class="dfield"><label>Year</label><input id="d-year" type="text"></div>
+        <div class="dfield"><label>Label</label><input id="d-label" type="text"></div>
+        <div class="dfield"><label>Format</label><select id="d-format"><option value="VHS">VHS</option><option value="DVD">DVD</option><option value="Blu-ray">Blu-ray</option><option value="Betamax">Betamax</option><option value="LaserDisc">LaserDisc</option><option value="8mm/Hi8">8mm/Hi8</option><option value="Digital">Digital</option><option value="Other">Other</option></select></div>
+        <div class="dfield"><label>Barcode (UPC/EAN)</label><input id="d-barcode" type="text" placeholder="0 00000 00000 0"></div>
+        <div class="dfield full"><label>Genres / Tags</label><div class="tag-wrap" id="d-tag-chips"></div></div>
       </div>
-      <div class="dfield"><label>Sold For ($)</label><input id="d-sold-price" type="text" placeholder="actual sale price"></div>
-      <div class="dfield full"><label>Notes</label><textarea id="d-notes"></textarea></div>
-      <div class="dfield full"><label>Genres / Tags</label><div class="tag-wrap" id="d-tag-chips"></div></div>
-      <div class="dfield"><label>ID</label><input id="d-id" type="text" readonly></div>
-      <div class="dfield"><label>Scanned At</label><input id="d-scanned" type="text" readonly></div>
+    </div>
+    <!-- TAB: Details -->
+    <div class="modal-tab-pane" id="dtab-details">
+      <div class="dgrid">
+        <div class="dfield"><label>Est. Value Low ($)</label><input id="d-value-low" type="text" placeholder="5"></div>
+        <div class="dfield"><label>Est. Value High ($)</label><input id="d-value-high" type="text" placeholder="20"></div>
+        <div class="dfield"><label>Condition</label>
+          <select id="d-cond"><option value="great">Great</option><option value="good">Good</option><option value="fair">Fair</option><option value="poor">Poor</option></select>
+        </div>
+        <div class="dfield"><label>Status</label>
+          <select id="d-status">
+            <option value="in_collection">In Collection</option><option value="for_sale">For Sale</option>
+            <option value="sold">Sold</option><option value="donated">Donated</option>
+            <option value="missing">Missing</option><option value="wanted">Wanted</option>
+          </select>
+        </div>
+        <div class="dfield"><label>Sold For ($)</label><input id="d-sold-price" type="text" placeholder="actual sale price"></div>
+        <div class="dfield full"><label>Notes</label><textarea id="d-notes"></textarea></div>
+        <div class="dfield"><label>ID</label><input id="d-id" type="text" readonly></div>
+        <div class="dfield"><label>Scanned At</label><input id="d-scanned" type="text" readonly></div>
+      </div>
     </div>
     <div class="modal-acts">
       <button class="btn btn-del m-acts-left" id="d-delete">🗑 Delete</button>

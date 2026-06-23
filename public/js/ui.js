@@ -125,6 +125,16 @@ document.getElementById('btn-health').addEventListener('click',()=>{
 });
 document.getElementById('health-retry').addEventListener('click',runHealthCheck);
 document.getElementById('health-close').addEventListener('click',()=>document.getElementById('m-health').style.display='none');
+// ── DETAIL MODAL TABS ────────────────────────────────────────────────────
+(function(){
+  function switchDetailTab(tab){
+    document.querySelectorAll('#m-detail .modal-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+    document.querySelectorAll('#m-detail .modal-tab-pane').forEach(p=>p.classList.toggle('active',p.id===`dtab-${tab}`));
+  }
+  document.querySelectorAll('#m-detail .modal-tab').forEach(btn=>btn.addEventListener('click',()=>switchDetailTab(btn.dataset.tab)));
+  window._resetDetailTabs=()=>switchDetailTab('main');
+})();
+
 // ── CRT SCANLINES TOGGLE ─────────────────────────────────────────────────
 (function(){
   const btn=document.getElementById('btn-crt');

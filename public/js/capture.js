@@ -206,9 +206,10 @@ async function pollReviewItems(){
       if(!existing&&cards.some(c=>c.jobId===item.id))continue; // already shown
       const data={...((typeof item.data==='object'?item.data:{})||{}),condition:item.data?.condition||'good',status:item.data?.status||'in_collection'};
       if(existing){
-        // Upgrade the processing card to this review_item
+        // Upgrade the processing card to this review_item; preserve any title the user typed
+        const userTitle=(existing.data.title||'').trim();
         existing.jobId=item.id; // now tracks review_item id for cleanup
-        existing.data=data;
+        existing.data=userTitle?{...data,title:userTitle}:data;
         existing.processingState=item.status==='failed'?'failed':'ready';
         existing.failReason=item.fail_reason||'';
         // Promote the next queued card to processing now that the server has freed a slot
@@ -243,12 +244,25 @@ async function resumeInflightJobs(){
   }catch(e){console.warn('Resume inflight error:',e);}
 }
 
+let _pollInterval=5000;
 function startJobPoller(){
   if(jobPollTimer)return;
-  jobPollTimer=setInterval(()=>{pollReviewItems();updateQueueStatus();},5000);
+  const schedulePoll=()=>{
+    jobPollTimer=setTimeout(async()=>{
+      const t0=Date.now();
+      await Promise.all([pollReviewItems(),updateQueueStatus()]);
+      const elapsed=Date.now()-t0;
+      const total=cards.length;
+      if(total>=75)console.info(`[vhs-queue] ${total} cards in review, poll took ${elapsed}ms`);
+      if(total>=100)_pollInterval=Math.min(15000,_pollInterval+1000);
+      else _pollInterval=5000;
+      schedulePoll();
+    },_pollInterval);
+  };
   resumeInflightJobs();
   pollReviewItems();
   updateQueueStatus();
+  schedulePoll();
 }
 
 // ── QUEUE STATUS ─────────────────────────────────────────────────────────

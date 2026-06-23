@@ -87,16 +87,26 @@ async function callAI(base64){
   return results;
 }
 async function callClaude(base64){
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'},
-    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,messages:[{role:'user',content:[
-      {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
-      {type:'text',text:fastMode?VISION_PROMPT_FAST:VISION_PROMPT_FULL}
-    ]}]})
-  });
-  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`Claude ${res.status}`);}
-  const d=await res.json();return parseJson(d.content?.[0]?.text||'[]');
+  for(let attempt=0;attempt<3;attempt++){
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
+        {type:'text',text:fastMode?VISION_PROMPT_FAST:VISION_PROMPT_FULL}
+      ]}]})
+    });
+    if(res.status===429||res.status===529){
+      const retry=parseInt(res.headers.get('retry-after')||'0',10)||Math.pow(2,attempt+1)*1000;
+      console.warn(`Claude rate limit — retrying in ${retry}ms (attempt ${attempt+1})`);
+      setRevMsg(`Rate limited — waiting ${Math.round(retry/1000)}s…`);
+      await new Promise(r=>setTimeout(r,retry));
+      continue;
+    }
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`Claude ${res.status}`);}
+    const d=await res.json();return parseJson(d.content?.[0]?.text||'[]');
+  }
+  throw new Error('Claude rate limit — max retries reached');
 }
 async function callOllama(base64){
   const res=await fetch(`${ollamaUrl}/api/generate`,{
