@@ -73,6 +73,7 @@ function getFiltered(){
 }
 
 function renderInv(){
+  updateCount();
   const list=document.getElementById('inv-list');
   const wall=document.getElementById('wall-view');
   const items=getFiltered();
@@ -240,11 +241,20 @@ function renderInv(){
       if(isEd)return`<td class="${mc}${pend?' tbl-td-pending':''}" data-id="${t.id}" data-field="${field}"><input class="tbl-input${pend?' pending':''}" data-id="${t.id}" data-field="${field}" value="${esc(pv!==undefined?pv:curVal)}"></td>`;
       return`<td class="${mc} editable" data-id="${t.id}" data-field="${field}">${esc(curVal)}</td>`;
     };
+    const edCellVal=(field,mc)=>{
+      const curVal=t[field]||'';const pv=pe[field];const pend=isEd&&pv!==undefined&&pv!==curVal;
+      if(isEd)return`<td class="${mc}${pend?' tbl-td-pending':''}" data-id="${t.id}" data-field="${field}"><input class="tbl-input${pend?' pending':''}" data-id="${t.id}" data-field="${field}" value="${esc(pv!==undefined?pv:curVal)}"></td>`;
+      return`<td class="${mc} editable" data-id="${t.id}" data-field="${field}">${curVal?`<span style="color:var(--green)">$${esc(curVal)}</span>`:''}</td>`;
+    };
+    const tagCell=r=>{
+      const tags=r.tags||[];
+      return`<td class="mc-11 editable" data-id="${r.id}" data-field="tags">${tags.map(tag=>`<span class="tag-sm">${esc(tag)}</span>`).join('')}</td>`;
+    };
     const selCurVal=(field,def)=>pe[field]!==undefined?pe[field]:(t[field]||def||'');
     const selPend=(field,def)=>isEd&&pe[field]!==undefined&&pe[field]!==(t[field]||def||'');
     const actCell=isEd
       ?`<td style="white-space:nowrap;text-align:center"><button class="tbl-save" data-id="${t.id}" title="Save">✓</button><button class="tbl-cancel" data-id="${t.id}" title="Cancel">✕</button></td>`
-      :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button><button class="tbl-edit" data-id="${t.id}" title="Edit row">✎</button></td>`;
+      :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button></td>`;
     return `<tr class="tape-row${checked?' selected':''}${isEd?' editing':''}" data-id="${t.id}"${isAkira(t)?' data-akira="1"':''}${isJaws(t)?' data-jaws="1"':''}${isGhostbusters(t)?' data-ghostbusters="1"':''}${isNotld(t)?' data-notld="1"':''}${isSpeedRacer(t)?' data-speedracer="1"':''}>
       <td style="text-align:center"><input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''}></td>
       <td class="tbl-open mc-2" data-id="${t.id}">${thumb}</td>
@@ -254,9 +264,9 @@ function renderInv(){
       <td class="mc-6${selPend('format','VHS')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('format','VHS')?' pending':''}" data-id="${t.id}" data-field="format">${fmtOpts(selCurVal('format','VHS'))}</select></td>
       <td class="mc-7${selPend('condition','good')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('condition','good')?' pending':''}" data-id="${t.id}" data-field="condition">${condOpts(selCurVal('condition','good'))}</select></td>
       <td class="mc-8${selPend('status','in_collection')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('status','in_collection')?' pending':''}" data-id="${t.id}" data-field="status">${statOpts(selCurVal('status','in_collection'))}</select></td>
-      ${edCell('value_low','mc-9')}
-      ${edCell('value_high','mc-10')}
-      ${edCell('tags','mc-11',true)}
+      ${edCellVal('value_low','mc-9')}
+      ${edCellVal('value_high','mc-10')}
+      ${tagCell(t)}
       ${edCell('notes','mc-12')}
       ${actCell}
     </tr>`;
@@ -459,21 +469,22 @@ window.quickFilter=function(status,cond){
 };
 
 const updateCount=()=>{
-  const n=inventory.length;
+  const all=inventory.length;
+  const filtered=getFiltered();
+  const n=filtered.length;
+  const isFiltered=n<all;
   let totalLo=0,totalHi=0,valCount=0;
-  for(const t of inventory){
+  for(const t of filtered){
     if(t.value_low||t.value_high){totalLo+=parseFloat(t.value_low)||0;totalHi+=parseFloat(t.value_high)||0;valCount++;}
   }
-  const valStr=valCount?` <span style="color:var(--green);font-size:10px">$${totalLo.toFixed(0)}–$${totalHi.toFixed(0)}</span>`:'';
-  document.getElementById('count-badge').innerHTML=`📼 ${n}${valStr}`;
+  const valStr=valCount?` <span style="color:var(--green);font-size:10px">$${Math.round(totalLo)}–$${Math.round(totalHi)}</span>`:'';
+  const cntHtml=isFiltered?`${n}<span style="color:var(--text3);font-size:10px">/${all}</span>`:String(all);
+  document.getElementById('count-badge').innerHTML=`📼 ${cntHtml}${valStr}`;
   const mob=document.getElementById('count-badge-mob');
-  if(mob)mob.innerHTML=`📼 ${n}`;
-  // Show/hide AI buttons based on whether collection has items
+  if(mob)mob.innerHTML=`📼 ${isFiltered?n:all}`;
   const fillBtn=document.getElementById('btn-fill-data');
-  const checkBtn=document.getElementById('btn-revalidate');
-  if(fillBtn)fillBtn.style.display=n?'':'none';
-  if(checkBtn)checkBtn.style.display=n?'':'none';
-  checkMilestoneConfetti(n);
+  if(fillBtn)fillBtn.style.display=all?'':'none';
+  checkMilestoneConfetti(all);
 };
 
 function updateBulkBar(){
@@ -489,9 +500,7 @@ function updateBulkBar(){
   }
   // Update AI button labels to indicate scope when selection is active
   const fillBtn=document.getElementById('btn-fill-data');
-  const checkBtn=document.getElementById('btn-revalidate');
   if(fillBtn)fillBtn.textContent=n>0?`⚡ Fill (${n})`:'⚡ Fill';
-  if(checkBtn)checkBtn.textContent=n>0?`🦙 Check (${n})`:'🦙 Check';
 }
 document.getElementById('bulk-apply').addEventListener('click',async()=>{
   const status=document.getElementById('bulk-status-sel').value;
@@ -842,22 +851,40 @@ async function _fetchPosterImage(url){
   }catch{return null;}
 }
 
+let _fillCancelled=false;
+async function _fillLookup(t){
+  // Barcode path first — most reliable
+  if(t.barcode&&/^\d{8,14}$/.test(t.barcode)){
+    try{
+      const hdrs={};if(typeof omdbKey!=='undefined'&&omdbKey)hdrs['x-omdb-key']=omdbKey;
+      const r=await fetch(`/api/lookup/barcode/${encodeURIComponent(t.barcode)}`,{signal:AbortSignal.timeout(8000),headers:hdrs});
+      if(r.ok){const d=await r.json();if(d&&d.title)return d;}
+    }catch{}
+  }
+  // OMDb title search — no AI
+  try{
+    const hdrs={};if(typeof omdbKey!=='undefined'&&omdbKey)hdrs['x-omdb-key']=omdbKey;
+    const r=await fetch(`/api/lookup?title=${encodeURIComponent(t.title)}&noai=1`,{signal:AbortSignal.timeout(10000),headers:hdrs});
+    if(r.ok){const d=await r.json();if(d&&d.imdb_id)return d;}
+  }catch{}
+  return null;
+}
 document.getElementById('btn-fill-data').addEventListener('click',async()=>{
+  if(document.getElementById('btn-fill-data').disabled)return;
   const pool=selectedIds.size>0?inventory.filter(t=>selectedIds.has(t.id)):inventory;
-  // Target tapes missing any enrichable field
-  const targets=pool.filter(t=>t.title&&(
-    !t.year||!t.label||!t.imdb_id||
-    (!t.value_low&&!t.value_high)||
-    !t.photos?.length
-  ));
+  const targets=pool.filter(t=>t.title&&(!t.year||!t.label||!t.imdb_id||(!t.value_low&&!t.value_high)||!t.photos?.length));
   if(!targets.length){toast('All tapes already have complete data','');return;}
   const btn=document.getElementById('btn-fill-data');
-  btn.disabled=true;
+  const progWrap=document.getElementById('fill-progress');
+  const progBar=document.getElementById('fill-progress-bar');
+  btn.disabled=true;_fillCancelled=false;
+  if(progWrap){progWrap.style.display='flex';if(progBar)progBar.style.width='0%';}
   let done=0;
-  for(const t of targets){
-    btn.textContent=`⚡ ${done}/${targets.length}`;
-    const meta=await lookupMetadata(t.title);
-    // Require an imdb_id match before filling anything — confirms we have the right title
+  for(let i=0;i<targets.length;i++){
+    if(_fillCancelled)break;
+    if(progBar)progBar.style.width=`${Math.round((i/targets.length)*100)}%`;
+    const t=targets[i];
+    const meta=await _fillLookup(t);
     if(!meta||!meta.imdb_id)continue;
     let hasChanges=false;
     if(meta.year&&!t.year){t.year=meta.year;hasChanges=true;}
@@ -865,35 +892,36 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
     if(meta.imdb_id&&!t.imdb_id){t.imdb_id=meta.imdb_id;hasChanges=true;}
     if(meta.value_low&&!t.value_low){t.value_low=meta.value_low;hasChanges=true;}
     if(meta.value_high&&!t.value_high){t.value_high=meta.value_high;hasChanges=true;}
-    // Fetch cover art from OMDb poster URL if tape has no photos yet
     if(meta.poster&&!t.photos?.length){
       const dataUrl=await _fetchPosterImage(meta.poster);
-      if(dataUrl){
-        t.photos=[dataUrl];t.photo_thumbnail=dataUrl;t.photo_face=dataUrl;
-        hasChanges=true;
-      }
+      if(dataUrl){t.photos=[dataUrl];t.photo_thumbnail=dataUrl;t.photo_face=dataUrl;hasChanges=true;}
     }
-    if(hasChanges){
-      try{await dbPut(t);done++;}
-      catch(e){console.warn('Fill save failed:',t.id,e);}
-    }
+    if(hasChanges){try{await dbPut(t);done++;}catch(e){console.warn('Fill save:',t.id,e);}}
   }
-  btn.disabled=false;btn.textContent='⚡ Fill';
-  if(done){
-    renderInv();updateCount();
-    toast(`Filled ${done} tape${done!==1?'s':''}`, 'ok',4000);
-  }else{
-    toast(`No reliable matches found for ${targets.length} tape${targets.length!==1?'s':''}`,'',4000);
-  }
+  if(progBar)progBar.style.width='100%';
+  setTimeout(()=>{if(progWrap)progWrap.style.display='none';},600);
+  btn.disabled=false;btn.textContent=selectedIds.size>0?`⚡ Fill (${selectedIds.size})`:'⚡ Fill';
+  if(done){renderInv();updateCount();toast(`Filled ${done} tape${done!==1?'s':''}`, 'ok',4000);}
+  else if(!_fillCancelled){toast(`No reliable matches found for ${targets.length} tape${targets.length!==1?'s':''}`, '',4000);}
+  _fillCancelled=false;
 });
 document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModal);
 document.getElementById('bulk-fill')?.addEventListener('click',()=>document.getElementById('btn-fill-data').click());
-document.getElementById('bulk-check')?.addEventListener('click',()=>document.getElementById('btn-revalidate').click());
 
 // ── RE-VALIDATE DIFF ─────────────────────────────────────────────────────
+function _normTitle(s){return(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();}
+function _titleSim(a,b){
+  const wa=_normTitle(a).split(' ').filter(Boolean);
+  const wb=_normTitle(b).split(' ').filter(Boolean);
+  if(!wa.length||!wb.length)return 0;
+  const sa=new Set(wa),sb=new Set(wb);
+  const common=[...sa].filter(w=>sb.has(w)).length;
+  return common/Math.max(sa.size,sb.size);
+}
 async function runRevalidate(){
   const pool=selectedIds.size>0?inventory.filter(t=>selectedIds.has(t.id)):inventory;
-  const targets=pool.filter(t=>t.photo_thumbnail);
+  // Prefer face photos for better OCR accuracy; fall back to thumbnail
+  const targets=pool.filter(t=>t.photo_face||t.photo_thumbnail);
   if(!targets.length){toast('No tapes with photos to check','');return;}
   const modal=document.getElementById('m-revalidate');
   const statusEl=document.getElementById('rv-status');
@@ -902,15 +930,15 @@ async function runRevalidate(){
   statusEl.textContent=`Queuing ${targets.length} photo${targets.length>1?'s':''} for analysis…`;
   progWrap.style.display='';progBar.style.width='0%';
   modal.style.display='flex';
-  const REVAL_FIELDS=['title','year','label','format'];
 
   const batch=[];
   for(let i=0;i<targets.length;i++){
     progBar.style.width=`${Math.round((i/targets.length)*40)}%`;
     statusEl.textContent=`Submitting ${i+1}/${targets.length}…`;
     try{
+      const img=targets[i].photo_face||targets[i].photo_thumbnail;
       const {id:jobId}=await apiReq('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({image:targets[i].photo_thumbnail,thumb:null})});
+        body:JSON.stringify({image:img,thumb:null})});
       batch.push({jobId,tape:targets[i]});
     }catch(e){console.warn('Re-validate submit failed for',targets[i].id,e);}
   }
@@ -942,20 +970,38 @@ async function runRevalidate(){
 
   progBar.style.width='100%';
   let queued=0;
+  const hdrs={};if(typeof omdbKey!=='undefined'&&omdbKey)hdrs['x-omdb-key']=omdbKey;
   for(const {jobId,tape} of batch){
     const aiResults=results.get(jobId)||[];
     if(!aiResults.length)continue;
     const r=aiResults[0];
-    const proposed={tape_id:tape.id,title:r.title||tape.title};
+    // Skip low-confidence results entirely
+    if(r.confidence==='low')continue;
+    const proposed={tape_id:tape.id};
     let hasDiff=false;
-    for(const f of REVAL_FIELDS){
-      const oldVal=(tape[f]||'').trim();
-      const newVal=(r[f]||'').trim();
-      if(newVal&&newVal!==oldVal){proposed[f]=newVal;hasDiff=true;}
+    // Title: only flag if word-similarity is below 0.75 AND not a case/punctuation difference
+    const aiTitle=(r.title||'').trim();
+    const existTitle=(tape.title||'').trim();
+    if(aiTitle&&_normTitle(aiTitle)!==_normTitle(existTitle)&&_titleSim(aiTitle,existTitle)<0.75){
+      // Cross-check with OMDb: if AI title resolves to same imdb_id, skip
+      let omdbSame=false;
+      if(tape.imdb_id){
+        try{
+          const chk=await fetch(`/api/lookup?title=${encodeURIComponent(aiTitle)}&noai=1`,{signal:AbortSignal.timeout(5000),headers:hdrs});
+          if(chk.ok){const cd=await chk.json();if(cd.imdb_id===tape.imdb_id)omdbSame=true;}
+        }catch{}
+      }
+      if(!omdbSame){proposed.title=aiTitle;hasDiff=true;}
     }
+    // Year: only flag if difference > 1 year
+    const aiYear=parseInt(r.year)||0;
+    const existYear=parseInt(tape.year)||0;
+    if(aiYear&&existYear&&Math.abs(aiYear-existYear)>1){proposed.year=String(aiYear);hasDiff=true;}
+    else if(aiYear&&!existYear){proposed.year=String(aiYear);hasDiff=true;}
     if(!hasDiff)continue;
+    proposed.title=proposed.title||existTitle;
     try{
-      await apiReq('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'revalidate',data:proposed,thumb:tape.photo_thumbnail||null})});
+      await apiReq('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'revalidate',data:proposed,thumb:tape.photo_face||tape.photo_thumbnail||null})});
       queued++;
     }catch(e){console.warn('Revalidate queue failed:',tape.id,e);}
   }
@@ -1015,3 +1061,24 @@ document.getElementById('s-migrate-idb').addEventListener('click',async()=>{
   }
   btn.disabled=false;
 });
+
+// ── FILL CANCEL ───────────────────────────────────────────────────────────
+document.getElementById('fill-cancel-btn')?.addEventListener('click',()=>{
+  _fillCancelled=true;
+  const progWrap=document.getElementById('fill-progress');
+  if(progWrap)progWrap.style.display='none';
+});
+
+// ── ZOOM SLIDER ───────────────────────────────────────────────────────────
+(function(){
+  const slider=document.getElementById('zoom-slider');
+  if(!slider)return;
+  const saved=parseFloat(localStorage.getItem('vhs-zoom'))||1;
+  slider.value=saved;
+  document.documentElement.style.setProperty('--inv-zoom',saved);
+  slider.addEventListener('input',()=>{
+    const z=parseFloat(slider.value)||1;
+    document.documentElement.style.setProperty('--inv-zoom',z);
+    localStorage.setItem('vhs-zoom',z);
+  });
+})();

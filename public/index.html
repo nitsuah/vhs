@@ -164,8 +164,12 @@
       <div id="collect-subhdr">
         <div class="csh-row1">
           <button class="hbtn hbtn-view" id="btn-wall">⊞ Wall</button>
-          <button class="hbtn hbtn-view hbtn-fill" id="btn-fill-data" title="Fill with Ollama — AI enriches missing year, label and value">⚡ Fill</button>
-          <button class="hbtn hbtn-view hbtn-check" id="btn-revalidate" title="Check with Ollama — re-analyze photo vs saved data">🦙 Check</button>
+          <button class="hbtn hbtn-view hbtn-fill" id="btn-fill-data" title="Fill missing data from OMDb">⚡ Fill</button>
+          <div id="fill-progress" style="display:none;align-items:center;gap:5px">
+            <div style="width:70px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden"><div id="fill-progress-bar" style="height:100%;background:var(--yellow);width:0%;transition:width .25s ease-out"></div></div>
+            <button id="fill-cancel-btn" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:0 2px;line-height:1" title="Cancel fill">✕</button>
+          </div>
+          <button class="hbtn hbtn-view hbtn-check" id="btn-revalidate" title="Check with Ollama — re-analyze photo vs saved data" style="display:none">🦙 Check</button>
           <span style="flex:1"></span>
           <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700">+ <span class="btn-txt">Add</span></button>
           <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ <span class="btn-txt">Import</span></button>
@@ -195,8 +199,7 @@
       </div>
       <div id="bulk-bar">
         <span id="bulk-count" style="font-size:12px;color:var(--blue);font-weight:700"></span>
-        <button class="ctrl-btn hbtn-fill" id="bulk-fill" title="Fill missing data with AI (selected)">⚡</button>
-        <button class="ctrl-btn hbtn-check" id="bulk-check" title="Re-check photos with AI (selected)">🦙</button>
+        <button class="ctrl-btn hbtn-fill" id="bulk-fill" title="Fill missing data (selected)">⚡</button>
         <select id="bulk-status-sel">
           <option value="">Status…</option>
           <option value="in_collection">In Collection</option>
@@ -209,6 +212,11 @@
         <button class="ctrl-btn" id="bulk-clear" style="margin-left:auto" title="Deselect all">↩</button>
       </div>
       <div id="inv-list"></div>
+      <div id="zoom-bar">
+        <span style="color:var(--text3);font-size:13px;cursor:default;user-select:none" title="Zoom out">⊖</span>
+        <input type="range" id="zoom-slider" min="0.5" max="2.5" step="0.1" value="1" title="Collection zoom">
+        <span style="color:var(--text3);font-size:13px;cursor:default;user-select:none" title="Zoom in">⊕</span>
+      </div>
       <div class="empty" id="empty-state" style="flex-direction:column;gap:10px;padding:40px 20px;display:none">
         <div style="font-size:36px">📼</div>
         <div style="font-size:14px;font-weight:700;color:var(--text)">No tapes yet</div>

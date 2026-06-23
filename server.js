@@ -382,6 +382,7 @@ app.get('/api/lookup', async (req, res) => {
   const title = (req.query.title || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
   const omdbKey = (req.headers['x-omdb-key'] || OMDB_API_KEY).trim();
+  const noai = req.query.noai === '1';
 
   const prompt = `You are a VHS collectibles expert. For the title: "${title.replace(/"/g, '\\"')}"
 Return ONLY a JSON object — no other text:
@@ -389,20 +390,19 @@ Return ONLY a JSON object — no other text:
 Rules: year=4-digit release year, label=VHS distributor/studio, value_low/value_high=USD resale range in good condition.
 Omit fields you are unsure about. Return {} if completely unknown.`;
 
-  const [ollamaRes, omdbRes] = await Promise.allSettled([
-    fetch(`${OLLAMA}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: OLLAMA_MODEL, prompt, stream: false, options: { num_predict: 200 } }),
-      signal: AbortSignal.timeout(30000),
-    }).then(async r => {
-      if (!r.ok) throw new Error(`Ollama ${r.status}`);
-      const data = await r.json();
-      const m = (data.response || '').match(/\{[\s\S]*?\}/);
-      try { return m ? JSON.parse(m[0]) : {}; } catch { return {}; }
-    }),
-    callOmdb({ title }, omdbKey),
-  ]);
+  const ollamaPromise = noai ? Promise.resolve({}) : fetch(`${OLLAMA}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: OLLAMA_MODEL, prompt, stream: false, options: { num_predict: 200 } }),
+    signal: AbortSignal.timeout(30000),
+  }).then(async r => {
+    if (!r.ok) throw new Error(`Ollama ${r.status}`);
+    const data = await r.json();
+    const m = (data.response || '').match(/\{[\s\S]*?\}/);
+    try { return m ? JSON.parse(m[0]) : {}; } catch { return {}; }
+  });
+
+  const [ollamaRes, omdbRes] = await Promise.allSettled([ollamaPromise, callOmdb({ title }, omdbKey)]);
 
   const base = ollamaRes.status === 'fulfilled' ? (ollamaRes.value || {}) : {};
   const omdb  = omdbRes.status  === 'fulfilled' ? omdbRes.value  : null;
