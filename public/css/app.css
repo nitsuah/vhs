@@ -230,7 +230,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .su-card:hover{border-color:var(--accent2);box-shadow:0 2px 8px rgba(0,0,0,.4)}
 .su-img{width:58px;flex:1;object-fit:cover;display:block}
 /* Spine photo rotated 90° CW so it reads correctly in the stacked-up shelf view */
-.su-img-spine{width:186px;height:58px;object-fit:cover;flex:none;display:block;transform:rotate(90deg);transform-origin:center;position:relative;left:calc((58px - 186px) / 2);top:calc((186px - 58px) / 2)}
+.su-img-spine{width:calc(186px * var(--inv-zoom));height:calc(58px * var(--inv-zoom));object-fit:cover;flex:none;display:block;transform:rotate(90deg);transform-origin:center;position:relative;left:calc((58px - 186px) * var(--inv-zoom) / 2);top:calc((186px - 58px) * var(--inv-zoom) / 2)}
 .su-ph{width:58px;flex:1;background:var(--bg4);display:flex;align-items:center;justify-content:center;overflow:hidden}
 .su-ph-txt{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:8px;color:var(--text2);padding:4px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-height:160px}
 .su-lbl{font-size:7px;color:var(--text3);padding:2px 3px;text-align:center;width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;background:var(--bg2);line-height:1.3;flex-shrink:0}
@@ -366,6 +366,8 @@ body.crt-on #crt-overlay{display:block}
 #fbi-youtube-close{position:absolute;top:12px;right:12px;z-index:10;background:rgba(0,0,0,.75);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .15s}
 #fbi-youtube-close:hover{background:rgba(200,0,0,.8)}
 #fill-review-status{padding:7px 14px;font-size:12px;color:var(--text2);background:rgba(240,192,64,.08);border-bottom:1px solid rgba(240,192,64,.2);gap:8px;align-items:center;flex-shrink:0}
+#crop-frame{transition:cursor .1s}
+#crop-frame:active{cursor:grabbing}
 
 /* ── MATRIX GLITCH ───────────────────────────────────────────────── */
 #m-detail.matrix-mode{background:rgba(0,0,0,.97)}

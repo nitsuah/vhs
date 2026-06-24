@@ -121,22 +121,23 @@ function renderInv(){
     if(wallMode===2){
       wall.innerHTML=items.map(t=>{
         const src=t.photo_spine||t.photo_thumbnail;
-        const inner=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
+        const inner=src?`<img class="spine-img" src="${src}" alt=""${_cropStyle(t,'spine')}>`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
         return `<div class="spine-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="spine-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else if(wallMode===3){
       wall.innerHTML=items.map(t=>{
         const isSpine=!!t.photo_spine;
         const src=t.photo_spine||t.photo_face||t.photo_thumbnail;
+        const cropRole=isSpine?'spine':'face';
         const inner=src
-          ?`<img class="su-img${isSpine?' su-img-spine':''}" src="${src}" alt="">`
+          ?`<img class="su-img${isSpine?' su-img-spine':''}" src="${src}" alt=""${_cropStyle(t,cropRole,isSpine)}>`
           :`<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
         return `<div class="su-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else{
       wall.innerHTML=items.map(t=>{
         const wallSrc=t.photo_face||t.photo_thumbnail;
-        const inner=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph-txt">${esc(t.title)}</div>`;
+        const inner=wallSrc?`<img class="wall-img" src="${wallSrc}" alt=""${_cropStyle(t,'face')}>`:`<div class="wall-ph-txt">${esc(t.title)}</div>`;
         const meta=[t.year,t.label].filter(Boolean).join(' · ');
         const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
         return `<div class="wall-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
@@ -665,6 +666,7 @@ function renderDetailPhotos(t){
         <button onclick="rotateDetailPhoto(${i})" style="${btnBase}" title="Rotate CW">↻</button>
         <button onclick="pinDetailPhoto(${i},'face')" style="background:${isFace?'rgba(68,136,255,.25)':'var(--bg4)'};border:1px solid ${isFace?'var(--blue)':'var(--border2)'};color:${isFace?'var(--blue)':'var(--text3)'};padding:5px 8px;border-radius:5px;cursor:pointer;font-size:14px;min-height:32px;min-width:32px" title="Pin as cover (wall view)">🖼</button>
         <button onclick="pinDetailPhoto(${i},'spine')" style="background:${isSpine?'rgba(61,187,61,.25)':'var(--bg4)'};border:1px solid ${isSpine?'var(--green)':'var(--border2)'};color:${isSpine?'var(--green)':'var(--text3)'};padding:5px 8px;border-radius:5px;cursor:pointer;font-size:14px;min-height:32px;min-width:32px" title="Pin as spine (list view)">▮</button>
+        ${(isFace||isSpine)?`<button onclick="openCropOverlay('${isFace?'face':'spine'}')" style="${btnBase}" title="Adjust position / zoom">📍</button>`:''}
         <button onclick="removeDetailPhoto(${i})" style="background:rgba(232,64,64,.15);border:1px solid rgba(232,64,64,.3);color:var(--red);padding:5px 8px;border-radius:5px;cursor:pointer;font-size:14px;min-height:32px;min-width:32px" title="Remove photo">×</button>
       </div>
     </div>`;
@@ -1122,4 +1124,101 @@ document.getElementById('fill-cancel-btn')?.addEventListener('click',()=>{
     document.documentElement.style.setProperty('--inv-zoom',z);
     localStorage.setItem('vhs-zoom',z);
   });
+})();
+
+// ── PHOTO CROP OVERLAY ────────────────────────────────────────────────────
+let _cropRole='face',_cropX=50,_cropY=50,_cropS=1;
+let _cropPanning=false,_cropPx=0,_cropPy=0;
+
+function _cropStyle(t,role,includeRotate){
+  const c=(t.photo_crop||{})[role];if(!c)return '';
+  const x=c.x??50,y=c.y??50,s=c.s??1;
+  if(x===50&&y===50&&s<=1)return '';
+  const parts=[];
+  if(includeRotate)parts.push('rotate(90deg)');
+  if(s>1)parts.push(`scale(${s})`);
+  return ` style="object-position:${x}% ${y}%${parts.length?`;transform:${parts.join(' ')}`:''}"`;
+}
+
+window.openCropOverlay=function(role){
+  const t=inventory.find(x=>x.id===selectedId);if(!t)return;
+  const src=role==='spine'?(t.photo_spine||t.photo_thumbnail):(t.photo_face||t.photo_thumbnail);
+  if(!src)return;
+  _cropRole=role;
+  const saved=((t.photo_crop||{})[role])||{};
+  _cropX=saved.x??50;_cropY=saved.y??50;_cropS=saved.s??1;
+  const frame=document.getElementById('crop-frame');
+  const hint=document.getElementById('crop-role-hint');
+  if(role==='spine'){
+    if(frame){frame.style.width='270px';frame.style.height='82px';}
+    if(hint)hint.textContent='Spine image — drag to set the visible region';
+  }else{
+    if(frame){frame.style.width='160px';frame.style.height='240px';}
+    if(hint)hint.textContent='Cover image — drag to set the focal point for card views';
+  }
+  const img=document.getElementById('crop-img');
+  if(img)img.src=src;
+  const slider=document.getElementById('crop-zoom');
+  if(slider)slider.value=Math.round(_cropS*100);
+  _applyCropUI();
+  document.getElementById('m-crop').style.display='flex';
+};
+
+function _applyCropUI(){
+  const img=document.getElementById('crop-img');if(!img)return;
+  img.style.objectPosition=`${_cropX}% ${_cropY}%`;
+  img.style.transform=_cropS>1?`scale(${_cropS})`:'none';
+  img.style.transformOrigin=`${_cropX}% ${_cropY}%`;
+  const pct=document.getElementById('crop-pct');
+  if(pct)pct.textContent=`${Math.round(_cropX)}% × ${Math.round(_cropY)}%${_cropS>1?' · '+_cropS.toFixed(1)+'×':''}`;
+  const lbl=document.getElementById('crop-zoom-lbl');
+  if(lbl)lbl.textContent=`${_cropS.toFixed(1)}×`;
+  const slider=document.getElementById('crop-zoom');
+  if(slider&&document.activeElement!==slider)slider.value=Math.round(_cropS*100);
+}
+
+function _saveCropOverlay(){
+  const t=inventory.find(x=>x.id===selectedId);if(!t)return;
+  if(!t.photo_crop)t.photo_crop={};
+  t.photo_crop[_cropRole]={x:_cropX,y:_cropY,s:_cropS};
+  dbPut(t).catch(e=>toast('Save failed: '+e.message,'err'));
+  document.getElementById('m-crop').style.display='none';
+  renderInv();
+}
+
+(function _initCropOverlay(){
+  const frame=document.getElementById('crop-frame');if(!frame)return;
+  frame.addEventListener('pointerdown',e=>{
+    _cropPanning=true;_cropPx=e.clientX;_cropPy=e.clientY;
+    frame.setPointerCapture(e.pointerId);e.preventDefault();
+  });
+  frame.addEventListener('pointermove',e=>{
+    if(!_cropPanning)return;
+    const dx=e.clientX-_cropPx,dy=e.clientY-_cropPy;
+    _cropPx=e.clientX;_cropPy=e.clientY;
+    _cropX=Math.max(0,Math.min(100,_cropX-dx*0.15));
+    _cropY=Math.max(0,Math.min(100,_cropY-dy*0.15));
+    _applyCropUI();
+  });
+  ['pointerup','pointercancel'].forEach(ev=>frame.addEventListener(ev,()=>{_cropPanning=false;}));
+  frame.addEventListener('wheel',e=>{
+    e.preventDefault();
+    _cropS=Math.max(1,Math.min(3,_cropS-e.deltaY*0.002));
+    _applyCropUI();
+  },{passive:false});
+  let _pinchLast=0;
+  frame.addEventListener('touchstart',e=>{
+    if(e.touches.length===2)_pinchLast=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  },{passive:true});
+  frame.addEventListener('touchmove',e=>{
+    if(e.touches.length===2){
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      if(_pinchLast>0)_cropS=Math.max(1,Math.min(3,_cropS*(d/_pinchLast)));
+      _pinchLast=d;_applyCropUI();
+    }
+  },{passive:true});
+  document.getElementById('crop-zoom')?.addEventListener('input',e=>{_cropS=parseInt(e.target.value)/100;_applyCropUI();});
+  document.getElementById('crop-save')?.addEventListener('click',_saveCropOverlay);
+  document.getElementById('crop-cancel')?.addEventListener('click',()=>document.getElementById('m-crop').style.display='none');
+  document.getElementById('crop-reset')?.addEventListener('click',()=>{_cropX=50;_cropY=50;_cropS=1;_applyCropUI();});
 })();
