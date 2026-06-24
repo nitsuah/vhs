@@ -119,25 +119,25 @@ function renderInv(){
     if(wallMode===2){
       wall.innerHTML=items.map(t=>{
         const src=t.photo_spine||t.photo_thumbnail;
-        const img=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
-        return `<div class="spine-card" data-id="${t.id}"${_eggAttrs(t)}>${img}<div class="spine-lbl">${esc(t.title)}</div></div>`;
+        const inner=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
+        return `<div class="spine-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="spine-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else if(wallMode===3){
       wall.innerHTML=items.map(t=>{
         const isSpine=!!t.photo_spine;
         const src=t.photo_spine||t.photo_face||t.photo_thumbnail;
-        const img=src
+        const inner=src
           ?`<img class="su-img${isSpine?' su-img-spine':''}" src="${src}" alt="">`
           :`<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
-        return `<div class="su-card" data-id="${t.id}"${_eggAttrs(t)}>${img}<div class="su-lbl">${esc(t.title)}</div></div>`;
+        return `<div class="su-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else{
       wall.innerHTML=items.map(t=>{
         const wallSrc=t.photo_face||t.photo_thumbnail;
-        const img=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph-txt">${esc(t.title)}</div>`;
+        const inner=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph-txt">${esc(t.title)}</div>`;
         const meta=[t.year,t.label].filter(Boolean).join(' · ');
         const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
-        return `<div class="wall-card" data-id="${t.id}"${_eggAttrs(t)}>${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
+        return `<div class="wall-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
       }).join('');
     }
     wall.querySelectorAll('.wall-card,.spine-card,.su-card').forEach(c=>{
