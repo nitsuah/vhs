@@ -509,8 +509,8 @@ const updateCount=()=>{
   const valStr=valCount?` <span style="color:var(--green);font-size:10px">$${Math.round(totalLo)}–$${Math.round(totalHi)}</span>`:'';
   const cntHtml=isFiltered?`${n}<span style="color:var(--text3);font-size:10px">/${all}</span>`:String(all);
   document.getElementById('count-badge').innerHTML=`📼 ${cntHtml}${valStr}`;
-  const mob=document.getElementById('count-badge-mob');
-  if(mob)mob.innerHTML=`📼 ${isFiltered?n:all}`;
+  const collectLbl=document.getElementById('collect-count');
+  if(collectLbl)collectLbl.textContent=isFiltered?`${n}/${all}`:String(all);
   const fillBtn=document.getElementById('btn-fill-data');
   if(fillBtn)fillBtn.style.display=all?'':'none';
   checkMilestoneConfetti(all);

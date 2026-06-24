@@ -11,9 +11,12 @@ function setActiveTab(tab){
 }
 function updateTabBadge(){
   const badge=document.getElementById('tab-review-count');
+  const tab=document.getElementById('tab-review');
   if(!badge)return;
   const n=cards.length;
   badge.textContent=n;badge.style.display=n?'':'none';
+  if(tab)tab.style.display=n?'':'none';
+  if(!n&&document.body.dataset.tab==='review')setActiveTab('capture');
 }
 document.getElementById('tab-capture')?.addEventListener('click',()=>setActiveTab('capture'));
 document.getElementById('tab-review')?.addEventListener('click',()=>setActiveTab('review'));
@@ -22,6 +25,7 @@ document.getElementById('tab-collect')?.addEventListener('click',()=>{
   setActiveTab('collect');
 });
 setActiveTab('capture');
+updateTabBadge();
 
 // ── KEYBOARD ─────────────────────────────────────────────────────────────
 document.addEventListener('keydown',e=>{
