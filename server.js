@@ -165,6 +165,7 @@ async function callOmdb({ title, imdbId }, apiKey) {
     label:   d.Production || '',
     imdb_id: d.imdbID || '',
     poster:  d.Poster && d.Poster !== 'N/A' ? d.Poster : '',
+    genres:  d.Genre ? d.Genre.split(',').map(g => g.trim()).filter(Boolean) : [],
   };
 }
 
@@ -412,6 +413,7 @@ Omit fields you are unsure about. Return {} if completely unknown.`;
   if (omdb?.imdb_id) merged.imdb_id = omdb.imdb_id;
   if (omdb?.label && !merged.label) merged.label = omdb.label;
   if (omdb?.poster)  merged.poster  = omdb.poster;
+  if (omdb?.genres?.length && !merged.genres?.length) merged.genres = omdb.genres;
 
   res.json(merged);
 });
@@ -420,15 +422,18 @@ app.get('/api/trailer', async (req, res) => {
   const title = (req.query.title || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
   try {
-    const query = encodeURIComponent(`${title} official trailer`);
+    const query = encodeURIComponent(`${title} - official trailer`);
     const r = await fetch(`https://www.youtube.com/results?search_query=${query}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
       signal: AbortSignal.timeout(8000),
     });
     if (!r.ok) return res.json({ videoId: null });
     const html = await r.text();
-    const m = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-    res.json({ videoId: m ? m[1] : null });
+    // Match first videoId from a videoRenderer (actual search result, not ad/shelf)
+    const m = html.match(/"videoRenderer"\s*:\s*\{"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/);
+    // Fall back to first videoId on the page if no videoRenderer match
+    const fallback = m ? null : html.match(/"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/);
+    res.json({ videoId: (m || fallback)?.[1] || null });
   } catch (e) {
     res.json({ videoId: null });
   }

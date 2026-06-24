@@ -68,3 +68,33 @@ Toggle **📺 CRT Scanlines** in the hamburger menu (☰) to overlay a repeating
 ## Collection Count: Akira Ding Trigger
 
 Every confirmed tape scan plays the Akira audio sting. The sound is rate-limited to once every 5 seconds to prevent overlap.
+
+---
+
+## Genre Easter Eggs
+
+Tapes with genre tags (auto-filled from OMDb via ⚡ Fill) get visual effects on their wall/spine cards. Hover a card to trigger them.
+
+| Genre | Hover Effect | Emoji |
+|---|---|---|
+| Horror | Red vignette glow + zombie hand rises from bottom | 🧟 |
+| Thriller | Darken/contrast shift + knife drops from top corner | 🔪 |
+| Sci-Fi | Cyan border flash + glitch shake + alien slides in | 👾 |
+| Fantasy | Permanent gold shimmer pulse + fairy floats in | 🧚 |
+| Action | Card shake + explosion pops in corner | 💥 |
+| Comedy | Card bounce + laughing face rises from top | 😂 |
+| Romance | Pink glow + heart rises from bottom (pulses) | ❤️ |
+| Animation | Permanent rainbow border cycle + paint palette drops | 🎨 |
+| Western | Sepia filter + cowboy hat rises | 🤠 |
+| Documentary | Desaturate + film clapper drops from top | 🎬 |
+| Musical / Music | Music note floats in from right | 🎵 |
+| Adventure | Permanent warm gold ambient glow + map icon | 🗺️ |
+| War | Grayscale shift + medal drops from corner | 🎖️ |
+| Crime | Dark inset shadow + pistol drops | 🔫 |
+| Drama | Brighten/saturate boost + theater masks rise | 🎭 |
+| Mystery | Darken + magnifying glass slides up from corner | 🔍 |
+| Sport | Bounce animation + soccer ball drops | ⚽ |
+| History | Sepia tint + scroll drops from corner | 📜 |
+| Biography | Subtle gold + trophy drops | 🏆 |
+
+Genres are auto-populated from OMDb when you run ⚡ Fill on a tape. They appear as tag chips in the edit modal and filter column.

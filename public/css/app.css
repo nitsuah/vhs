@@ -211,7 +211,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 
 #wall-view{flex:1;overflow-y:auto;display:none;padding:10px;gap:10px;flex-wrap:wrap;align-content:flex-start}
 #wall-view.on{display:flex}
-.wall-card{width:calc(160px * var(--inv-zoom));display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;padding:7px;border-radius:8px;border:1px solid var(--border);transition:border-color .15s,background .15s}
+.wall-card{width:calc(160px * var(--inv-zoom));display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;padding:7px;border-radius:8px;border:1px solid var(--border);transition:border-color .15s,background .15s;position:relative;overflow:hidden}
 .wall-card:hover{background:var(--bg3);border-color:var(--accent2);transform:translateY(-1px)}
 .wall-img{width:calc(146px * var(--inv-zoom));height:calc(205px * var(--inv-zoom));object-fit:cover;border-radius:5px;background:var(--bg4)}
 .wall-ph{width:calc(146px * var(--inv-zoom));height:calc(205px * var(--inv-zoom));border-radius:5px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:32px}
@@ -223,7 +223,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 #wall-view.spine-mode{gap:3px;padding:8px;align-content:flex-start}
 /* ── STACKSUP (upright spines, books-on-shelf) ────────────────── */
 #wall-view.stacksup-mode{gap:4px;padding:10px;align-content:flex-start;align-items:flex-end}
-.su-card{width:calc(58px * var(--inv-zoom));height:calc(186px * var(--inv-zoom));display:flex;flex-direction:column;cursor:pointer;border-radius:4px;border:1px solid var(--border);overflow:hidden;background:var(--bg3);transition:border-color .15s;flex-shrink:0}
+.su-card{width:calc(58px * var(--inv-zoom));height:calc(186px * var(--inv-zoom));display:flex;flex-direction:column;cursor:pointer;border-radius:4px;border:1px solid var(--border);overflow:hidden;background:var(--bg3);transition:border-color .15s;flex-shrink:0;position:relative}
 .su-card:hover{border-color:var(--accent2);box-shadow:0 2px 8px rgba(0,0,0,.4)}
 .su-img{width:58px;flex:1;object-fit:cover;display:block}
 /* Spine photo rotated 90° CW so it reads correctly in the stacked-up shelf view */
@@ -231,7 +231,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .su-ph{width:58px;flex:1;background:var(--bg4);display:flex;align-items:center;justify-content:center;overflow:hidden}
 .su-ph-txt{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:8px;color:var(--text2);padding:4px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-height:160px}
 .su-lbl{font-size:7px;color:var(--text3);padding:2px 3px;text-align:center;width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;background:var(--bg2);line-height:1.3;flex-shrink:0}
-.spine-card{width:calc(188px * var(--inv-zoom));height:calc(56px * var(--inv-zoom));display:flex;flex-direction:column;cursor:pointer;border-radius:5px;border:1px solid var(--border);overflow:hidden;background:var(--bg3);transition:border-color .15s;flex-shrink:0}
+.spine-card{width:calc(188px * var(--inv-zoom));height:calc(56px * var(--inv-zoom));display:flex;flex-direction:column;cursor:pointer;border-radius:5px;border:1px solid var(--border);overflow:hidden;background:var(--bg3);transition:border-color .15s;flex-shrink:0;position:relative}
 .spine-card:hover{border-color:var(--accent2)}
 .spine-img{width:calc(188px * var(--inv-zoom));height:calc(44px * var(--inv-zoom));object-fit:cover;display:block;flex-shrink:0}
 .spine-ph-txt{width:calc(188px * var(--inv-zoom));height:calc(44px * var(--inv-zoom));background:var(--bg4);display:flex;align-items:center;padding:0 8px;font-size:10px;color:var(--text2);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;flex-shrink:0}
@@ -555,3 +555,113 @@ body.crt-on #crt-overlay{display:block}
   .wall-card{width:calc(50% - 6px);padding:4px}
   .wall-meta,.wall-val{display:none}
 }
+
+/* ── GENRE EASTER EGGS ───────────────────────────────────────────── */
+/* All effects use ::before/::after — cards need position:relative (set above) */
+/* CSS attribute ~= selector matches space-separated word in data-genres         */
+
+/* HORROR — red inset glow on hover + zombie hand rising from bottom */
+[data-genres~="horror"]:hover{box-shadow:inset 0 0 0 2px rgba(180,0,0,.6),inset 0 0 28px rgba(180,0,0,.25)!important}
+[data-genres~="horror"]::after{content:'🧟';position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);font-size:22px;line-height:1;transition:bottom .35s ease;pointer-events:none;z-index:3}
+[data-genres~="horror"]:hover::after{bottom:3px}
+
+/* THRILLER — dark shadow creep + knife drops from top */
+[data-genres~="thriller"]::after{content:'🔪';position:absolute;top:-24px;right:7px;font-size:16px;transition:top .35s ease;pointer-events:none;z-index:3;opacity:.85;transform:rotate(20deg)}
+[data-genres~="thriller"]:hover::after{top:5px}
+[data-genres~="thriller"]:hover{filter:contrast(1.1) brightness(.82)}
+
+/* SCI-FI — cyan border + alien slides in */
+[data-genres~="scifi"]:hover{box-shadow:inset 0 0 0 1px rgba(0,200,255,.55)!important}
+[data-genres~="scifi"]::after{content:'👾';position:absolute;top:50%;right:-26px;transform:translateY(-50%);font-size:18px;transition:right .3s ease;pointer-events:none;z-index:3}
+[data-genres~="scifi"]:hover::after{right:5px}
+@keyframes scifi-glitch{0%,90%{transform:none}92%{transform:translateX(-3px) skewX(-2deg)}95%{transform:translateX(3px) skewX(2deg)}100%{transform:none}}
+[data-genres~="scifi"]:hover{animation:scifi-glitch .35s ease}
+
+/* FANTASY — gold shimmer pulse + fairy floats in */
+@keyframes fantasy-pulse{0%,100%{box-shadow:0 0 6px rgba(255,215,0,.25),0 0 0 1px rgba(255,215,0,.15)}50%{box-shadow:0 0 14px rgba(255,215,0,.5),0 0 0 1px rgba(255,215,0,.4)}}
+[data-genres~="fantasy"]{animation:fantasy-pulse 2.8s ease-in-out infinite}
+[data-genres~="fantasy"]::after{content:'🧚';position:absolute;top:50%;right:-26px;transform:translateY(-50%);font-size:18px;transition:right .4s ease;pointer-events:none;z-index:3}
+[data-genres~="fantasy"]:hover::after{right:5px}
+
+/* ACTION — shake + explosion pops up */
+@keyframes action-shake{0%,100%{transform:none}20%{transform:rotate(-2.5deg) translateX(-3px)}45%{transform:rotate(2deg) translateX(2px)}70%{transform:rotate(-1deg) translateX(-1px)}85%{transform:rotate(.5deg)}}
+[data-genres~="action"]:hover{animation:action-shake .4s ease}
+[data-genres~="action"]::after{content:'💥';position:absolute;top:4px;right:4px;font-size:18px;opacity:0;transition:opacity .15s ease;pointer-events:none;z-index:3}
+[data-genres~="action"]:hover::after{opacity:1}
+
+/* COMEDY — card bounce + laugh emoji rises */
+@keyframes comedy-bounce{0%,100%{transform:translateY(0)}25%{transform:translateY(-7px)}55%{transform:translateY(-2px)}75%{transform:translateY(-4px)}}
+[data-genres~="comedy"]:hover{animation:comedy-bounce .5s ease}
+[data-genres~="comedy"]::after{content:'😂';position:absolute;top:-26px;left:50%;transform:translateX(-50%);font-size:18px;transition:top .3s ease;pointer-events:none;z-index:3}
+[data-genres~="comedy"]:hover::after{top:4px}
+
+/* ROMANCE — pink glow + heart rises */
+@keyframes heart-float{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.25)}}
+[data-genres~="romance"]:hover{box-shadow:inset 0 0 0 1px rgba(255,100,150,.5),inset 0 0 20px rgba(255,100,150,.12)!important}
+[data-genres~="romance"]::after{content:'❤️';position:absolute;bottom:-26px;left:50%;transform:translateX(-50%);font-size:18px;transition:bottom .3s ease;pointer-events:none;z-index:3}
+[data-genres~="romance"]:hover::after{bottom:4px;animation:heart-float .7s ease-in-out infinite}
+
+/* ANIMATION — rainbow border cycles */
+@keyframes rainbow{0%{box-shadow:0 0 0 2px rgba(255,80,80,.5)}16%{box-shadow:0 0 0 2px rgba(255,180,0,.5)}33%{box-shadow:0 0 0 2px rgba(255,230,0,.5)}50%{box-shadow:0 0 0 2px rgba(60,200,60,.5)}66%{box-shadow:0 0 0 2px rgba(60,120,255,.5)}83%{box-shadow:0 0 0 2px rgba(180,60,255,.5)}100%{box-shadow:0 0 0 2px rgba(255,80,80,.5)}}
+[data-genres~="animation"]{animation:rainbow 2.8s linear infinite}
+[data-genres~="animation"]::after{content:'🎨';position:absolute;top:-24px;right:5px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
+[data-genres~="animation"]:hover::after{top:4px}
+
+/* WESTERN — sepia tone on hover */
+[data-genres~="western"]:hover{filter:sepia(.75) contrast(1.1) brightness(.95)}
+[data-genres~="western"]::after{content:'🤠';position:absolute;top:-24px;left:50%;transform:translateX(-50%);font-size:18px;transition:top .3s ease;pointer-events:none;z-index:3}
+[data-genres~="western"]:hover::after{top:4px}
+
+/* DOCUMENTARY — desaturate + film clapper appears */
+[data-genres~="documentary"]:hover{filter:saturate(.4) contrast(1.15)}
+[data-genres~="documentary"]::after{content:'🎬';position:absolute;top:-24px;left:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
+[data-genres~="documentary"]:hover::after{top:4px}
+
+/* MUSICAL / MUSIC — note floats in from right */
+[data-genres~="musical"]::after,[data-genres~="music"]::after{content:'🎵';position:absolute;top:50%;right:-24px;transform:translateY(-50%);font-size:16px;transition:right .3s ease;pointer-events:none;z-index:3}
+[data-genres~="musical"]:hover::after,[data-genres~="music"]:hover::after{right:5px}
+
+/* ADVENTURE — warm gold ambient glow */
+@keyframes adventure-glow{0%,100%{box-shadow:0 0 6px rgba(255,200,0,.2)}50%{box-shadow:0 0 14px rgba(255,200,0,.5)}}
+[data-genres~="adventure"]{animation:adventure-glow 2.5s ease-in-out infinite}
+[data-genres~="adventure"]::after{content:'🗺️';position:absolute;top:-24px;left:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
+[data-genres~="adventure"]:hover::after{top:4px}
+
+/* WAR — desaturate + helmet drops in */
+[data-genres~="war"]:hover{filter:grayscale(.65) contrast(1.1)}
+[data-genres~="war"]::after{content:'🎖️';position:absolute;top:-24px;right:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
+[data-genres~="war"]:hover::after{top:4px}
+
+/* CRIME — dark inset shadow + gun drops */
+[data-genres~="crime"]:hover{box-shadow:inset 0 0 24px rgba(0,0,0,.75)!important}
+[data-genres~="crime"]::after{content:'🔫';position:absolute;top:-24px;right:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3;transform:rotate(-20deg)}
+[data-genres~="crime"]:hover::after{top:4px}
+
+/* DRAMA — spotlight brighten + masks appear */
+[data-genres~="drama"]:hover{filter:brightness(1.12) saturate(1.2)}
+[data-genres~="drama"]::after{content:'🎭';position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);font-size:16px;transition:bottom .3s ease;pointer-events:none;z-index:3}
+[data-genres~="drama"]:hover::after{bottom:4px}
+
+/* MYSTERY — darken + magnifying glass slides up */
+[data-genres~="mystery"]:hover{filter:brightness(.75) contrast(1.2)}
+[data-genres~="mystery"]::after{content:'🔍';position:absolute;bottom:-24px;right:6px;font-size:16px;transition:bottom .3s ease;pointer-events:none;z-index:3}
+[data-genres~="mystery"]:hover::after{bottom:4px}
+
+/* SPORT — bounce + ball pops in */
+@keyframes sport-bounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}60%{transform:translateY(-2px)}}
+[data-genres~="sport"]:hover{animation:sport-bounce .4s ease}
+[data-genres~="sport"]::after{content:'⚽';position:absolute;top:-24px;right:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
+[data-genres~="sport"]:hover::after{top:4px}
+
+/* HISTORY — sepia + scroll appears */
+[data-genres~="history"]:hover{filter:sepia(.5) brightness(.9)}
+[data-genres~="history"]::after{content:'📜';position:absolute;top:-24px;left:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
+[data-genres~="history"]:hover::after{top:4px}
+
+/* BIOGRAPHY — subtle gold + person badge */
+[data-genres~="biography"]:hover{filter:brightness(1.06) saturate(.85)}
+[data-genres~="biography"]::after{content:'🏆';position:absolute;top:-24px;right:6px;font-size:15px;transition:top .3s ease;pointer-events:none;z-index:3}
+[data-genres~="biography"]:hover::after{top:4px}
+
+/* Prevent double animation when multiple genre keywords apply */
+[data-genres~="horror"][data-genres~="comedy"]{animation:none}
