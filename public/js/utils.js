@@ -1,3 +1,6 @@
+// ── SOUND TOGGLE ─────────────────────────────────────────────────────────
+let soundEnabled=localStorage.getItem('vhs-sound')!=='false';
+
 // ── TOAST ────────────────────────────────────────────────────────────────
 function toast(msg,type='',ms=3000){
   const el=document.createElement('div');
@@ -48,6 +51,7 @@ function loadScript(src){
 
 // ── AUDIO BEEP ───────────────────────────────────────────────────────────
 function beep(){
+  if(!soundEnabled)return;
   try{
     const ctx=new AudioContext(),osc=ctx.createOscillator(),g=ctx.createGain();
     osc.connect(g);g.connect(ctx.destination);
@@ -69,6 +73,7 @@ async function _loadAkiraAudio(){
   }catch(e){console.warn('Akira audio:',e);}
 }
 function playAkiraDing(){
+  if(!soundEnabled)return;
   const now=Date.now();
   if(now-_akiraLastDing<5000)return;
   _akiraLastDing=now;
@@ -94,6 +99,7 @@ function playAkiraDing(){
 _loadAkiraAudio();
 
 function buzz(){
+  if(!soundEnabled)return;
   try{
     const ctx=new AudioContext(),g=ctx.createGain();
     g.connect(ctx.destination);
@@ -113,6 +119,7 @@ function buzz(){
 // ── REWIND SOUND ─────────────────────────────────────────────────────────
 let _rewindCooldown=0;
 function playRewindSound(){
+  if(!soundEnabled)return;
   const now=Date.now();
   if(now-_rewindCooldown<5000)return;
   _rewindCooldown=now;
@@ -136,6 +143,7 @@ function playRewindSound(){
 // ── JAWS THEME ────────────────────────────────────────────────────────────
 let _jawsTimer=null,_jawsTempo=2000,_jawsNote=false;
 function startJawsTheme(){
+  if(!soundEnabled)return;
   stopJawsTheme();
   _jawsTempo=2000;_jawsNote=false;
   const tick=()=>{
@@ -238,6 +246,7 @@ function fileToThumb(f){
 // ── GHOSTBUSTERS DING ─────────────────────────────────────────────────────
 let _gbLastDing=0;
 function playGhostbustersDing(el){
+  if(!soundEnabled)return;
   const now=Date.now();if(now-_gbLastDing<5000)return;_gbLastDing=now;
   if(el){el.classList.add('gb-flash');setTimeout(()=>el.classList.remove('gb-flash'),600);}
   try{
@@ -260,6 +269,7 @@ function playGhostbustersDing(el){
 // ── NIGHT OF THE LIVING DEAD FLICKER + GROAN ──────────────────────────────
 let _notldGroanLast=0,_notldFlickerTimer=null;
 function _playNotldGroan(){
+  if(!soundEnabled)return;
   const now=Date.now();if(now-_notldGroanLast<5000)return;_notldGroanLast=now;
   try{
     const ctx=new AudioContext(),dur=0.85;
@@ -287,6 +297,7 @@ function stopNotldEffect(el){
 // ── SPEED RACER ENGINE REV ────────────────────────────────────────────────
 let _revTimer=null,_revFreq=110,_revTempo=520;
 function startRevSound(){
+  if(!soundEnabled)return;
   stopRevSound();_revFreq=110;_revTempo=520;
   const tick=()=>{
     try{

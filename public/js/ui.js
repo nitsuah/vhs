@@ -61,6 +61,31 @@ document.getElementById('btn-menu').addEventListener('click',openDrawer);
 document.getElementById('btn-help').addEventListener('click',()=>document.getElementById('m-help').style.display='flex');
 document.getElementById('help-close').addEventListener('click',()=>document.getElementById('m-help').style.display='none');
 
+// ── EASTER EGGS MODAL ────────────────────────────────────────────────────
+document.getElementById('btn-eggs')?.addEventListener('click',()=>{closeDrawer();document.getElementById('m-eggs').style.display='flex';});
+document.getElementById('eggs-close')?.addEventListener('click',()=>document.getElementById('m-eggs').style.display='none');
+
+// ── SOUND TOGGLE ─────────────────────────────────────────────────────────
+function updateSoundBtn(){
+  const btn=document.getElementById('btn-sound');
+  if(btn)btn.textContent=soundEnabled?'🔊 Sounds':'🔇 Sounds Off';
+}
+document.getElementById('btn-sound')?.addEventListener('click',()=>{
+  soundEnabled=!soundEnabled;
+  localStorage.setItem('vhs-sound',soundEnabled);
+  updateSoundBtn();
+  closeDrawer();
+});
+updateSoundBtn();
+
+// ── FULLSCREEN ───────────────────────────────────────────────────────────
+document.getElementById('btn-fullscreen')?.addEventListener('click',()=>{
+  const el=document.documentElement;
+  if(el.requestFullscreen)el.requestFullscreen().catch(()=>{});
+  else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
+  closeDrawer();
+});
+
 // ── SETTINGS MODAL ───────────────────────────────────────────────────────
 document.getElementById('btn-settings').addEventListener('click',()=>{
   document.getElementById('s-apikey').value=apiKey;

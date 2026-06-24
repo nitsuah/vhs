@@ -353,7 +353,8 @@ body.crt-on #crt-overlay{display:block}
 #fbi-badge-ring{width:64px;height:64px;border-radius:50%;border:3px solid #ffdd80;box-shadow:0 0 0 2px rgba(255,221,128,.3),inset 0 0 0 2px rgba(255,221,128,.15),0 0 20px rgba(255,221,128,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:rgba(0,0,58,.7)}
 #fbi-badge-star{font-size:22px;color:#ffdd80;line-height:1;text-shadow:0 0 8px rgba(255,221,128,.7)}
 #fbi-badge-text{font-size:4.5px;color:#ffdd80;letter-spacing:.12em;text-transform:uppercase;font-weight:700;line-height:1.3;text-align:center;max-width:52px}
-#fbi-warn{font-size:30px;font-weight:900;letter-spacing:.35em;color:#ffdd80;margin:0 0 10px;text-shadow:0 0 12px rgba(255,221,128,.5)}
+#fbi-warn{font-size:26px;font-weight:900;letter-spacing:.2em;color:#ffdd80;margin:0 0 10px;text-shadow:0 0 12px rgba(255,221,128,.5);white-space:nowrap}
+#fbi-warn strong{font-size:1.1em;letter-spacing:.05em;margin-right:4px}
 .fbi-rule{border-top:1px solid rgba(255,221,128,.5);margin:10px 0}
 .fbi-body{font-size:10.5px;line-height:1.75;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.88)}
 #fbi-cite{font-size:9px;color:rgba(255,221,128,.7);margin-top:12px;text-transform:uppercase;letter-spacing:.12em}
@@ -362,6 +363,9 @@ body.crt-on #crt-overlay{display:block}
 @keyframes fbi-blink{0%,100%{opacity:.5}50%{opacity:1}}
 #fbi-youtube-wrap{display:none;position:absolute;inset:0;z-index:3;background:#000;align-items:center;justify-content:center}
 #fbi-youtube-wrap iframe{width:100%;height:100%;border:none;max-width:900px;max-height:506px;margin:auto}
+#fbi-youtube-close{position:absolute;top:12px;right:12px;z-index:10;background:rgba(0,0,0,.75);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .15s}
+#fbi-youtube-close:hover{background:rgba(200,0,0,.8)}
+#fill-review-status{padding:7px 14px;font-size:12px;color:var(--text2);background:rgba(240,192,64,.08);border-bottom:1px solid rgba(240,192,64,.2);gap:8px;align-items:center;flex-shrink:0}
 
 /* ── MATRIX GLITCH ───────────────────────────────────────────────── */
 #m-detail.matrix-mode{background:rgba(0,0,0,.97)}
@@ -411,6 +415,8 @@ body.crt-on #crt-overlay{display:block}
 /* ── TAB NAV (in header) ─────────────────────────────────────────── */
 #tab-nav{flex:1;display:flex;align-self:stretch;background:none;border:none;justify-content:center;min-width:0}
 .tab-btn{flex:0 1 90px;height:100%;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.04em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 6px;transition:color .15s;white-space:nowrap}
+#tab-collect{flex-direction:row;gap:4px}
+#tab-collect .tab-lbl{font-size:13px;font-weight:700;letter-spacing:0;line-height:1}
 .tab-ico-wrap{position:relative;display:inline-block;line-height:1}
 .tab-btn .tab-ico{font-size:18px;line-height:1;display:block}
 .tab-btn:hover{color:var(--text)}
@@ -504,9 +510,10 @@ body.crt-on #crt-overlay{display:block}
   #header{height:auto;flex-wrap:nowrap;padding:8px 10px;gap:4px}
   #header h1{font-size:16px;white-space:nowrap}
   .tab-lbl{display:none}
-  #tab-collect .tab-lbl{display:block;font-size:10px;font-weight:700;color:var(--text2);line-height:1}
+  #tab-collect .tab-lbl{display:inline;font-size:12px;font-weight:700;color:var(--text2);line-height:1}
   .tab-btn{flex:0 1 44px;padding:4px 2px}
   .tab-btn .tab-ico{font-size:20px}
+  #tab-collect{flex:0 1 56px}
   #btn-filter-tray{display:flex}
   #inv-ctrl{display:none}
   #inv-ctrl.tray-open{display:block;position:fixed;bottom:0;left:0;right:0;z-index:150;background:var(--bg2);border-top:2px solid var(--accent);border-radius:16px 16px 0 0;padding:12px;max-height:60vh;overflow-y:auto;box-shadow:0 -8px 32px rgba(0,0,0,.5)}
@@ -554,19 +561,36 @@ body.crt-on #crt-overlay{display:block}
   #cam-panel{height:160px}
 }
 /* ── LANDSCAPE SIDEBAR NAV ──────────────────────────────────────── */
-@media (orientation:landscape) and (max-height:500px){
+@media (orientation:landscape) and (max-height:600px){
   body{flex-direction:row;height:100dvh;overflow:hidden}
-  #header{width:58px;height:100dvh;flex-direction:column;justify-content:flex-start;padding:8px 0;gap:0;border-bottom:none;border-right:1px solid var(--border);flex-shrink:0;overflow:visible}
+  #header{width:60px;height:100dvh;flex-direction:column;justify-content:flex-start;padding:8px 0;gap:0;border-bottom:none;border-right:1px solid var(--border);flex-shrink:0;overflow:visible}
   #header h1{display:none}
   #camera-select{display:none!important}
   #tab-nav{flex:1;flex-direction:column;justify-content:flex-start;align-self:stretch;gap:0;background:none;border:none;min-width:0}
-  .tab-btn{flex:0 0 54px;width:100%;height:54px;border-bottom:none!important;border-right:3px solid transparent;flex-direction:column;padding:4px 2px}
+  #tab-collect{flex-direction:column;gap:2px}
+  .tab-btn{flex:0 0 56px;width:100%;height:56px;border-bottom:none!important;border-right:3px solid transparent;flex-direction:column;padding:4px 2px}
   .tab-btn.active{border-right-color:var(--accent)!important;border-bottom-color:transparent!important}
   .tab-btn .tab-ico{font-size:22px}
   .tab-lbl{display:none!important}
   #tab-collect .tab-lbl{display:block!important;font-size:9px;font-weight:700;color:var(--text2);line-height:1}
   .hdr-right-mob{flex-direction:column;margin-left:0;margin-top:auto;gap:8px;padding-bottom:10px;align-items:center}
   #main{flex:1;min-width:0;overflow:hidden}
+  /* Capture: move buttons from bottom to right sidebar */
+  #cam-panel{flex-direction:row}
+  #cam-ctrl{flex-direction:column;width:148px;flex-shrink:0;height:100%;border-top:none;border-left:1px solid var(--border);overflow-y:auto;flex-wrap:nowrap;padding:8px 6px;gap:6px;justify-content:flex-start;align-items:stretch}
+  .cam-ctrl-break{display:none}
+  #crop-presets{flex-direction:column;align-items:stretch}
+  .preset-btn{width:100%;justify-content:center}
+  #btn-cap{padding:12px 8px;font-size:14px}
+  /* Modals fill screen in landscape mobile */
+  .modal{width:100vw!important;max-width:100vw!important;max-height:100dvh!important;border-radius:0;overflow-y:auto}
+  .backdrop{align-items:flex-start}
+  /* FBI overlay landscape fix */
+  #fbi-inner{max-width:100%;width:95%}
+  #fbi-warn{font-size:20px}
+  .fbi-body{font-size:9px;line-height:1.5}
+  /* Fullscreen button visible in landscape */
+  #btn-fullscreen{display:flex}
 }
 @media (max-width:499px){
   /* Still 2 tiles — just tighter padding */
@@ -579,8 +603,9 @@ body.crt-on #crt-overlay{display:block}
 .cover-wrap{position:relative;overflow:hidden;flex-shrink:0;width:100%}
 .wall-card>.cover-wrap{border-radius:5px}
 /* su-card needs cover-wrap to flex-fill the card height */
-.su-card>.cover-wrap{flex:1;min-height:0;display:flex;flex-direction:column}
-.su-card .su-img,.su-card .su-img-spine,.su-card .su-ph{flex:1}
+.su-card>.cover-wrap{flex:1;min-height:0;display:flex;flex-direction:column;overflow:visible}
+.su-card .su-img,.su-card .su-ph{flex:1}
+.su-card .su-img-spine{flex:none}
 
 /* ── GENRE EASTER EGGS ───────────────────────────────────────────── */
 /* All ::after emojis are on .cover-wrap — clipped to the image area  */

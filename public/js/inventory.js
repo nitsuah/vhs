@@ -7,7 +7,7 @@ async function showFbiWarning(tapeTitle){
   const lbl=document.getElementById('fbi-tape-label');
   const ytWrap=document.getElementById('fbi-youtube-wrap');
   if(lbl)lbl.textContent=tapeTitle?`"${tapeTitle}"`:'';
-  if(ytWrap)ytWrap.innerHTML='';
+  if(ytWrap)ytWrap.innerHTML='<button id="fbi-youtube-close" title="Close">✕</button>';
   ov.classList.remove('youtube-mode');
   ov.classList.add('active');
 
@@ -23,10 +23,11 @@ async function showFbiWarning(tapeTitle){
   const dismiss=()=>{
     clearTimeout(autoT);
     ov.classList.remove('active','youtube-mode');
-    if(ytWrap)ytWrap.innerHTML='';
+    if(ytWrap)ytWrap.innerHTML='<button id="fbi-youtube-close" title="Close">✕</button>';
     ov.removeEventListener('click',dismiss);
   };
   ov.addEventListener('click',dismiss);
+  document.getElementById('fbi-youtube-close')?.addEventListener('click',e=>{e.stopPropagation();dismiss();});
 
   // After 2.5s auto-transition: embed video or just dismiss
   const autoT=setTimeout(()=>{
@@ -38,6 +39,7 @@ async function showFbiWarning(tapeTitle){
       iframe.frameBorder='0';
       ytWrap.appendChild(iframe);
       ov.classList.add('youtube-mode');
+      document.getElementById('fbi-youtube-close')?.addEventListener('click',e=>{e.stopPropagation();dismiss();});
     }else{
       ov.classList.remove('active');
       ov.removeEventListener('click',dismiss);
@@ -908,11 +910,14 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
   const progBar=document.getElementById('fill-progress-bar');
   btn.disabled=true;_fillCancelled=false;
   if(progWrap){progWrap.style.display='flex';if(progBar)progBar.style.width='0%';}
+  const fillRevStatus=document.getElementById('fill-review-status');
+  if(fillRevStatus)fillRevStatus.style.display='flex';
   let done=0;
   for(let i=0;i<targets.length;i++){
     if(_fillCancelled)break;
     if(progBar)progBar.style.width=`${Math.round((i/targets.length)*100)}%`;
     const t=targets[i];
+    if(fillRevStatus)fillRevStatus.innerHTML=`⚡ Filling ${i+1}/${targets.length}: <em style="color:var(--text2)">${esc(t.title||'…')}</em>`;
     const meta=await _fillLookup(t);
     if(!meta||!meta.imdb_id)continue;
     let hasChanges=false;
@@ -931,6 +936,12 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
   if(progBar)progBar.style.width='100%';
   setTimeout(()=>{if(progWrap)progWrap.style.display='none';},600);
   btn.disabled=false;btn.textContent=selectedIds.size>0?`⚡ Fill (${selectedIds.size})`:'⚡ Fill';
+  if(fillRevStatus){
+    if(done)fillRevStatus.innerHTML=`<span style="color:var(--green)">✓ Filled ${done} tape${done!==1?'s':''}</span>`;
+    else if(_fillCancelled)fillRevStatus.innerHTML='<span style="color:var(--text3)">Fill cancelled</span>';
+    else fillRevStatus.innerHTML='<span style="color:var(--text3)">No matches found</span>';
+    setTimeout(()=>{fillRevStatus.style.display='none';fillRevStatus.innerHTML='';},4000);
+  }
   if(done){renderInv();updateCount();toast(`Filled ${done} tape${done!==1?'s':''}`, 'ok',4000);}
   else if(!_fillCancelled){toast(`No reliable matches found for ${targets.length} tape${targets.length!==1?'s':''}`, '',4000);}
   _fillCancelled=false;

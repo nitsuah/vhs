@@ -37,10 +37,16 @@
     <button class="hbtn" id="btn-settings-mob">⚙ Settings</button>
     <button class="hbtn" id="btn-health">🔍 System Health</button>
     <button class="hbtn" id="btn-help-mob">? Help</button>
+    <button class="hbtn" id="btn-eggs">🥚 Easter Eggs</button>
+    <button class="hbtn" id="btn-fullscreen" style="display:none">⛶ Fullscreen</button>
   </div>
-  <div class="hbr-section hbr-section-last">
+  <div class="hbr-section">
     <span class="hbr-label">Display</span>
     <button class="hbtn" id="btn-crt">📺 CRT Scanlines</button>
+  </div>
+  <div class="hbr-section hbr-section-last">
+    <span class="hbr-label">Audio</span>
+    <button class="hbtn" id="btn-sound">🔊 Sounds</button>
   </div>
 </div>
 <div id="crt-overlay"></div>
@@ -54,14 +60,14 @@
         <div id="fbi-badge-text">FEDERAL BUREAU OF INVESTIGATION</div>
       </div>
     </div>
-    <div id="fbi-warn">W A R N I N G</div>
+    <div id="fbi-warn"><strong>FBI</strong> W A R N I N G</div>
     <div class="fbi-rule"></div>
     <p class="fbi-body">Federal law provides severe civil and criminal penalties for the unauthorized reproduction, distribution, or exhibition of copyrighted motion pictures. Criminal copyright infringement is investigated by the FBI and may constitute a felony with a maximum penalty of five years imprisonment and/or a $250,000 fine.</p>
     <p id="fbi-cite">Title 17, United States Code, Sections 501 and 506</p>
     <div id="fbi-tape-label"></div>
     <div id="fbi-loading">▶ Loading trailer…</div>
   </div>
-  <div id="fbi-youtube-wrap"></div>
+  <div id="fbi-youtube-wrap"><button id="fbi-youtube-close" title="Close">✕</button></div>
 </div>
 
 <!-- SYSTEM HEALTH MODAL -->
@@ -157,6 +163,7 @@
           <button class="hbtn" id="btn-stop-proc" style="display:none;font-size:11px;padding:5px 8px;color:var(--red);border-color:rgba(232,64,64,.3)" title="Cancel all queued/analyzing jobs">◼ Stop</button>
         </div>
       </div>
+      <div id="fill-review-status" style="display:none"></div>
       <div id="rev-loading" class="spin-row" style="display:none">
         <div class="spin"></div><span id="rev-msg">Analyzing…</span>
       </div>
@@ -238,6 +245,53 @@
 
 
 <!-- HELP MODAL -->
+<!-- EASTER EGGS MODAL -->
+<div class="backdrop" id="m-eggs" style="display:none">
+  <div class="modal" style="max-width:500px">
+    <h2>🥚 Easter Eggs</h2>
+    <h3 style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">Title-Triggered Effects</h3>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:6px">Hover a matching card (or long-press on mobile) to trigger.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr><th style="text-align:left;padding:3px 0;color:var(--text3);font-size:11px">Title matches</th><th style="text-align:left;padding:3px 0;color:var(--text3);font-size:11px">Effect</th></tr></thead>
+      <tbody>
+        <tr><td style="padding:4px 0;width:38%">Akira</td><td style="padding:4px 0;color:var(--text3)">"Leave Me Alone" stinger on hover</td></tr>
+        <tr><td>Jaws</td><td style="color:var(--text3)">Two-note theme accelerates on hover</td></tr>
+        <tr><td>Ghostbusters</td><td style="color:var(--text3)">Green slime flash + spectral ding</td></tr>
+        <tr><td>Night of the Living Dead…</td><td style="color:var(--text3)">Screen flicker + zombie groan</td></tr>
+        <tr><td>Speed Racer / Fast &amp; Furious</td><td style="color:var(--text3)">Engine rev climbing in pitch</td></tr>
+      </tbody>
+    </table>
+    <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+    <h3 style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">Genre Effects <span style="font-weight:400;color:var(--text3)">(hover card)</span></h3>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:6px">Auto-filled from OMDb via ⚡ Fill.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:11px">
+      <span>🧟 Horror — red glow + zombie hand</span><span style="color:var(--text3)">🔪 Thriller — knife drops</span>
+      <span>👾 Sci-Fi — cyan flash + alien</span><span style="color:var(--text3)">🧚 Fantasy — gold shimmer + fairy</span>
+      <span>💥 Action — shake + explosion</span><span style="color:var(--text3)">😂 Comedy — bounce + laugh face</span>
+      <span>❤️ Romance — pink glow + heart</span><span style="color:var(--text3)">🎨 Animation — rainbow border</span>
+      <span>🤠 Western — sepia + cowboy hat</span><span style="color:var(--text3)">🎬 Documentary — desaturate + clapper</span>
+      <span>🎵 Musical — note floats in</span><span style="color:var(--text3)">🗺️ Adventure — warm glow + map</span>
+      <span>🎖️ War — grayscale + medal</span><span style="color:var(--text3)">🔫 Crime — dark shadow + pistol</span>
+      <span>🎭 Drama — brighten + masks</span><span style="color:var(--text3)">🔍 Mystery — darken + magnifier</span>
+      <span>⚽ Sport — bounce + ball</span><span style="color:var(--text3)">📜 History — sepia + scroll</span>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+    <h3 style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">Interactions &amp; Secrets</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <tbody>
+        <tr><td style="padding:3px 0;width:44%">Long-press any card</td><td style="padding:3px 0;color:var(--text3)">FBI warning → auto-loads trailer</td></tr>
+        <tr><td>Collect tab click</td><td style="color:var(--text3)">VHS rewind motor sound</td></tr>
+        <tr><td>50 / 100 / 200 tapes</td><td style="color:var(--text3)">Confetti burst (once per milestone)</td></tr>
+        <tr><td>Matrix tape title</td><td style="color:var(--text3)">Edit field animates through katakana</td></tr>
+        <tr><td>Shake device (mobile)</td><td style="color:var(--text3)">Retro TV static fills screen</td></tr>
+        <tr><td>App load (1-in-50)</td><td style="color:var(--text3)">📼 "Be Kind, Rewind!" toast</td></tr>
+        <tr><td>📺 CRT Scanlines</td><td style="color:var(--text3)">Scanline + vignette overlay (sidebar)</td></tr>
+      </tbody>
+    </table>
+    <div class="modal-acts"><button class="btn btn-ok" id="eggs-close">Close</button></div>
+  </div>
+</div>
+
 <div class="backdrop" id="m-help" style="display:none">
   <div class="modal" style="max-width:380px">
     <h2>Keyboard Shortcuts</h2>
