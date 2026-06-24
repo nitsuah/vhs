@@ -2,19 +2,47 @@
 let _resizeTh=null,_resizeX0=0,_resizeW0=0;
 let _longPressActive=false;
 
-function showFbiWarning(tapeTitle){
+async function showFbiWarning(tapeTitle){
   const ov=document.getElementById('fbi-overlay');if(!ov)return;
   const lbl=document.getElementById('fbi-tape-label');
-  const btn=document.getElementById('fbi-trailer');
+  const ytWrap=document.getElementById('fbi-youtube-wrap');
   if(lbl)lbl.textContent=tapeTitle?`"${tapeTitle}"`:'';
-  if(btn)btn.onclick=e=>{
-    e.stopPropagation();
-    window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(tapeTitle+' official trailer'),'_blank');
-  };
+  if(ytWrap)ytWrap.innerHTML='';
+  ov.classList.remove('youtube-mode');
   ov.classList.add('active');
-  let t=setTimeout(()=>ov.classList.remove('active'),3000);
-  const dismiss=()=>{clearTimeout(t);ov.classList.remove('active');ov.removeEventListener('click',dismiss);};
+
+  // Fetch trailer video in background while FBI warning displays
+  let videoId=null;
+  if(tapeTitle){
+    try{
+      const r=await fetch('/api/trailer?title='+encodeURIComponent(tapeTitle));
+      if(r.ok){const d=await r.json();videoId=d.videoId||null;}
+    }catch{}
+  }
+
+  const dismiss=()=>{
+    clearTimeout(autoT);
+    ov.classList.remove('active','youtube-mode');
+    if(ytWrap)ytWrap.innerHTML='';
+    ov.removeEventListener('click',dismiss);
+  };
   ov.addEventListener('click',dismiss);
+
+  // After 2.5s auto-transition: embed video or just dismiss
+  const autoT=setTimeout(()=>{
+    if(videoId&&ytWrap){
+      const iframe=document.createElement('iframe');
+      iframe.src=`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
+      iframe.allow='autoplay; fullscreen';
+      iframe.setAttribute('allowfullscreen','');
+      iframe.frameBorder='0';
+      ytWrap.appendChild(iframe);
+      ov.classList.add('youtube-mode');
+    }else{
+      ov.classList.remove('active');
+      ov.removeEventListener('click',dismiss);
+    }
+  },2500);
 }
 
 function _initLongPress(el,tapeId){

@@ -10,7 +10,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column}
 
-#header{background:var(--bg2);border-bottom:1px solid var(--border);height:56px;padding:0 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;z-index:50}
+#header{background:var(--bg2);border-bottom:1px solid var(--border);height:56px;padding:0 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;z-index:50;overflow:hidden}
 #header h1{font-size:22px;font-weight:700;color:var(--accent);white-space:nowrap;letter-spacing:.04em}
 #header h1 span{color:var(--text3);font-weight:400}
 #ai-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.05em;white-space:nowrap;border:1px solid}
@@ -340,17 +340,25 @@ body.crt-on #crt-overlay{display:block}
 #static-canvas{display:none;position:fixed;inset:0;z-index:10000;pointer-events:none}
 
 /* ── FBI WARNING ─────────────────────────────────────────────────── */
-#fbi-overlay{display:none;position:fixed;inset:0;z-index:10001;background:#00004a;color:#fff;font-family:'Courier New',monospace;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;cursor:pointer}
+#fbi-overlay{display:none;position:fixed;inset:0;z-index:10001;background:#00003a;color:#fff;font-family:'Courier New',monospace;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;cursor:pointer;overflow:hidden}
 #fbi-overlay.active{display:flex}
-#fbi-inner{max-width:480px;width:90%}
-#fbi-seal{font-size:20px;font-weight:700;letter-spacing:.18em;color:#ffdd80;margin-bottom:10px}
-.fbi-rule{border-top:2px solid #ffdd80;margin:8px 0}
-#fbi-warn{font-size:26px;font-weight:900;letter-spacing:.3em;color:#ffdd80;margin:4px 0 14px}
-.fbi-body{font-size:11px;line-height:1.65;text-transform:uppercase;margin:6px 0;letter-spacing:.03em}
-#fbi-cite{font-size:9.5px;color:#ffdd80;margin-top:14px;text-transform:uppercase;letter-spacing:.1em}
-#fbi-tape-label{font-size:13px;color:#aaa;margin-top:18px;font-style:italic}
-#fbi-trailer{margin-top:10px;background:rgba(255,221,128,.12);border:1px solid #ffdd80;color:#ffdd80;padding:7px 16px;border-radius:4px;cursor:pointer;font-family:'Courier New',monospace;font-size:12px}
-#fbi-trailer:hover{background:rgba(255,221,128,.28)}
+#fbi-overlay.youtube-mode #fbi-inner{display:none}
+#fbi-overlay.youtube-mode #fbi-youtube-wrap{display:flex}
+#fbi-scanlines{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.18) 3px,rgba(0,0,0,.18) 4px),radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.65) 100%);z-index:1}
+#fbi-inner{max-width:500px;width:90%;position:relative;z-index:2}
+#fbi-badge{display:flex;justify-content:center;margin-bottom:12px}
+#fbi-badge-ring{width:64px;height:64px;border-radius:50%;border:3px solid #ffdd80;box-shadow:0 0 0 2px rgba(255,221,128,.3),inset 0 0 0 2px rgba(255,221,128,.15),0 0 20px rgba(255,221,128,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:rgba(0,0,58,.7)}
+#fbi-badge-star{font-size:22px;color:#ffdd80;line-height:1;text-shadow:0 0 8px rgba(255,221,128,.7)}
+#fbi-badge-text{font-size:4.5px;color:#ffdd80;letter-spacing:.12em;text-transform:uppercase;font-weight:700;line-height:1.3;text-align:center;max-width:52px}
+#fbi-warn{font-size:30px;font-weight:900;letter-spacing:.35em;color:#ffdd80;margin:0 0 10px;text-shadow:0 0 12px rgba(255,221,128,.5)}
+.fbi-rule{border-top:1px solid rgba(255,221,128,.5);margin:10px 0}
+.fbi-body{font-size:10.5px;line-height:1.75;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.88)}
+#fbi-cite{font-size:9px;color:rgba(255,221,128,.7);margin-top:12px;text-transform:uppercase;letter-spacing:.12em}
+#fbi-tape-label{font-size:14px;color:#ffdd80;margin-top:16px;font-style:italic;opacity:.85;text-shadow:0 0 6px rgba(255,221,128,.4)}
+#fbi-loading{margin-top:10px;font-size:10px;color:rgba(255,221,128,.5);letter-spacing:.1em;animation:fbi-blink 1.2s ease-in-out infinite}
+@keyframes fbi-blink{0%,100%{opacity:.5}50%{opacity:1}}
+#fbi-youtube-wrap{display:none;position:absolute;inset:0;z-index:3;background:#000;align-items:center;justify-content:center}
+#fbi-youtube-wrap iframe{width:100%;height:100%;border:none;max-width:900px;max-height:506px;margin:auto}
 
 /* ── MATRIX GLITCH ───────────────────────────────────────────────── */
 #m-detail.matrix-mode{background:rgba(0,0,0,.97)}
@@ -397,14 +405,15 @@ body.crt-on #crt-overlay{display:block}
 #btn-filter-tray{flex-shrink:0;font-size:11px;padding:6px 10px;display:none}
 #inv-ctrl.tray-hidden{display:none}
 
-/* ── TAB NAV (always visible) ────────────────────────────────────── */
-#tab-nav{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);height:60px;flex-shrink:0}
-.tab-btn{flex:1;height:100%;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 0;transition:color .15s}
+/* ── TAB NAV (in header) ─────────────────────────────────────────── */
+#tab-nav{flex:1;display:flex;align-self:stretch;background:none;border:none;justify-content:center;min-width:0}
+.tab-btn{flex:0 1 90px;height:100%;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.04em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 6px;transition:color .15s;white-space:nowrap}
 .tab-ico-wrap{position:relative;display:inline-block;line-height:1}
-.tab-btn .tab-ico{font-size:24px;line-height:1;display:block}
+.tab-btn .tab-ico{font-size:18px;line-height:1;display:block}
 .tab-btn:hover{color:var(--text)}
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
 .tab-badge{position:absolute;top:-4px;right:-10px;background:var(--red);color:#fff;border-radius:8px;font-size:8px;padding:1px 4px;min-width:13px;text-align:center;line-height:13px;pointer-events:none;font-weight:700}
+.tab-lbl{font-size:10px;font-weight:700;letter-spacing:.04em}
 /* ── COLLECT SUBHEADER ───────────────────────────────────────────── */
 #collect-subhdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:6px 10px;display:flex;flex-direction:column;gap:5px;flex-shrink:0}
 .csh-row1{display:flex;align-items:center;gap:5px;flex-wrap:nowrap}
@@ -489,9 +498,12 @@ body.crt-on #crt-overlay{display:block}
 /* ── RESPONSIVE ─────────────────────────────────────────────────── */
 @media (max-width:700px){
   body{overflow:auto;height:auto;min-height:100dvh}
-  #header{height:auto;flex-wrap:nowrap;padding:8px 10px;gap:6px}
-  #header h1{font-size:18px;white-space:nowrap}
-  #ai-badge{font-size:9px;padding:2px 6px;white-space:nowrap}
+  #header{height:auto;flex-wrap:nowrap;padding:8px 10px;gap:4px}
+  #header h1{font-size:16px;white-space:nowrap}
+  #ai-badge{font-size:9px;padding:2px 5px;white-space:nowrap}
+  .tab-lbl{display:none}
+  .tab-btn{flex:0 1 44px;padding:4px 2px}
+  .tab-btn .tab-ico{font-size:20px}
   #btn-filter-tray{display:flex}
   #inv-ctrl{display:none}
   #inv-ctrl.tray-open{display:block;position:fixed;bottom:0;left:0;right:0;z-index:150;background:var(--bg2);border-top:2px solid var(--accent);border-radius:16px 16px 0 0;padding:12px;max-height:60vh;overflow-y:auto;box-shadow:0 -8px 32px rgba(0,0,0,.5)}

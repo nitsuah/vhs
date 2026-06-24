@@ -416,6 +416,24 @@ Omit fields you are unsure about. Return {} if completely unknown.`;
   res.json(merged);
 });
 
+app.get('/api/trailer', async (req, res) => {
+  const title = (req.query.title || '').trim();
+  if (!title) return res.status(400).json({ error: 'title required' });
+  try {
+    const query = encodeURIComponent(`${title} official trailer`);
+    const r = await fetch(`https://www.youtube.com/results?search_query=${query}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return res.json({ videoId: null });
+    const html = await r.text();
+    const m = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+    res.json({ videoId: m ? m[1] : null });
+  } catch (e) {
+    res.json({ videoId: null });
+  }
+});
+
 app.delete('/api/jobs/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
