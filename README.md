@@ -1,8 +1,24 @@
-# VHS Collection Indexer — Project Plan
+# VHS Collection Indexer
 
-## What we're building
+A personal tool to catalog a VHS collection — capturing what each tape is, what it might be worth, and building a record you can actually use (sell, store, share). The whole thing lives in a git repo as flat files.
 
-A lightweight, personal tool to catalog your girlfriend's VHS collection — capturing what each tape is, what it might be worth, and building a record you can actually use (sell, store, share). The whole thing lives in a git repo as flat files. No server, no login, no cloud dependency.
+## What's Shipped
+
+- **VHS Shelf Scanner** — browser app (`src/app.js`, `public/`) served via Docker/Nginx
+- **Barcode Scanning** — webcam-based barcode scanning with auto-confirm and staging flow
+- **AI Photo Scanning** — batch photo upload, AI title recognition, accuracy checking
+- **Mobile UI** — mobile-first layout with queue visualization and retry controls
+- **Tape Registry** — append-only `data/tapes.json` with immutable `VHS-XXXX` IDs
+- **Status & Condition Tracking** — `in_collection`, `for_sale`, `sold`, `donated`, `missing`; `great/good/fair/poor` with notes
+- **Tabbed Edit Form** — expanded tape editing with tabbed UI
+- **Review Queue** — queue visualization and management for pending tapes
+- **StacksUp Integration** — spine rotation enrichment
+- **OMDb Verification** — movie database verification of AI scan results
+- **Analytics** — basic collection analytics
+- **Zoom Slider** — adjustable zoom for photo capture
+- **Easter Eggs** — Akira MP3 + negative buzz on failed barcode scans
+- **Test Suite** — automated test coverage
+- **HTTPS/Mobile Support** — self-signed cert for LAN HTTPS (camera access on mobile)
 
 ## Core philosophy
 
@@ -43,16 +59,17 @@ status can be: in_collection, for_sale, sold, donated, missing
 ## Repo structure
 
 ```bash
-vhs-collection/
-├── tapes.json              ← the index (truth)
+vhs/
+├── data/
+│   └── tapes.json          ← the index (truth)
 ├── photos/
-│   ├── batch-01.jpg
-│   ├── batch-02.jpg
 │   └── ...
+├── public/                 ← browser app static files
+├── src/
+│   └── app.js              ← VHS Shelf Scanner app
 ├── scripts/
-│   ├── scan.py             ← sends photos to Claude Vision, returns structured JSON
-│   ├── valuate.py          ← looks up eBay sold listings
-│   └── export.py           ← generates CSV, HTML, or printable list
+│   ├── valuate.py          ← eBay sold-listings lookup (planned)
+│   └── export.py           ← CSV/HTML/print export (planned)
 ├── exports/
 │   └── collection.csv      ← generated, not edited by hand
 └── README.md
@@ -65,7 +82,7 @@ cp .env.example .env   # fill in DATABASE_URL and HOST_IP
 docker compose up
 ```
 
-App is at `http://localhost:8080` (or whatever `APP_PORT` you set).
+App at `http://localhost:8080`. HTTPS at `https://localhost:8443`.
 
 ## Mobile / HTTPS setup
 
