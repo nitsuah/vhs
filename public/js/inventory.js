@@ -2,19 +2,49 @@
 let _resizeTh=null,_resizeX0=0,_resizeW0=0;
 let _longPressActive=false;
 
-function showFbiWarning(tapeTitle){
+async function showFbiWarning(tapeTitle){
   const ov=document.getElementById('fbi-overlay');if(!ov)return;
   const lbl=document.getElementById('fbi-tape-label');
-  const btn=document.getElementById('fbi-trailer');
+  const ytWrap=document.getElementById('fbi-youtube-wrap');
   if(lbl)lbl.textContent=tapeTitle?`"${tapeTitle}"`:'';
-  if(btn)btn.onclick=e=>{
-    e.stopPropagation();
-    window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(tapeTitle+' official trailer'),'_blank');
-  };
+  if(ytWrap)ytWrap.innerHTML='<button id="fbi-youtube-close" title="Close">✕</button>';
+  ov.classList.remove('youtube-mode');
   ov.classList.add('active');
-  let t=setTimeout(()=>ov.classList.remove('active'),3000);
-  const dismiss=()=>{clearTimeout(t);ov.classList.remove('active');ov.removeEventListener('click',dismiss);};
+
+  // Fetch trailer video in background while FBI warning displays
+  let videoId=null;
+  if(tapeTitle){
+    try{
+      const r=await fetch('/api/trailer?title='+encodeURIComponent(tapeTitle));
+      if(r.ok){const d=await r.json();videoId=d.videoId||null;}
+    }catch{}
+  }
+
+  const dismiss=()=>{
+    clearTimeout(autoT);
+    ov.classList.remove('active','youtube-mode');
+    if(ytWrap)ytWrap.innerHTML='<button id="fbi-youtube-close" title="Close">✕</button>';
+    ov.removeEventListener('click',dismiss);
+  };
   ov.addEventListener('click',dismiss);
+  document.getElementById('fbi-youtube-close')?.addEventListener('click',e=>{e.stopPropagation();dismiss();});
+
+  // After 2.5s auto-transition: embed video or just dismiss
+  const autoT=setTimeout(()=>{
+    if(videoId&&ytWrap){
+      const iframe=document.createElement('iframe');
+      iframe.src=`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
+      iframe.allow='autoplay; fullscreen';
+      iframe.setAttribute('allowfullscreen','');
+      iframe.frameBorder='0';
+      ytWrap.appendChild(iframe);
+      ov.classList.add('youtube-mode');
+      document.getElementById('fbi-youtube-close')?.addEventListener('click',e=>{e.stopPropagation();dismiss();});
+    }else{
+      ov.classList.remove('active');
+      ov.removeEventListener('click',dismiss);
+    }
+  },2500);
 }
 
 function _initLongPress(el,tapeId){
@@ -73,6 +103,7 @@ function getFiltered(){
 }
 
 function renderInv(){
+  updateCount();
   const list=document.getElementById('inv-list');
   const wall=document.getElementById('wall-view');
   const items=getFiltered();
@@ -83,31 +114,33 @@ function renderInv(){
     wall.classList.toggle('spine-mode',wallMode===2);
     wall.classList.toggle('stacksup-mode',wallMode===3);
     if(!items.length){wall.innerHTML='<div class="empty">No tapes match.</div>';return;}
+    const _eggAttrs=t=>{
+      const genres=(t.tags||[]).map(g=>g.toLowerCase().replace(/[^a-z]/g,'')).filter(Boolean).join(' ');
+      return `${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}${/\bghostbusters?\b/i.test(t.title)?' data-ghostbusters="1"':''}${/\b(living dead|zombie|night of)\b/i.test(t.title)?' data-notld="1"':''}${/\b(speed racer|fast and furious|fast furious)\b/i.test(t.title)?' data-speedracer="1"':''}${genres?` data-genres="${genres}"`:''}`;
+    };
     if(wallMode===2){
       wall.innerHTML=items.map(t=>{
         const src=t.photo_spine||t.photo_thumbnail;
-        const img=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
-        const _eggAttrs=t=>`${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}${/\bghostbusters?\b/i.test(t.title)?' data-ghostbusters="1"':''}${/\b(living dead|zombie|night of)\b/i.test(t.title)?' data-notld="1"':''}${/\b(speed racer|fast and furious|fast furious)\b/i.test(t.title)?' data-speedracer="1"':''}`;
-        return `<div class="spine-card" data-id="${t.id}"${_eggAttrs(t)}>${img}<div class="spine-lbl">${esc(t.title)}</div></div>`;
+        const inner=src?`<img class="spine-img" src="${src}" alt=""${_cropStyle(t,'spine')}>`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
+        return `<div class="spine-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="spine-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else if(wallMode===3){
       wall.innerHTML=items.map(t=>{
         const isSpine=!!t.photo_spine;
         const src=t.photo_spine||t.photo_face||t.photo_thumbnail;
-        const img=src
-          ?`<img class="su-img${isSpine?' su-img-spine':''}" src="${src}" alt="">`
+        const cropRole=isSpine?'spine':'face';
+        const inner=src
+          ?`<img class="su-img${isSpine?' su-img-spine':''}" src="${src}" alt=""${_cropStyle(t,cropRole,isSpine)}>`
           :`<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
-        const _eggAttrs2=t=>`${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}${/\bghostbusters?\b/i.test(t.title)?' data-ghostbusters="1"':''}${/\b(living dead|zombie|night of)\b/i.test(t.title)?' data-notld="1"':''}${/\b(speed racer|fast and furious|fast furious)\b/i.test(t.title)?' data-speedracer="1"':''}`;
-        return `<div class="su-card" data-id="${t.id}"${_eggAttrs2(t)}>${img}<div class="su-lbl">${esc(t.title)}</div></div>`;
+        return `<div class="su-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else{
       wall.innerHTML=items.map(t=>{
         const wallSrc=t.photo_face||t.photo_thumbnail;
-        const img=wallSrc?`<img class="wall-img" src="${wallSrc}" alt="">`:`<div class="wall-ph-txt">${esc(t.title)}</div>`;
+        const inner=wallSrc?`<img class="wall-img" src="${wallSrc}" alt=""${_cropStyle(t,'face')}>`:`<div class="wall-ph-txt">${esc(t.title)}</div>`;
         const meta=[t.year,t.label].filter(Boolean).join(' · ');
         const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
-        const _eggAttrs3=t=>`${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}${/\bghostbusters?\b/i.test(t.title)?' data-ghostbusters="1"':''}${/\b(living dead|zombie|night of)\b/i.test(t.title)?' data-notld="1"':''}${/\b(speed racer|fast and furious|fast furious)\b/i.test(t.title)?' data-speedracer="1"':''}`;
-        return `<div class="wall-card" data-id="${t.id}"${_eggAttrs3(t)}>${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
+        return `<div class="wall-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
       }).join('');
     }
     wall.querySelectorAll('.wall-card,.spine-card,.su-card').forEach(c=>{
@@ -240,11 +273,20 @@ function renderInv(){
       if(isEd)return`<td class="${mc}${pend?' tbl-td-pending':''}" data-id="${t.id}" data-field="${field}"><input class="tbl-input${pend?' pending':''}" data-id="${t.id}" data-field="${field}" value="${esc(pv!==undefined?pv:curVal)}"></td>`;
       return`<td class="${mc} editable" data-id="${t.id}" data-field="${field}">${esc(curVal)}</td>`;
     };
+    const edCellVal=(field,mc)=>{
+      const curVal=t[field]||'';const pv=pe[field];const pend=isEd&&pv!==undefined&&pv!==curVal;
+      if(isEd)return`<td class="${mc}${pend?' tbl-td-pending':''}" data-id="${t.id}" data-field="${field}"><input class="tbl-input${pend?' pending':''}" data-id="${t.id}" data-field="${field}" value="${esc(pv!==undefined?pv:curVal)}"></td>`;
+      return`<td class="${mc} editable" data-id="${t.id}" data-field="${field}">${curVal?`<span style="color:var(--green)">$${esc(curVal)}</span>`:''}</td>`;
+    };
+    const tagCell=r=>{
+      const tags=r.tags||[];
+      return`<td class="mc-11 editable" data-id="${r.id}" data-field="tags">${tags.map(tag=>`<span class="tag-sm">${esc(tag)}</span>`).join('')}</td>`;
+    };
     const selCurVal=(field,def)=>pe[field]!==undefined?pe[field]:(t[field]||def||'');
     const selPend=(field,def)=>isEd&&pe[field]!==undefined&&pe[field]!==(t[field]||def||'');
     const actCell=isEd
       ?`<td style="white-space:nowrap;text-align:center"><button class="tbl-save" data-id="${t.id}" title="Save">✓</button><button class="tbl-cancel" data-id="${t.id}" title="Cancel">✕</button></td>`
-      :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button><button class="tbl-edit" data-id="${t.id}" title="Edit row">✎</button></td>`;
+      :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button></td>`;
     return `<tr class="tape-row${checked?' selected':''}${isEd?' editing':''}" data-id="${t.id}"${isAkira(t)?' data-akira="1"':''}${isJaws(t)?' data-jaws="1"':''}${isGhostbusters(t)?' data-ghostbusters="1"':''}${isNotld(t)?' data-notld="1"':''}${isSpeedRacer(t)?' data-speedracer="1"':''}>
       <td style="text-align:center"><input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''}></td>
       <td class="tbl-open mc-2" data-id="${t.id}">${thumb}</td>
@@ -254,9 +296,9 @@ function renderInv(){
       <td class="mc-6${selPend('format','VHS')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('format','VHS')?' pending':''}" data-id="${t.id}" data-field="format">${fmtOpts(selCurVal('format','VHS'))}</select></td>
       <td class="mc-7${selPend('condition','good')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('condition','good')?' pending':''}" data-id="${t.id}" data-field="condition">${condOpts(selCurVal('condition','good'))}</select></td>
       <td class="mc-8${selPend('status','in_collection')?' tbl-td-pending':''}"><select class="tbl-sel${selPend('status','in_collection')?' pending':''}" data-id="${t.id}" data-field="status">${statOpts(selCurVal('status','in_collection'))}</select></td>
-      ${edCell('value_low','mc-9')}
-      ${edCell('value_high','mc-10')}
-      ${edCell('tags','mc-11',true)}
+      ${edCellVal('value_low','mc-9')}
+      ${edCellVal('value_high','mc-10')}
+      ${tagCell(t)}
       ${edCell('notes','mc-12')}
       ${actCell}
     </tr>`;
@@ -459,21 +501,22 @@ window.quickFilter=function(status,cond){
 };
 
 const updateCount=()=>{
-  const n=inventory.length;
+  const all=inventory.length;
+  const filtered=getFiltered();
+  const n=filtered.length;
+  const isFiltered=n<all;
   let totalLo=0,totalHi=0,valCount=0;
-  for(const t of inventory){
+  for(const t of filtered){
     if(t.value_low||t.value_high){totalLo+=parseFloat(t.value_low)||0;totalHi+=parseFloat(t.value_high)||0;valCount++;}
   }
-  const valStr=valCount?` <span style="color:var(--green);font-size:10px">$${totalLo.toFixed(0)}–$${totalHi.toFixed(0)}</span>`:'';
-  document.getElementById('count-badge').innerHTML=`📼 ${n}${valStr}`;
-  const mob=document.getElementById('count-badge-mob');
-  if(mob)mob.innerHTML=`📼 ${n}`;
-  // Show/hide AI buttons based on whether collection has items
+  const valStr=valCount?` <span style="color:var(--green);font-size:10px">$${Math.round(totalLo)}–$${Math.round(totalHi)}</span>`:'';
+  const cntHtml=isFiltered?`${n}<span style="color:var(--text3);font-size:10px">/${all}</span>`:String(all);
+  document.getElementById('count-badge').innerHTML=`📼 ${cntHtml}${valStr}`;
+  const collectLbl=document.getElementById('collect-count');
+  if(collectLbl)collectLbl.textContent=isFiltered?`${n}/${all}`:String(all);
   const fillBtn=document.getElementById('btn-fill-data');
-  const checkBtn=document.getElementById('btn-revalidate');
-  if(fillBtn)fillBtn.style.display=n?'':'none';
-  if(checkBtn)checkBtn.style.display=n?'':'none';
-  checkMilestoneConfetti(n);
+  if(fillBtn)fillBtn.style.display=all?'':'none';
+  checkMilestoneConfetti(all);
 };
 
 function updateBulkBar(){
@@ -489,9 +532,7 @@ function updateBulkBar(){
   }
   // Update AI button labels to indicate scope when selection is active
   const fillBtn=document.getElementById('btn-fill-data');
-  const checkBtn=document.getElementById('btn-revalidate');
   if(fillBtn)fillBtn.textContent=n>0?`⚡ Fill (${n})`:'⚡ Fill';
-  if(checkBtn)checkBtn.textContent=n>0?`🦙 Check (${n})`:'🦙 Check';
 }
 document.getElementById('bulk-apply').addEventListener('click',async()=>{
   const status=document.getElementById('bulk-status-sel').value;
@@ -625,6 +666,7 @@ function renderDetailPhotos(t){
         <button onclick="rotateDetailPhoto(${i})" style="${btnBase}" title="Rotate CW">↻</button>
         <button onclick="pinDetailPhoto(${i},'face')" style="background:${isFace?'rgba(68,136,255,.25)':'var(--bg4)'};border:1px solid ${isFace?'var(--blue)':'var(--border2)'};color:${isFace?'var(--blue)':'var(--text3)'};padding:5px 8px;border-radius:5px;cursor:pointer;font-size:14px;min-height:32px;min-width:32px" title="Pin as cover (wall view)">🖼</button>
         <button onclick="pinDetailPhoto(${i},'spine')" style="background:${isSpine?'rgba(61,187,61,.25)':'var(--bg4)'};border:1px solid ${isSpine?'var(--green)':'var(--border2)'};color:${isSpine?'var(--green)':'var(--text3)'};padding:5px 8px;border-radius:5px;cursor:pointer;font-size:14px;min-height:32px;min-width:32px" title="Pin as spine (list view)">▮</button>
+        ${(isFace||isSpine)?`<button onclick="openCropOverlay('${isFace?'face':'spine'}')" style="${btnBase}" title="Adjust position / zoom">📍</button>`:''}
         <button onclick="removeDetailPhoto(${i})" style="background:rgba(232,64,64,.15);border:1px solid rgba(232,64,64,.3);color:var(--red);padding:5px 8px;border-radius:5px;cursor:pointer;font-size:14px;min-height:32px;min-width:32px" title="Remove photo">×</button>
       </div>
     </div>`;
@@ -842,22 +884,43 @@ async function _fetchPosterImage(url){
   }catch{return null;}
 }
 
+let _fillCancelled=false;
+async function _fillLookup(t){
+  // Barcode path first — most reliable
+  if(t.barcode&&/^\d{8,14}$/.test(t.barcode)){
+    try{
+      const hdrs={};if(typeof omdbKey!=='undefined'&&omdbKey)hdrs['x-omdb-key']=omdbKey;
+      const r=await fetch(`/api/lookup/barcode/${encodeURIComponent(t.barcode)}`,{signal:AbortSignal.timeout(8000),headers:hdrs});
+      if(r.ok){const d=await r.json();if(d&&d.title)return d;}
+    }catch{}
+  }
+  // OMDb title search — no AI
+  try{
+    const hdrs={};if(typeof omdbKey!=='undefined'&&omdbKey)hdrs['x-omdb-key']=omdbKey;
+    const r=await fetch(`/api/lookup?title=${encodeURIComponent(t.title)}&noai=1`,{signal:AbortSignal.timeout(10000),headers:hdrs});
+    if(r.ok){const d=await r.json();if(d&&d.imdb_id)return d;}
+  }catch{}
+  return null;
+}
 document.getElementById('btn-fill-data').addEventListener('click',async()=>{
+  if(document.getElementById('btn-fill-data').disabled)return;
   const pool=selectedIds.size>0?inventory.filter(t=>selectedIds.has(t.id)):inventory;
-  // Target tapes missing any enrichable field
-  const targets=pool.filter(t=>t.title&&(
-    !t.year||!t.label||!t.imdb_id||
-    (!t.value_low&&!t.value_high)||
-    !t.photos?.length
-  ));
+  const targets=pool.filter(t=>t.title&&(!t.year||!t.label||!t.imdb_id||(!t.value_low&&!t.value_high)||!t.photos?.length||!(t.tags?.length)));
   if(!targets.length){toast('All tapes already have complete data','');return;}
   const btn=document.getElementById('btn-fill-data');
-  btn.disabled=true;
+  const progWrap=document.getElementById('fill-progress');
+  const progBar=document.getElementById('fill-progress-bar');
+  btn.disabled=true;_fillCancelled=false;
+  if(progWrap){progWrap.style.display='flex';if(progBar)progBar.style.width='0%';}
+  const fillRevStatus=document.getElementById('fill-review-status');
+  if(fillRevStatus)fillRevStatus.style.display='flex';
   let done=0;
-  for(const t of targets){
-    btn.textContent=`⚡ ${done}/${targets.length}`;
-    const meta=await lookupMetadata(t.title);
-    // Require an imdb_id match before filling anything — confirms we have the right title
+  for(let i=0;i<targets.length;i++){
+    if(_fillCancelled)break;
+    if(progBar)progBar.style.width=`${Math.round((i/targets.length)*100)}%`;
+    const t=targets[i];
+    if(fillRevStatus)fillRevStatus.innerHTML=`⚡ Filling ${i+1}/${targets.length}: <em style="color:var(--text2)">${esc(t.title||'…')}</em>`;
+    const meta=await _fillLookup(t);
     if(!meta||!meta.imdb_id)continue;
     let hasChanges=false;
     if(meta.year&&!t.year){t.year=meta.year;hasChanges=true;}
@@ -865,35 +928,43 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
     if(meta.imdb_id&&!t.imdb_id){t.imdb_id=meta.imdb_id;hasChanges=true;}
     if(meta.value_low&&!t.value_low){t.value_low=meta.value_low;hasChanges=true;}
     if(meta.value_high&&!t.value_high){t.value_high=meta.value_high;hasChanges=true;}
-    // Fetch cover art from OMDb poster URL if tape has no photos yet
+    if(meta.genres?.length&&!(t.tags?.length)){t.tags=[...meta.genres];hasChanges=true;}
     if(meta.poster&&!t.photos?.length){
       const dataUrl=await _fetchPosterImage(meta.poster);
-      if(dataUrl){
-        t.photos=[dataUrl];t.photo_thumbnail=dataUrl;t.photo_face=dataUrl;
-        hasChanges=true;
-      }
+      if(dataUrl){t.photos=[dataUrl];t.photo_thumbnail=dataUrl;t.photo_face=dataUrl;hasChanges=true;}
     }
-    if(hasChanges){
-      try{await dbPut(t);done++;}
-      catch(e){console.warn('Fill save failed:',t.id,e);}
-    }
+    if(hasChanges){try{await dbPut(t);done++;}catch(e){console.warn('Fill save:',t.id,e);}}
   }
-  btn.disabled=false;btn.textContent='⚡ Fill';
-  if(done){
-    renderInv();updateCount();
-    toast(`Filled ${done} tape${done!==1?'s':''}`, 'ok',4000);
-  }else{
-    toast(`No reliable matches found for ${targets.length} tape${targets.length!==1?'s':''}`,'',4000);
+  if(progBar)progBar.style.width='100%';
+  setTimeout(()=>{if(progWrap)progWrap.style.display='none';},600);
+  btn.disabled=false;btn.textContent=selectedIds.size>0?`⚡ Fill (${selectedIds.size})`:'⚡ Fill';
+  if(fillRevStatus){
+    if(done)fillRevStatus.innerHTML=`<span style="color:var(--green)">✓ Filled ${done} tape${done!==1?'s':''}</span>`;
+    else if(_fillCancelled)fillRevStatus.innerHTML='<span style="color:var(--text3)">Fill cancelled</span>';
+    else fillRevStatus.innerHTML='<span style="color:var(--text3)">No matches found</span>';
+    setTimeout(()=>{fillRevStatus.style.display='none';fillRevStatus.innerHTML='';},4000);
   }
+  if(done){renderInv();updateCount();toast(`Filled ${done} tape${done!==1?'s':''}`, 'ok',4000);}
+  else if(!_fillCancelled){toast(`No reliable matches found for ${targets.length} tape${targets.length!==1?'s':''}`, '',4000);}
+  _fillCancelled=false;
 });
 document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModal);
 document.getElementById('bulk-fill')?.addEventListener('click',()=>document.getElementById('btn-fill-data').click());
-document.getElementById('bulk-check')?.addEventListener('click',()=>document.getElementById('btn-revalidate').click());
 
 // ── RE-VALIDATE DIFF ─────────────────────────────────────────────────────
+function _normTitle(s){return(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();}
+function _titleSim(a,b){
+  const wa=_normTitle(a).split(' ').filter(Boolean);
+  const wb=_normTitle(b).split(' ').filter(Boolean);
+  if(!wa.length||!wb.length)return 0;
+  const sa=new Set(wa),sb=new Set(wb);
+  const common=[...sa].filter(w=>sb.has(w)).length;
+  return common/Math.max(sa.size,sb.size);
+}
 async function runRevalidate(){
   const pool=selectedIds.size>0?inventory.filter(t=>selectedIds.has(t.id)):inventory;
-  const targets=pool.filter(t=>t.photo_thumbnail);
+  // Prefer face photos for better OCR accuracy; fall back to thumbnail
+  const targets=pool.filter(t=>t.photo_face||t.photo_thumbnail);
   if(!targets.length){toast('No tapes with photos to check','');return;}
   const modal=document.getElementById('m-revalidate');
   const statusEl=document.getElementById('rv-status');
@@ -902,15 +973,15 @@ async function runRevalidate(){
   statusEl.textContent=`Queuing ${targets.length} photo${targets.length>1?'s':''} for analysis…`;
   progWrap.style.display='';progBar.style.width='0%';
   modal.style.display='flex';
-  const REVAL_FIELDS=['title','year','label','format'];
 
   const batch=[];
   for(let i=0;i<targets.length;i++){
     progBar.style.width=`${Math.round((i/targets.length)*40)}%`;
     statusEl.textContent=`Submitting ${i+1}/${targets.length}…`;
     try{
+      const img=targets[i].photo_face||targets[i].photo_thumbnail;
       const {id:jobId}=await apiReq('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({image:targets[i].photo_thumbnail,thumb:null})});
+        body:JSON.stringify({image:img,thumb:null})});
       batch.push({jobId,tape:targets[i]});
     }catch(e){console.warn('Re-validate submit failed for',targets[i].id,e);}
   }
@@ -942,20 +1013,38 @@ async function runRevalidate(){
 
   progBar.style.width='100%';
   let queued=0;
+  const hdrs={};if(typeof omdbKey!=='undefined'&&omdbKey)hdrs['x-omdb-key']=omdbKey;
   for(const {jobId,tape} of batch){
     const aiResults=results.get(jobId)||[];
     if(!aiResults.length)continue;
     const r=aiResults[0];
-    const proposed={tape_id:tape.id,title:r.title||tape.title};
+    // Skip low-confidence results entirely
+    if(r.confidence==='low')continue;
+    const proposed={tape_id:tape.id};
     let hasDiff=false;
-    for(const f of REVAL_FIELDS){
-      const oldVal=(tape[f]||'').trim();
-      const newVal=(r[f]||'').trim();
-      if(newVal&&newVal!==oldVal){proposed[f]=newVal;hasDiff=true;}
+    // Title: only flag if word-similarity is below 0.75 AND not a case/punctuation difference
+    const aiTitle=(r.title||'').trim();
+    const existTitle=(tape.title||'').trim();
+    if(aiTitle&&_normTitle(aiTitle)!==_normTitle(existTitle)&&_titleSim(aiTitle,existTitle)<0.75){
+      // Cross-check with OMDb: if AI title resolves to same imdb_id, skip
+      let omdbSame=false;
+      if(tape.imdb_id){
+        try{
+          const chk=await fetch(`/api/lookup?title=${encodeURIComponent(aiTitle)}&noai=1`,{signal:AbortSignal.timeout(5000),headers:hdrs});
+          if(chk.ok){const cd=await chk.json();if(cd.imdb_id===tape.imdb_id)omdbSame=true;}
+        }catch{}
+      }
+      if(!omdbSame){proposed.title=aiTitle;hasDiff=true;}
     }
+    // Year: only flag if difference > 1 year
+    const aiYear=parseInt(r.year)||0;
+    const existYear=parseInt(tape.year)||0;
+    if(aiYear&&existYear&&Math.abs(aiYear-existYear)>1){proposed.year=String(aiYear);hasDiff=true;}
+    else if(aiYear&&!existYear){proposed.year=String(aiYear);hasDiff=true;}
     if(!hasDiff)continue;
+    proposed.title=proposed.title||existTitle;
     try{
-      await apiReq('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'revalidate',data:proposed,thumb:tape.photo_thumbnail||null})});
+      await apiReq('/api/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'revalidate',data:proposed,thumb:tape.photo_face||tape.photo_thumbnail||null})});
       queued++;
     }catch(e){console.warn('Revalidate queue failed:',tape.id,e);}
   }
@@ -1015,3 +1104,121 @@ document.getElementById('s-migrate-idb').addEventListener('click',async()=>{
   }
   btn.disabled=false;
 });
+
+// ── FILL CANCEL ───────────────────────────────────────────────────────────
+document.getElementById('fill-cancel-btn')?.addEventListener('click',()=>{
+  _fillCancelled=true;
+  const progWrap=document.getElementById('fill-progress');
+  if(progWrap)progWrap.style.display='none';
+});
+
+// ── ZOOM SLIDER ───────────────────────────────────────────────────────────
+(function(){
+  const slider=document.getElementById('zoom-slider');
+  if(!slider)return;
+  const saved=parseFloat(localStorage.getItem('vhs-zoom'))||1;
+  slider.value=saved;
+  document.documentElement.style.setProperty('--inv-zoom',saved);
+  slider.addEventListener('input',()=>{
+    const z=parseFloat(slider.value)||1;
+    document.documentElement.style.setProperty('--inv-zoom',z);
+    localStorage.setItem('vhs-zoom',z);
+  });
+})();
+
+// ── PHOTO CROP OVERLAY ────────────────────────────────────────────────────
+let _cropRole='face',_cropX=50,_cropY=50,_cropS=1;
+let _cropPanning=false,_cropPx=0,_cropPy=0;
+
+function _cropStyle(t,role,includeRotate){
+  const c=(t.photo_crop||{})[role];if(!c)return '';
+  const x=c.x??50,y=c.y??50,s=c.s??1;
+  if(x===50&&y===50&&s<=1)return '';
+  const parts=[];
+  if(includeRotate)parts.push('rotate(90deg)');
+  if(s>1)parts.push(`scale(${s})`);
+  return ` style="object-position:${x}% ${y}%${parts.length?`;transform:${parts.join(' ')}`:''}"`;
+}
+
+window.openCropOverlay=function(role){
+  const t=inventory.find(x=>x.id===selectedId);if(!t)return;
+  const src=role==='spine'?(t.photo_spine||t.photo_thumbnail):(t.photo_face||t.photo_thumbnail);
+  if(!src)return;
+  _cropRole=role;
+  const saved=((t.photo_crop||{})[role])||{};
+  _cropX=saved.x??50;_cropY=saved.y??50;_cropS=saved.s??1;
+  const frame=document.getElementById('crop-frame');
+  const hint=document.getElementById('crop-role-hint');
+  if(role==='spine'){
+    if(frame){frame.style.width='270px';frame.style.height='82px';}
+    if(hint)hint.textContent='Spine image — drag to set the visible region';
+  }else{
+    if(frame){frame.style.width='160px';frame.style.height='240px';}
+    if(hint)hint.textContent='Cover image — drag to set the focal point for card views';
+  }
+  const img=document.getElementById('crop-img');
+  if(img)img.src=src;
+  const slider=document.getElementById('crop-zoom');
+  if(slider)slider.value=Math.round(_cropS*100);
+  _applyCropUI();
+  document.getElementById('m-crop').style.display='flex';
+};
+
+function _applyCropUI(){
+  const img=document.getElementById('crop-img');if(!img)return;
+  img.style.objectPosition=`${_cropX}% ${_cropY}%`;
+  img.style.transform=_cropS>1?`scale(${_cropS})`:'none';
+  img.style.transformOrigin=`${_cropX}% ${_cropY}%`;
+  const pct=document.getElementById('crop-pct');
+  if(pct)pct.textContent=`${Math.round(_cropX)}% × ${Math.round(_cropY)}%${_cropS>1?' · '+_cropS.toFixed(1)+'×':''}`;
+  const lbl=document.getElementById('crop-zoom-lbl');
+  if(lbl)lbl.textContent=`${_cropS.toFixed(1)}×`;
+  const slider=document.getElementById('crop-zoom');
+  if(slider&&document.activeElement!==slider)slider.value=Math.round(_cropS*100);
+}
+
+function _saveCropOverlay(){
+  const t=inventory.find(x=>x.id===selectedId);if(!t)return;
+  if(!t.photo_crop)t.photo_crop={};
+  t.photo_crop[_cropRole]={x:_cropX,y:_cropY,s:_cropS};
+  dbPut(t).catch(e=>toast('Save failed: '+e.message,'err'));
+  document.getElementById('m-crop').style.display='none';
+  renderInv();
+}
+
+(function _initCropOverlay(){
+  const frame=document.getElementById('crop-frame');if(!frame)return;
+  frame.addEventListener('pointerdown',e=>{
+    _cropPanning=true;_cropPx=e.clientX;_cropPy=e.clientY;
+    frame.setPointerCapture(e.pointerId);e.preventDefault();
+  });
+  frame.addEventListener('pointermove',e=>{
+    if(!_cropPanning)return;
+    const dx=e.clientX-_cropPx,dy=e.clientY-_cropPy;
+    _cropPx=e.clientX;_cropPy=e.clientY;
+    _cropX=Math.max(0,Math.min(100,_cropX-dx*0.15));
+    _cropY=Math.max(0,Math.min(100,_cropY-dy*0.15));
+    _applyCropUI();
+  });
+  ['pointerup','pointercancel'].forEach(ev=>frame.addEventListener(ev,()=>{_cropPanning=false;}));
+  frame.addEventListener('wheel',e=>{
+    e.preventDefault();
+    _cropS=Math.max(1,Math.min(3,_cropS-e.deltaY*0.002));
+    _applyCropUI();
+  },{passive:false});
+  let _pinchLast=0;
+  frame.addEventListener('touchstart',e=>{
+    if(e.touches.length===2)_pinchLast=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  },{passive:true});
+  frame.addEventListener('touchmove',e=>{
+    if(e.touches.length===2){
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      if(_pinchLast>0)_cropS=Math.max(1,Math.min(3,_cropS*(d/_pinchLast)));
+      _pinchLast=d;_applyCropUI();
+    }
+  },{passive:true});
+  document.getElementById('crop-zoom')?.addEventListener('input',e=>{_cropS=parseInt(e.target.value)/100;_applyCropUI();});
+  document.getElementById('crop-save')?.addEventListener('click',_saveCropOverlay);
+  document.getElementById('crop-cancel')?.addEventListener('click',()=>document.getElementById('m-crop').style.display='none');
+  document.getElementById('crop-reset')?.addEventListener('click',()=>{_cropX=50;_cropY=50;_cropS=1;_applyCropUI();});
+})();

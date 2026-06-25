@@ -1,3 +1,6 @@
+// ── SOUND TOGGLE ─────────────────────────────────────────────────────────
+let soundEnabled=localStorage.getItem('vhs-sound')!=='false';
+
 // ── TOAST ────────────────────────────────────────────────────────────────
 function toast(msg,type='',ms=3000){
   const el=document.createElement('div');
@@ -48,6 +51,7 @@ function loadScript(src){
 
 // ── AUDIO BEEP ───────────────────────────────────────────────────────────
 function beep(){
+  if(!soundEnabled)return;
   try{
     const ctx=new AudioContext(),osc=ctx.createOscillator(),g=ctx.createGain();
     osc.connect(g);g.connect(ctx.destination);
@@ -58,33 +62,44 @@ function beep(){
 }
 
 // ── AKIRA EASTER EGG ─────────────────────────────────────────────────────
-let _akiraLastDing=0;
+let _akiraLastDing=0,_akiraBuffer=null,_akiraCtx=null;
+async function _loadAkiraAudio(){
+  try{
+    const res=await fetch('/sounds/akira.mp3');if(!res.ok)return;
+    const ab=await res.arrayBuffer();
+    const tmp=new AudioContext();
+    _akiraBuffer=await tmp.decodeAudioData(ab);
+    await tmp.close();
+  }catch(e){console.warn('Akira audio:',e);}
+}
 function playAkiraDing(){
+  if(!soundEnabled)return;
   const now=Date.now();
   if(now-_akiraLastDing<5000)return;
   _akiraLastDing=now;
-  try{
-    const ctx=new AudioContext();
-    const master=ctx.createGain();
-    master.gain.value=0.18;
-    master.connect(ctx.destination);
-    const bell=(freq,vol,decay)=>{
-      const osc=ctx.createOscillator(),g=ctx.createGain();
-      osc.type='sine';osc.frequency.value=freq;
-      osc.connect(g);g.connect(master);
-      g.gain.setValueAtTime(vol,ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+decay);
-      osc.start();osc.stop(ctx.currentTime+decay);
-    };
-    bell(880,1,2.2);   // fundamental
-    bell(1320,0.35,1.6); // 3rd harmonic
-    bell(2200,0.2,1.1);  // 5th harmonic
-    bell(440,0.15,2.8);  // sub octave for warmth
-    setTimeout(()=>ctx.close(),3200);
-  }catch{}
+  if(_akiraBuffer){
+    try{
+      if(!_akiraCtx||_akiraCtx.state==='closed')_akiraCtx=new AudioContext();
+      if(_akiraCtx.state==='suspended')_akiraCtx.resume();
+      const src=_akiraCtx.createBufferSource();
+      const g=_akiraCtx.createGain();g.gain.value=0.6;
+      src.buffer=_akiraBuffer;src.connect(g);g.connect(_akiraCtx.destination);
+      src.start();
+    }catch{}
+  }else{
+    _loadAkiraAudio();
+    try{
+      const ctx=new AudioContext();const master=ctx.createGain();master.gain.value=0.18;master.connect(ctx.destination);
+      const bell=(freq,vol,decay)=>{const osc=ctx.createOscillator(),g=ctx.createGain();osc.type='sine';osc.frequency.value=freq;osc.connect(g);g.connect(master);g.gain.setValueAtTime(vol,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+decay);osc.start();osc.stop(ctx.currentTime+decay);};
+      bell(880,1,2.2);bell(1320,0.35,1.6);bell(2200,0.2,1.1);bell(440,0.15,2.8);
+      setTimeout(()=>ctx.close(),3200);
+    }catch{}
+  }
 }
+_loadAkiraAudio();
 
 function buzz(){
+  if(!soundEnabled)return;
   try{
     const ctx=new AudioContext(),g=ctx.createGain();
     g.connect(ctx.destination);
@@ -104,6 +119,7 @@ function buzz(){
 // ── REWIND SOUND ─────────────────────────────────────────────────────────
 let _rewindCooldown=0;
 function playRewindSound(){
+  if(!soundEnabled)return;
   const now=Date.now();
   if(now-_rewindCooldown<5000)return;
   _rewindCooldown=now;
@@ -127,6 +143,7 @@ function playRewindSound(){
 // ── JAWS THEME ────────────────────────────────────────────────────────────
 let _jawsTimer=null,_jawsTempo=2000,_jawsNote=false;
 function startJawsTheme(){
+  if(!soundEnabled)return;
   stopJawsTheme();
   _jawsTempo=2000;_jawsNote=false;
   const tick=()=>{
@@ -229,6 +246,7 @@ function fileToThumb(f){
 // ── GHOSTBUSTERS DING ─────────────────────────────────────────────────────
 let _gbLastDing=0;
 function playGhostbustersDing(el){
+  if(!soundEnabled)return;
   const now=Date.now();if(now-_gbLastDing<5000)return;_gbLastDing=now;
   if(el){el.classList.add('gb-flash');setTimeout(()=>el.classList.remove('gb-flash'),600);}
   try{
@@ -251,6 +269,7 @@ function playGhostbustersDing(el){
 // ── NIGHT OF THE LIVING DEAD FLICKER + GROAN ──────────────────────────────
 let _notldGroanLast=0,_notldFlickerTimer=null;
 function _playNotldGroan(){
+  if(!soundEnabled)return;
   const now=Date.now();if(now-_notldGroanLast<5000)return;_notldGroanLast=now;
   try{
     const ctx=new AudioContext(),dur=0.85;
@@ -278,6 +297,7 @@ function stopNotldEffect(el){
 // ── SPEED RACER ENGINE REV ────────────────────────────────────────────────
 let _revTimer=null,_revFreq=110,_revTempo=520;
 function startRevSound(){
+  if(!soundEnabled)return;
   stopRevSound();_revFreq=110;_revTempo=520;
   const tick=()=>{
     try{

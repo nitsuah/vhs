@@ -11,7 +11,11 @@
 
 <header id="header">
   <h1>VHS <span>Box</span></h1>
-  <span id="ai-badge" class="loading">⟳ CHECKING</span>
+  <nav id="tab-nav">
+    <button class="tab-btn active" data-tab="capture" id="tab-capture"><span class="tab-ico">📷</span><span class="tab-lbl">Capture</span></button>
+    <button class="tab-btn" data-tab="review" id="tab-review"><span class="tab-ico-wrap"><span class="tab-ico">📋</span><span class="tab-badge" id="tab-review-count" style="display:none">0</span></span><span class="tab-lbl">Review</span></button>
+    <button class="tab-btn" data-tab="collect" id="tab-collect"><span class="tab-ico">📼</span><span class="tab-lbl" id="collect-count"></span></button>
+  </nav>
   <select id="camera-select" style="display:none"></select>
   <div class="hdr-right" id="hdr-right-desktop">
     <span id="count-badge">0 tapes</span><span id="db-dot" title="Neon connection"></span>
@@ -20,7 +24,7 @@
   </div>
   <!-- Mobile-only right side -->
   <div class="hdr-right-mob" id="hdr-right-mob">
-    <span id="count-badge-mob" style="font-size:14px;color:var(--text2)"></span>
+    <span id="ai-badge" class="loading"></span>
     <span id="db-dot-mob"></span>
     <button id="btn-menu">☰</button>
   </div>
@@ -33,26 +37,37 @@
     <button class="hbtn" id="btn-settings-mob">⚙ Settings</button>
     <button class="hbtn" id="btn-health">🔍 System Health</button>
     <button class="hbtn" id="btn-help-mob">? Help</button>
+    <button class="hbtn" id="btn-eggs">🥚 Easter Eggs</button>
+    <button class="hbtn" id="btn-fullscreen" style="display:none">⛶ Fullscreen</button>
   </div>
-  <div class="hbr-section hbr-section-last">
+  <div class="hbr-section">
     <span class="hbr-label">Display</span>
     <button class="hbtn" id="btn-crt">📺 CRT Scanlines</button>
+  </div>
+  <div class="hbr-section hbr-section-last">
+    <span class="hbr-label">Audio</span>
+    <button class="hbtn" id="btn-sound">🔊 Sounds</button>
   </div>
 </div>
 <div id="crt-overlay"></div>
 <canvas id="static-canvas"></canvas>
 <div id="fbi-overlay">
+  <div id="fbi-scanlines"></div>
   <div id="fbi-inner">
-    <div id="fbi-seal">✦ &nbsp; F B I &nbsp; ✦</div>
+    <div id="fbi-badge">
+      <div id="fbi-badge-ring">
+        <div id="fbi-badge-star">★</div>
+        <div id="fbi-badge-text">FEDERAL BUREAU OF INVESTIGATION</div>
+      </div>
+    </div>
+    <div id="fbi-warn"><strong>FBI</strong> W A R N I N G</div>
     <div class="fbi-rule"></div>
-    <div id="fbi-warn">W A R N I N G</div>
-    <div class="fbi-rule"></div>
-    <p class="fbi-body">Federal law provides severe civil and criminal penalties for the unauthorized reproduction, distribution, or exhibition of copyrighted motion pictures, video tapes, or video discs.</p>
-    <p class="fbi-body">Criminal copyright infringement is investigated by the FBI and may constitute a felony with a maximum penalty of five years in prison and/or a $250,000 fine.</p>
+    <p class="fbi-body">Federal law provides severe civil and criminal penalties for the unauthorized reproduction, distribution, or exhibition of copyrighted motion pictures. Criminal copyright infringement is investigated by the FBI and may constitute a felony with a maximum penalty of five years imprisonment and/or a $250,000 fine.</p>
     <p id="fbi-cite">Title 17, United States Code, Sections 501 and 506</p>
     <div id="fbi-tape-label"></div>
-    <button id="fbi-trailer">▶ Search Trailer on YouTube</button>
+    <div id="fbi-loading">▶ Loading trailer…</div>
   </div>
+  <div id="fbi-youtube-wrap"><button id="fbi-youtube-close" title="Close">✕</button></div>
 </div>
 
 <!-- SYSTEM HEALTH MODAL -->
@@ -82,11 +97,6 @@
   </div>
 </div>
 
-<nav id="tab-nav">
-  <button class="tab-btn active" data-tab="capture" id="tab-capture"><span class="tab-ico">📷</span>Capture</button>
-  <button class="tab-btn" data-tab="review" id="tab-review"><span class="tab-ico-wrap"><span class="tab-ico">📋</span><span class="tab-badge" id="tab-review-count" style="display:none">0</span></span>Review</button>
-  <button class="tab-btn" data-tab="collect" id="tab-collect"><span class="tab-ico">📦</span>Collect</button>
-</nav>
 <main id="main">
   <section id="cam-panel">
     <div id="vid-wrap">
@@ -153,6 +163,7 @@
           <button class="hbtn" id="btn-stop-proc" style="display:none;font-size:11px;padding:5px 8px;color:var(--red);border-color:rgba(232,64,64,.3)" title="Cancel all queued/analyzing jobs">◼ Stop</button>
         </div>
       </div>
+      <div id="fill-review-status" style="display:none"></div>
       <div id="rev-loading" class="spin-row" style="display:none">
         <div class="spin"></div><span id="rev-msg">Analyzing…</span>
       </div>
@@ -164,8 +175,12 @@
       <div id="collect-subhdr">
         <div class="csh-row1">
           <button class="hbtn hbtn-view" id="btn-wall">⊞ Wall</button>
-          <button class="hbtn hbtn-view hbtn-fill" id="btn-fill-data" title="Fill with Ollama — AI enriches missing year, label and value">⚡ Fill</button>
-          <button class="hbtn hbtn-view hbtn-check" id="btn-revalidate" title="Check with Ollama — re-analyze photo vs saved data">🦙 Check</button>
+          <button class="hbtn hbtn-view hbtn-fill" id="btn-fill-data" title="Fill missing data from OMDb">⚡ Fill</button>
+          <div id="fill-progress" style="display:none;align-items:center;gap:5px">
+            <div style="width:70px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden"><div id="fill-progress-bar" style="height:100%;background:var(--yellow);width:0%;transition:width .25s ease-out"></div></div>
+            <button id="fill-cancel-btn" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:0 2px;line-height:1" title="Cancel fill">✕</button>
+          </div>
+          <button class="hbtn hbtn-view hbtn-check" id="btn-revalidate" title="Check with Ollama — re-analyze photo vs saved data" style="display:none">🦙 Check</button>
           <span style="flex:1"></span>
           <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700">+ <span class="btn-txt">Add</span></button>
           <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ <span class="btn-txt">Import</span></button>
@@ -195,8 +210,7 @@
       </div>
       <div id="bulk-bar">
         <span id="bulk-count" style="font-size:12px;color:var(--blue);font-weight:700"></span>
-        <button class="ctrl-btn hbtn-fill" id="bulk-fill" title="Fill missing data with AI (selected)">⚡</button>
-        <button class="ctrl-btn hbtn-check" id="bulk-check" title="Re-check photos with AI (selected)">🦙</button>
+        <button class="ctrl-btn hbtn-fill" id="bulk-fill" title="Fill missing data (selected)">⚡</button>
         <select id="bulk-status-sel">
           <option value="">Status…</option>
           <option value="in_collection">In Collection</option>
@@ -209,6 +223,11 @@
         <button class="ctrl-btn" id="bulk-clear" style="margin-left:auto" title="Deselect all">↩</button>
       </div>
       <div id="inv-list"></div>
+      <div id="zoom-bar">
+        <span style="color:var(--text3);font-size:13px;cursor:default;user-select:none" title="Zoom out">⊖</span>
+        <input type="range" id="zoom-slider" min="0.5" max="2.5" step="0.1" value="1" title="Collection zoom">
+        <span style="color:var(--text3);font-size:13px;cursor:default;user-select:none" title="Zoom in">⊕</span>
+      </div>
       <div class="empty" id="empty-state" style="flex-direction:column;gap:10px;padding:40px 20px;display:none">
         <div style="font-size:36px">📼</div>
         <div style="font-size:14px;font-weight:700;color:var(--text)">No tapes yet</div>
@@ -226,6 +245,53 @@
 
 
 <!-- HELP MODAL -->
+<!-- EASTER EGGS MODAL -->
+<div class="backdrop" id="m-eggs" style="display:none">
+  <div class="modal" style="max-width:500px">
+    <h2>🥚 Easter Eggs</h2>
+    <h3 style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">Title-Triggered Effects</h3>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:6px">Hover a matching card (or long-press on mobile) to trigger.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr><th style="text-align:left;padding:3px 0;color:var(--text3);font-size:11px">Title matches</th><th style="text-align:left;padding:3px 0;color:var(--text3);font-size:11px">Effect</th></tr></thead>
+      <tbody>
+        <tr><td style="padding:4px 0;width:38%">Akira</td><td style="padding:4px 0;color:var(--text3)">"Leave Me Alone" stinger on hover</td></tr>
+        <tr><td>Jaws</td><td style="color:var(--text3)">Two-note theme accelerates on hover</td></tr>
+        <tr><td>Ghostbusters</td><td style="color:var(--text3)">Green slime flash + spectral ding</td></tr>
+        <tr><td>Night of the Living Dead…</td><td style="color:var(--text3)">Screen flicker + zombie groan</td></tr>
+        <tr><td>Speed Racer / Fast &amp; Furious</td><td style="color:var(--text3)">Engine rev climbing in pitch</td></tr>
+      </tbody>
+    </table>
+    <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+    <h3 style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">Genre Effects <span style="font-weight:400;color:var(--text3)">(hover card)</span></h3>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:6px">Auto-filled from OMDb via ⚡ Fill.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:11px">
+      <span>🧟 Horror — red glow + zombie hand</span><span style="color:var(--text3)">🔪 Thriller — knife drops</span>
+      <span>👾 Sci-Fi — cyan flash + alien</span><span style="color:var(--text3)">🧚 Fantasy — gold shimmer + fairy</span>
+      <span>💥 Action — shake + explosion</span><span style="color:var(--text3)">😂 Comedy — bounce + laugh face</span>
+      <span>❤️ Romance — pink glow + heart</span><span style="color:var(--text3)">🎨 Animation — rainbow border</span>
+      <span>🤠 Western — sepia + cowboy hat</span><span style="color:var(--text3)">🎬 Documentary — desaturate + clapper</span>
+      <span>🎵 Musical — note floats in</span><span style="color:var(--text3)">🗺️ Adventure — warm glow + map</span>
+      <span>🎖️ War — grayscale + medal</span><span style="color:var(--text3)">🔫 Crime — dark shadow + pistol</span>
+      <span>🎭 Drama — brighten + masks</span><span style="color:var(--text3)">🔍 Mystery — darken + magnifier</span>
+      <span>⚽ Sport — bounce + ball</span><span style="color:var(--text3)">📜 History — sepia + scroll</span>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+    <h3 style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">Interactions &amp; Secrets</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <tbody>
+        <tr><td style="padding:3px 0;width:44%">Long-press any card</td><td style="padding:3px 0;color:var(--text3)">FBI warning → auto-loads trailer</td></tr>
+        <tr><td>Collect tab click</td><td style="color:var(--text3)">VHS rewind motor sound</td></tr>
+        <tr><td>50 / 100 / 200 tapes</td><td style="color:var(--text3)">Confetti burst (once per milestone)</td></tr>
+        <tr><td>Matrix tape title</td><td style="color:var(--text3)">Edit field animates through katakana</td></tr>
+        <tr><td>Shake device (mobile)</td><td style="color:var(--text3)">Retro TV static fills screen</td></tr>
+        <tr><td>App load (1-in-50)</td><td style="color:var(--text3)">📼 "Be Kind, Rewind!" toast</td></tr>
+        <tr><td>📺 CRT Scanlines</td><td style="color:var(--text3)">Scanline + vignette overlay (sidebar)</td></tr>
+      </tbody>
+    </table>
+    <div class="modal-acts"><button class="btn btn-ok" id="eggs-close">Close</button></div>
+  </div>
+</div>
+
 <div class="backdrop" id="m-help" style="display:none">
   <div class="modal" style="max-width:380px">
     <h2>Keyboard Shortcuts</h2>
@@ -410,6 +476,31 @@
     <div class="modal-acts">
       <button class="btn btn-x" id="del-cancel">Cancel</button>
       <button class="btn btn-del" id="del-ok">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- PHOTO CROP MODAL -->
+<div class="backdrop" id="m-crop" style="display:none">
+  <div class="modal" style="max-width:320px">
+    <h2>📍 Adjust Image Position</h2>
+    <p id="crop-role-hint" style="font-size:12px;color:var(--text2);margin:0 0 12px;line-height:1.4"></p>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+      <div id="crop-frame" style="position:relative;overflow:hidden;border:2px solid var(--accent);border-radius:6px;cursor:grab;touch-action:none;user-select:none;flex-shrink:0">
+        <img id="crop-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none">
+      </div>
+      <div style="font-size:11px;color:var(--text3)" id="crop-pct">50% × 50%</div>
+      <div style="font-size:11px;color:var(--text3);text-align:center">Drag to reposition · Scroll or pinch to zoom</div>
+      <div style="display:flex;align-items:center;gap:8px;width:100%;max-width:260px">
+        <span style="font-size:11px;color:var(--text3)">Zoom</span>
+        <input type="range" id="crop-zoom" min="100" max="300" step="5" value="100" style="flex:1">
+        <span style="font-size:11px;color:var(--text3);min-width:28px;text-align:right" id="crop-zoom-lbl">1.0×</span>
+      </div>
+    </div>
+    <div class="modal-acts" style="margin-top:16px">
+      <button class="btn btn-x" id="crop-reset">Reset</button>
+      <button class="btn btn-x" id="crop-cancel">Cancel</button>
+      <button class="btn btn-ok" id="crop-save">Save</button>
     </div>
   </div>
 </div>

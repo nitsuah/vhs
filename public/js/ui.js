@@ -11,9 +11,12 @@ function setActiveTab(tab){
 }
 function updateTabBadge(){
   const badge=document.getElementById('tab-review-count');
+  const tab=document.getElementById('tab-review');
   if(!badge)return;
   const n=cards.length;
   badge.textContent=n;badge.style.display=n?'':'none';
+  if(tab)tab.style.display=n?'':'none';
+  if(!n&&document.body.dataset.tab==='review')setActiveTab('capture');
 }
 document.getElementById('tab-capture')?.addEventListener('click',()=>setActiveTab('capture'));
 document.getElementById('tab-review')?.addEventListener('click',()=>setActiveTab('review'));
@@ -22,6 +25,7 @@ document.getElementById('tab-collect')?.addEventListener('click',()=>{
   setActiveTab('collect');
 });
 setActiveTab('capture');
+updateTabBadge();
 
 // ── KEYBOARD ─────────────────────────────────────────────────────────────
 document.addEventListener('keydown',e=>{
@@ -56,6 +60,31 @@ document.getElementById('btn-menu').addEventListener('click',openDrawer);
 // ── HELP MODAL ───────────────────────────────────────────────────────────
 document.getElementById('btn-help').addEventListener('click',()=>document.getElementById('m-help').style.display='flex');
 document.getElementById('help-close').addEventListener('click',()=>document.getElementById('m-help').style.display='none');
+
+// ── EASTER EGGS MODAL ────────────────────────────────────────────────────
+document.getElementById('btn-eggs')?.addEventListener('click',()=>{closeDrawer();document.getElementById('m-eggs').style.display='flex';});
+document.getElementById('eggs-close')?.addEventListener('click',()=>document.getElementById('m-eggs').style.display='none');
+
+// ── SOUND TOGGLE ─────────────────────────────────────────────────────────
+function updateSoundBtn(){
+  const btn=document.getElementById('btn-sound');
+  if(btn)btn.textContent=soundEnabled?'🔊 Sounds':'🔇 Sounds Off';
+}
+document.getElementById('btn-sound')?.addEventListener('click',()=>{
+  soundEnabled=!soundEnabled;
+  localStorage.setItem('vhs-sound',soundEnabled);
+  updateSoundBtn();
+  closeDrawer();
+});
+updateSoundBtn();
+
+// ── FULLSCREEN ───────────────────────────────────────────────────────────
+document.getElementById('btn-fullscreen')?.addEventListener('click',()=>{
+  const el=document.documentElement;
+  if(el.requestFullscreen)el.requestFullscreen().catch(()=>{});
+  else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
+  closeDrawer();
+});
 
 // ── SETTINGS MODAL ───────────────────────────────────────────────────────
 document.getElementById('btn-settings').addEventListener('click',()=>{
