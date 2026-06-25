@@ -751,4 +751,5 @@ if (require.main === module) {
     .catch(err => { console.error('DB init failed:', err.message); process.exit(1); });
 }
 
-module.exports = { app, pool };
+// Export internal functions for testing
+module.exports = { app, pool, processJobs, ensureCerts, runMigrations, callOllamaServer, callOmdb, parseJsonArray, jobId, reviewItemId, analyticsId, logScanAnalytics, logActivity, withRetry };
