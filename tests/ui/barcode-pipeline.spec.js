@@ -93,8 +93,8 @@ test('auto-confirmed barcode tape appears in inventory table', async ({ page }) 
 
   await page.evaluate(code => { _fireBarcodeResult(code); }, FAKE_BARCODE);
 
-  // Toast should confirm the add
-  await expect(page.locator('#toast')).toContainText('Added', { timeout: 8000 });
+  // Toast should confirm the add (toasts are div.toast children of #toast-wrap)
+  await expect(page.locator('#toast-wrap .toast')).toContainText('Added', { timeout: 8000 });
 });
 
 test('barcode with no UPC match falls back to review card for manual entry', async ({ page }) => {
@@ -110,14 +110,16 @@ test('barcode with no UPC match falls back to review card for manual entry', asy
 
   await page.evaluate(code => { _fireBarcodeResult(code); }, FAKE_BARCODE);
 
-  // A review card with empty title should appear for manual entry
+  // Toast warns user (check before switching tabs)
+  await expect(page.locator('#toast-wrap .toast')).toContainText('No match', { timeout: 3000 });
+
+  // Review card needs tab switch to be visible
+  await page.waitForSelector('#tab-review', { state: 'visible', timeout: 5000 });
+  await page.click('#tab-review');
   const card = page.locator('.rev-card').first();
   await expect(card).toBeVisible({ timeout: 5000 });
   const titleInput = card.locator('input[data-f="title"]');
   await expect(titleInput).toHaveValue('', { timeout: 2000 });
-
-  // Toast warns user
-  await expect(page.locator('#toast')).toContainText('No match', { timeout: 3000 });
 });
 
 test('duplicate barcode shows error toast and does not add to inventory', async ({ page }) => {
@@ -143,12 +145,14 @@ test('duplicate barcode shows error toast and does not add to inventory', async 
   });
 
   await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await page.click('#tab-collect');
   await page.waitForSelector('.tape-row', { timeout: 10000 });
 
   await page.evaluate(code => { _fireBarcodeResult(code); }, FAKE_BARCODE);
 
   // No new tape should be posted
-  await expect(page.locator('#toast')).toContainText('Already in collection', { timeout: 5000 });
+  await expect(page.locator('#toast-wrap .toast')).toContainText('Already in collection', { timeout: 5000 });
   expect(postCalled).toBe(false);
   // No review card either
   await expect(page.locator('.rev-card')).toHaveCount(0, { timeout: 2000 });

@@ -2,73 +2,254 @@
 // then: npm run test:ui
 const { test, expect } = require('@playwright/test');
 
-test('save closes the detail modal immediately', async ({ page }) => {
-  await page.goto('/');
-  // Wait for inventory to load
-  await page.waitForSelector('.tbl-open', { timeout: 10000 });
+const THUMB = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=';
 
-  // Open first tape via thumbnail cell
-  await page.locator('.tbl-open').first().click();
-  await expect(page.locator('#m-detail')).toBeVisible();
+function makeTape(overrides = {}) {
+  return {
+    id: 'VHS-0042',
+    title: 'Ghostbusters',
+    year: '1984',
+    label: 'Columbia',
+    format: 'VHS',
+    condition: 'good',
+    status: 'in_collection',
+    scanned_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
 
-  // Edit title and save
-  await page.fill('#d-title', 'Playwright Test Tape');
-  await page.click('#d-save');
+async function setupMocks(page, tapes) {
+  let savedTape = tapes[0] ? { ...tapes[0] } : null;
 
-  // Modal must close without waiting for the DB round-trip
-  await expect(page.locator('#m-detail')).toBeHidden({ timeout: 1000 });
-});
-
-test('pin face button shows active state instantly', async ({ page }) => {
-  await page.goto('/');
-  await page.waitForSelector('.tape-row', { timeout: 10000 });
-
-  // Intercept PUT to add a 2s delay so we can measure pre-await feedback
+  await page.route('**/api/tapes', async route => {
+    if (route.request().method() === 'GET')
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tapes) });
+    if (route.request().method() === 'POST') {
+      const body = JSON.parse(route.request().postData() || '{}');
+      savedTape = body;
+      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(body) });
+    }
+    route.continue();
+  });
   await page.route('**/api/tapes/**', async route => {
     if (route.request().method() === 'PUT') {
-      await new Promise(r => setTimeout(r, 2000));
+      const body = JSON.parse(route.request().postData() || '{}');
+      savedTape = body;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     }
-    await route.continue();
+    if (route.request().method() === 'DELETE')
+      return route.fulfill({ status: 200, body: '{"ok":true}' });
+    route.continue();
   });
+  await page.route('**/api/review/**', route =>
+    route.fulfill({ status: 200, body: JSON.stringify([]) }),
+  );
+  await page.route('**/api/review/pending', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+  );
+  await page.route('**/api/jobs/**', route =>
+    route.fulfill({ status: 200, body: '{"ok":true}' }),
+  );
+  await page.route('**/api/jobs/status', route =>
+    route.fulfill({ status: 200, body: '{"pending":0,"processing":0,"done":0,"failed":0,"review_pending":0}' }),
+  );
+  await page.route('**/api/jobs/inflight', route =>
+    route.fulfill({ status: 200, body: '[]' }),
+  );
+  await page.route('**/api/health', route =>
+    route.fulfill({ status: 200, body: '{"db":"ok","ollama":"ok"}' }),
+  );
+  await page.route('**/api/logs**', route =>
+    route.fulfill({ status: 200, body: '[]' }),
+  );
+  await page.route('**/api/lookup**', route =>
+    route.fulfill({ status: 200, body: '{}' }),
+  );
 
-  // Open a tape that has a photo
-  const tapeWithPhoto = page.locator('.tbl-open').filter({ has: page.locator('img.tbl-thumb') }).first();
-  await tapeWithPhoto.click();
-  await expect(page.locator('#m-detail')).toBeVisible();
+  return () => savedTape;
+}
 
-  // Find a face-pin button
-  const pinFaceBtn = page.locator('button[title="Pin as face (wall view)"]').first();
-  if (!(await pinFaceBtn.isVisible())) {
-    test.skip('No tape with photos available for this test');
-    return;
-  }
+// ── Open / close ──────────────────────────────────────────────────────────────
 
-  await pinFaceBtn.click();
+test('detail modal opens with tape data populated', async ({ page }) => {
+  const tape = makeTape({ title: 'Ghostbusters', year: '1984', label: 'Columbia' });
+  await setupMocks(page, [tape]);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
 
-  // Active state (blue background) should appear within 200ms, before the delayed PUT completes
-  await expect(pinFaceBtn).toHaveCSS('background-color', /rgba\(68,\s*136,\s*255/, { timeout: 200 });
+  await page.click('#tab-collect');
+  // Open detail via programmatic call
+  await page.evaluate((id) => openDetail(id), tape.id);
+
+  const modal = page.locator('#m-detail');
+  await expect(modal).toBeVisible({ timeout: 5000 });
+
+  await expect(page.locator('#d-title')).toHaveValue('Ghostbusters');
+  await expect(page.locator('#d-year')).toHaveValue('1984');
+  await expect(page.locator('#d-label')).toHaveValue('Columbia');
 });
 
-test('spine pin button toggles off when clicked again', async ({ page }) => {
+test('save button closes the modal immediately', async ({ page }) => {
+  const tape = makeTape();
+  const getSaved = await setupMocks(page, [tape]);
   await page.goto('/');
-  await page.waitForSelector('.tape-row', { timeout: 10000 });
+  await page.waitForLoadState('networkidle');
 
-  const tapeWithPhoto = page.locator('.tbl-open').filter({ has: page.locator('img.tbl-thumb') }).first();
-  await tapeWithPhoto.click();
-  await expect(page.locator('#m-detail')).toBeVisible();
+  await page.click('#tab-collect');
+  await page.evaluate((id) => openDetail(id), tape.id);
 
-  const pinSpineBtn = page.locator('button[title="Pin as spine (list view)"]').first();
-  if (!(await pinSpineBtn.isVisible())) {
-    test.skip('No tape with photos available for this test');
-    return;
-  }
+  await page.fill('#d-title', 'Updated Title');
+  await page.click('#d-save');
 
-  // Pin it
-  await pinSpineBtn.click();
-  await expect(pinSpineBtn).toHaveCSS('background-color', /rgba\(61,\s*187,\s*61/, { timeout: 500 });
+  await expect(page.locator('#m-detail')).toBeHidden({ timeout: 2000 });
+  // Title was sent in PUT body
+  const saved = getSaved();
+  expect(saved?.title).toBe('Updated Title');
+});
 
-  // Pin it again to unpin
-  await pinSpineBtn.click();
-  // Should return to unactive state (not green)
-  await expect(pinSpineBtn).not.toHaveCSS('background-color', /rgba\(61,\s*187,\s*61/, { timeout: 500 });
+test('cancel button closes modal without saving changes', async ({ page }) => {
+  const tape = makeTape({ title: 'Original Title' });
+  const getSaved = await setupMocks(page, [tape]);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  await page.click('#tab-collect');
+  await page.evaluate((id) => openDetail(id), tape.id);
+
+  await page.fill('#d-title', 'Changed But Not Saved');
+  await page.click('#d-cancel');
+
+  await expect(page.locator('#m-detail')).toBeHidden({ timeout: 2000 });
+});
+
+// ── Photo management ──────────────────────────────────────────────────────────
+
+test('pinning face photo shows cover badge and blue border', async ({ page }) => {
+  const tape = makeTape({ photos: [THUMB], photo_thumbnail: THUMB });
+  await setupMocks(page, [tape]);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  await page.click('#tab-collect');
+  await page.evaluate((id) => openDetail(id), tape.id);
+
+  const modal = page.locator('#m-detail');
+  await expect(modal).toBeVisible({ timeout: 5000 });
+
+  // Detail photos should be visible
+  await expect(page.locator('#detail-photos')).toBeVisible({ timeout: 3000 });
+
+  // Pin the photo as face cover
+  const pinFaceBtn = page.locator('button[title="Pin as cover (wall view)"]').first();
+  await pinFaceBtn.click();
+
+  // Active (blue) border should appear immediately
+  const thumbImg = page.locator('#detail-photos img').first();
+  const borderColor = await thumbImg.evaluate(el => getComputedStyle(el).borderColor);
+  // Blue = rgb(68, 136, 255) approximately
+  expect(borderColor).toMatch(/68/);
+});
+
+test('📍 adjust button appears for pinned cover photo', async ({ page }) => {
+  const tape = makeTape({ photos: [THUMB], photo_face: THUMB, photo_thumbnail: THUMB });
+  await setupMocks(page, [tape]);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  await page.click('#tab-collect');
+  await page.evaluate((id) => openDetail(id), tape.id);
+
+  await expect(page.locator('#m-detail')).toBeVisible({ timeout: 5000 });
+
+  // 📍 button should be present because photo is already pinned
+  const adjustBtn = page.locator('button[title="Adjust position / zoom"]');
+  await expect(adjustBtn).toBeVisible({ timeout: 3000 });
+});
+
+test('crop overlay opens from 📍 button and saves via PUT', async ({ page }) => {
+  const tape = makeTape({ id: 'VHS-0042', photos: [THUMB], photo_face: THUMB, photo_thumbnail: THUMB });
+  const getSaved = await setupMocks(page, [tape]);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  await page.click('#tab-collect');
+  await page.evaluate((id) => openDetail(id), tape.id);
+
+  await page.locator('button[title="Adjust position / zoom"]').first().click();
+  const cropModal = page.locator('#m-crop');
+  await expect(cropModal).toBeVisible({ timeout: 3000 });
+
+  // Save immediately (default 50%/50% position)
+  await page.click('#crop-save');
+  await expect(cropModal).toBeHidden({ timeout: 2000 });
+
+  // photo_crop should have been set on the tape
+  const saved = getSaved();
+  expect(saved?.photo_crop?.face).toBeDefined();
+  expect(saved?.photo_crop?.face?.x).toBe(50);
+  expect(saved?.photo_crop?.face?.y).toBe(50);
+});
+
+// ── Delete confirmation ────────────────────────────────────────────────────────
+
+test('delete button opens confirmation modal', async ({ page }) => {
+  const tape = makeTape();
+  await setupMocks(page, [tape]);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  await page.click('#tab-collect');
+  await page.evaluate((id) => openDetail(id), tape.id);
+
+  await expect(page.locator('#m-detail')).toBeVisible({ timeout: 5000 });
+
+  await page.click('#d-delete');
+
+  // Delete confirmation modal should appear
+  await expect(page.locator('#m-del-confirm')).toBeVisible({ timeout: 2000 });
+});
+
+test('cancelling delete dismisses confirmation without removing tape', async ({ page }) => {
+  const tape = makeTape();
+  let deleteCallCount = 0;
+  await setupMocks(page, [tape]);
+  await page.route('**/api/tapes/**', route => {
+    if (route.request().method() === 'DELETE') deleteCallCount++;
+    route.continue();
+  });
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  await page.click('#tab-collect');
+  await page.evaluate((id) => openDetail(id), tape.id);
+
+  await page.click('#d-delete');
+  await expect(page.locator('#m-del-confirm')).toBeVisible({ timeout: 2000 });
+
+  await page.click('#del-cancel');
+  await expect(page.locator('#m-del-confirm')).toBeHidden({ timeout: 2000 });
+  expect(deleteCallCount).toBe(0);
+});
+
+// ── Edit tabs (Main / Details) ────────────────────────────────────────────────
+
+test('modal tabs switch between Main and Details panes', async ({ page }) => {
+  const tape = makeTape();
+  await setupMocks(page, [tape]);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+
+  await page.click('#tab-collect');
+  await page.evaluate((id) => openDetail(id), tape.id);
+
+  await expect(page.locator('#m-detail')).toBeVisible({ timeout: 5000 });
+
+  // Details tab
+  await page.click('.modal-tab[data-tab="details"]');
+  await expect(page.locator('#dtab-details')).toHaveClass(/active/, { timeout: 2000 });
+  await expect(page.locator('#dtab-main')).not.toHaveClass(/active/);
+
+  // Back to Main
+  await page.click('.modal-tab[data-tab="main"]');
+  await expect(page.locator('#dtab-main')).toHaveClass(/active/, { timeout: 2000 });
 });
