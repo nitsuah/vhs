@@ -1,30 +1,18 @@
 # ROADMAP
 
-## Phase 1 — Capture
+## Phase 1 — Capture [COMPLETE]
 
 **Goal:** get every tape into `tapes.json` with a consistent ID and a title.
 
-### Photo protocol
-
-1. Lay 8–12 tapes face-up in good light, labels visible
-2. Shoot the photo — no cards, no numbering, no ceremony
-3. Upload and let AI read what it can
-4. Do a quick spot-check pass on the results, fix any misreads
-5. Repeat
-
-Good lighting and labels face-up is the only real requirement. Clear overhead shots in natural light work best.
-
-### AI scan script (`scan.py`)
-
-- Takes a photo path as input
-- Sends it to Claude Vision (via the Anthropic API) with a prompt like:
-  > "This photo contains numbered VHS tapes. For each visible number, read the tape label and return JSON: `[{id, title, label, year_if_visible}]`"
-- Merges results into `tapes.json`, skipping IDs that already exist (immutability)
-
-**API options:**
-- **Claude (Anthropic)** — best for messy/handwritten labels, good at context
-- **OpenAI GPT-4o** — comparable vision quality, slightly cheaper per image at scale
-- **Recommendation:** Start with Claude. You already have access, and it's better at "I think this says..." reasoning on worn tape labels.
+All Phase 1 goals shipped:
+- VHS Shelf Scanner browser app (Docker/Nginx, port 8080/8443)
+- Barcode scanning — webcam-based with auto-confirm and staging flow
+- AI photo scanning — batch upload, Claude Vision, accuracy checking
+- Mobile UI — mobile-first layout, queue visualization, retry controls
+- OMDb verification — AI scan results cross-checked against movie database
+- StacksUp spine rotation enrichment
+- Tabbed edit form and review queue
+- Test suite
 
 ---
 
@@ -74,12 +62,10 @@ That list becomes your eBay drafts or a Mercari batch upload.
 
 ### Future ideas (don't build yet)
 
-- Simple web UI (a single `index.html` that reads `tapes.json` via fetch) — searchable, filterable, no backend
 - Photo thumbnails auto-cropped per tape (OpenCV or ImageMagick, crop each tape from batch photo)
-- Barcode scanning for tapes that still have UPC stickers (cross-reference ISRC/barcode databases)
 - Condition grading rubric (create a standard so anyone rating tapes uses the same scale)
-- **Tape wall gallery view** — scrollable masonry grid of tape thumbnails (one photo minimum per tape); makes the digital collection feel like the physical shelf and gives a quick visual inventory scan without opening individual records.
-- **Sell queue export** — a one-command workflow (`export.py --status for_sale --format drafts`) that auto-populates eBay/Mercari draft templates (title, condition, valuation range, photo path) for each `for_sale` tape; reduces manual copy-paste from `tapes.json` to listing pages.
+- **Tape wall gallery view** — scrollable masonry grid of tape thumbnails (one photo minimum per tape)
+- **Sell queue export** — one-command workflow that auto-populates eBay/Mercari draft templates for each `for_sale` tape
 
 ---
 
@@ -93,11 +79,11 @@ That list becomes your eBay drafts or a Mercari batch upload.
 | Valuation data | eBay sold listings | Most accurate real-world pricing signal |
 | Scripting | Python | Widely available, good JSON/HTTP libraries |
 | Exports | CSV + HTML | Works everywhere, no dependencies |
-| Hosting (if ever) | GitHub Pages | Free, serves static HTML directly from repo |
+| Hosting | Docker/Nginx | Consistent environment, mobile HTTPS support |
 
 ## Other
 
 - Refer to README.md for the data model and repo structure.
 - Refer to TASKS.md for next steps and immediate action items.
-- Refer to CONTRIBUTING.md for guidelines on how to contribute to the project.
+- Refer to FEATURES.md for shipped vs planned feature status.
 - Use Docker for a consistent development environment (see Dockerfile and docker-compose.yml).
