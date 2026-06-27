@@ -191,9 +191,9 @@ async function logScanAnalytics(pool, { jobId: jid, aiModel, suggestions, omdbVe
   }
 }
 
-const { exec } = require('child_process');
+const child_process = require('child_process');
 const util = require('util');
-const execAsync = (typeof exec === 'function') ? util.promisify(exec) : null;
+const execAsync = (typeof child_process.exec === 'function') ? util.promisify(child_process.exec) : null;
 // ...
 app.post('/api/jobs', async (req, res) => {
   const { image, thumb } = req.body;
