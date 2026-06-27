@@ -31,8 +31,13 @@ def detect_tapes(image_bytes):
             # Crop the tape
             x, y, w, h = cv2.boundingRect(approx)
             roi = img[y:y+h, x:x+w]
-            _, buffer = cv2.imencode('.jpg', roi)
-            tapes.append(base64.b64encode(buffer).decode('utf-8'))
+            _, buffer = cv2.imencode('.jpg', roi, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+
+            # Return bounding box and base64 encoded image
+            tapes.append({
+                'bbox': {'x': x, 'y': y, 'w': w, 'h': h},
+                'image': base64.b64encode(buffer).decode('utf-8')
+            })
 
     return tapes
 
