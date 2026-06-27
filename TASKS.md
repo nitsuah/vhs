@@ -19,5 +19,6 @@ Last Updated: 2026-06-25
 
 ### Planned Scripts
 
-- [ ] `scripts/valuate.py` — eBay sold-listings lookup
+- [x] `scripts/valuate.py` — eBay sold-listings lookup (semi-automated)
+- [ ] `scripts/valuate.py` — automate eBay sold-listings scraping (blocked: API docs inaccessible)
 - [x] `scripts/export.js` — CSV/HTML/print export (CSV done)
