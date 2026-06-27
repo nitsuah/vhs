@@ -12,8 +12,12 @@ Last Updated: 2026-06-25
 
 ### P2
 
-- [ ] Sell queue export — one-command eBay/Mercari draft template generator from `for_sale` tapes
+- [x] Sell queue export — one-command eBay/Mercari draft template generator from `for_sale` tapes
   - [x] Implement `scripts/export.js` for CSV format
   - [x] Verify `scripts/export.js` functionality
-- [ ] Tape wall gallery — scrollable masonry grid of tape thumbnails
+- [x] Tape wall gallery — scrollable masonry grid of tape thumbnails
 
+### Planned Scripts
+
+- [ ] `scripts/valuate.py` — eBay sold-listings lookup
+- [x] `scripts/export.js` — CSV/HTML/print export (CSV done)

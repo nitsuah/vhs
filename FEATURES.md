@@ -8,11 +8,14 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 - `[shipped]` **Mobile UI** — mobile-first layout with queue visualization and retry controls
 - `[shipped]` **HTTPS/Mobile Support** — self-signed cert for LAN HTTPS (camera access on mobile)
 - `[shipped]` **Zoom Slider** — adjustable zoom for photo capture
+- `[shipped]` **Tape Wall Gallery** — scrollable masonry grid of tape thumbnails
 
 ## Scanning
 
 - `[shipped]` **Barcode Scanning** — webcam-based barcode scanning with auto-confirm and staging flow
 - `[shipped]` **AI Photo Scanning** — batch photo upload, AI title recognition, accuracy checking
+- `[shipped]` **Multi-tape Detection** — detect and crop individual tapes from batch photos (OpenCV)
+- `[shipped]` **GPU Performance Optimization** - for AI scanning
 
 ## Data & Registry
 
@@ -43,9 +46,9 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 ## Scripts
 
 - `[planned]` **Valuate** — `scripts/valuate.py` — eBay sold-listings lookup for price estimates
-- `[planned]` **Export** — `scripts/export.py` — CSV, HTML, or printable list from registry
+- `[shipped]` **Export** — `scripts/export.js` — CSV, HTML, or printable list from registry
 
 ## Export & Sharing
 
-- `[planned]` **CSV Export** — machine-readable export for spreadsheets
-- `[planned]` **HTML Export** — human-readable collection page
+- `[shipped]` **CSV Export** — machine-readable export for spreadsheets
+- `[shipped]` **Sell Queue Export** — one-command workflow that auto-populates eBay/Mercari draft templates for each `for_sale` tape
