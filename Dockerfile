@@ -1,10 +1,11 @@
 FROM node:22-alpine
 # hadolint ignore=DL3018
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl python3 py3-opencv
 WORKDIR /app
 COPY --chown=node:node package*.json ./
 RUN npm ci
 COPY --chown=node:node server.js .
+COPY --chown=node:node scripts/ ./scripts/
 COPY --chown=node:node migrations/ ./migrations/
 COPY --chown=node:node tests/ ./tests/
 COPY --chown=node:node public/ ./public/

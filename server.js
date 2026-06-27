@@ -191,17 +191,29 @@ async function logScanAnalytics(pool, { jobId: jid, aiModel, suggestions, omdbVe
   }
 }
 
+const { exec } = require('child_process');
+const util = require('util');
+const execAsync = util.promisify(exec);
+// ...
 app.post('/api/jobs', async (req, res) => {
   const { image, thumb } = req.body;
   if (!image) return res.status(400).json({ error: 'image required' });
-  const id = jobId();
-  const now = new Date().toISOString();
+
   try {
-    await pool.query(
-      'INSERT INTO upload_jobs(id,image_data,thumb,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6)',
-      [id, image, thumb || null, 'pending', now, now]
-    );
-    res.status(201).json({ id });
+    // Run detection
+    const { stdout } = await execAsync('python3 scripts/detect_tapes.py', { input: image });
+    const tapes = JSON.parse(stdout);
+    const imagesToProcess = tapes.length > 0 ? tapes : [image];
+
+    const now = new Date().toISOString();
+    for (const img of imagesToProcess) {
+      const id = jobId();
+      await pool.query(
+        'INSERT INTO upload_jobs(id,image_data,thumb,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6)',
+        [id, img, thumb || null, 'pending', now, now]
+      );
+    }
+    res.status(201).json({ count: imagesToProcess.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
