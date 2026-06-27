@@ -787,8 +787,10 @@ if (require.main === module) {
       }
     })
     .then(() => {
-      setInterval(processJobs, 5000);
-      processJobs();
+      if (process.env.NODE_ENV !== 'test') {
+        setInterval(processJobs, 5000);
+        processJobs();
+      }
 
       app.listen(PORT, () => console.log(`✓ VHS Scanner HTTP  on :${PORT}`));
 
