@@ -35,7 +35,7 @@ function cropFrame(){
 function capture(){
   if(isCapturing||barcodeMode)return;
   const frame=cropFrame();if(!frame)return;
-  const fullThumb=frame.toDataURL('image/jpeg',.6);
+  const fullThumb = frame.toDataURL('image/jpeg', .4);
   document.getElementById('thumb-img').src=fullThumb;
   document.getElementById('thumb-wrap').style.display='flex';
   if(cropEl.dataset.preset==='multispine'){
@@ -45,11 +45,11 @@ function capture(){
       const c=document.createElement('canvas');
       c.width=sliceW;c.height=frame.height;
       c.getContext('2d').drawImage(frame,i*sliceW,0,sliceW,frame.height,0,0,sliceW,frame.height);
-      captureQueue.push({base64:c.toDataURL('image/jpeg',.92).split(',')[1],thumb:c.toDataURL('image/jpeg',.6)});
+      captureQueue.push({base64:c.toDataURL('image/jpeg',.8).split(',')[1],thumb:c.toDataURL('image/jpeg',.4)});
     }
     toast(`Staged ${N} spine slices`,'ok',2000);
   }else{
-    captureQueue.push({base64:frame.toDataURL('image/jpeg',.92).split(',')[1],thumb:fullThumb});
+    captureQueue.push({base64:frame.toDataURL('image/jpeg',.8).split(',')[1],thumb:fullThumb});
   }
   renderQueue();
 }
