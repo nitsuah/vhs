@@ -1,8 +1,6 @@
 'use strict';
 
 const request = require('supertest');
-const child_process = require('child_process');
-const util = require('util');
 
 const mockQuery = jest.fn();
 jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: mockQuery })) }));
@@ -16,6 +14,26 @@ jest.mock('fs', () => ({
   writeFileSync: jest.fn(),
   readdirSync: () => [],
   readFileSync: () => Buffer.from('test'),
+}));
+
+// Mock child_process so server.js's execAsync uses the mocked exec
+jest.mock('child_process', () => ({
+  exec: jest.fn((cmd, options, callback) => {
+    const cb = typeof options === 'function' ? options : callback;
+    const child = {
+      stdin: {
+        write: jest.fn(),
+        end: jest.fn(() => {
+          cb(null, '{"tapes":[{"title":"Test Tape"}]}', '');
+        })
+      },
+      stdout: { on: jest.fn(), pipe: jest.fn() },
+      stderr: { on: jest.fn(), pipe: jest.fn() },
+      on: jest.fn()
+    };
+    return child;
+  }),
+  execSync: jest.fn()
 }));
 
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';

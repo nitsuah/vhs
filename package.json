@@ -1,5 +1,4 @@
-{
-  "name": "vhs-shelf-scanner",
+{"name": "vhs-shelf-scanner",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -7,9 +6,6 @@
     "lint": "eslint server.js",
     "test": "jest",
     "test:ui": "playwright test"
-  },
-  "jest": {
-    "testTimeout": 30000
   },
   "dependencies": {
     "express": "^4.19.2",
