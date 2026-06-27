@@ -8,7 +8,17 @@ jest.mock('http-proxy-middleware', () => ({
   createProxyMiddleware: () => (_req, _res, next) => next(),
 }));
 // Prevent openssl/fs calls during test load
-jest.mock('child_process', () => ({ execSync: jest.fn() }));
+jest.mock('child_process', () => {
+  return {
+    exec: jest.fn((cmd, ...args) => {
+      console.log('DEBUG: exec called with args length:', args.length);
+      const cb = args.length === 1 ? args[0] : args[1];
+      console.log('DEBUG: Calling callback with [null, "[]", ""]');
+      cb(null, '[]', '');
+    }),
+    execSync: jest.fn()
+  };
+});
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   existsSync: () => true,
@@ -89,7 +99,7 @@ describe('POST /api/jobs', () => {
     mockQuery.mockResolvedValue({ rows: [] });
     const res = await request(app).post('/api/jobs').send({ image: 'data:image/jpeg;base64,abc' });
     expect(res.status).toBe(201);
-    expect(res.body.id).toMatch(/^job_/);
+    expect(res.body.count).toBe(1);
   });
 });
 

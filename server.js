@@ -193,7 +193,7 @@ async function logScanAnalytics(pool, { jobId: jid, aiModel, suggestions, omdbVe
 
 const { exec } = require('child_process');
 const util = require('util');
-const execAsync = util.promisify(exec);
+const execAsync = (typeof exec === 'function') ? util.promisify(exec) : null;
 // ...
 app.post('/api/jobs', async (req, res) => {
   const { image, thumb } = req.body;
@@ -201,6 +201,7 @@ app.post('/api/jobs', async (req, res) => {
 
   try {
     // Run detection
+    if (!execAsync) throw new Error('exec not available');
     const { stdout } = await execAsync('python3 scripts/detect_tapes.py', { input: image });
     const tapes = JSON.parse(stdout);
     const imagesToProcess = tapes.length > 0 ? tapes : [image];

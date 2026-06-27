@@ -7,7 +7,17 @@ jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: mockQuery })) }));
 jest.mock('http-proxy-middleware', () => ({
   createProxyMiddleware: () => (_req, _res, next) => next(),
 }));
-jest.mock('child_process', () => ({ execSync: jest.fn() }));
+jest.mock('child_process', () => {
+  return {
+    exec: jest.fn((cmd, ...args) => {
+      console.log('DEBUG: exec called with args length:', args.length);
+      const cb = args.length === 1 ? args[0] : args[1];
+      console.log('DEBUG: Calling callback with [null, "[]", ""]');
+      cb(null, '[]', '');
+    }),
+    execSync: jest.fn()
+  };
+});
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   existsSync: () => true,
