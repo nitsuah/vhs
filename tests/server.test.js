@@ -1,5 +1,6 @@
 'use strict';
 const request = require('supertest');
+const child_process = require('child_process');
 
 // Must mock pg and http-proxy-middleware before requiring server.js
 const mockQuery = jest.fn();

@@ -1,6 +1,7 @@
 'use strict';
 
 const request = require('supertest');
+const child_process = require('child_process');
 
 const mockQuery = jest.fn();
 jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: mockQuery })) }));

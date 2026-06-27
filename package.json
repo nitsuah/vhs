@@ -8,7 +8,11 @@
     "test:ui": "playwright test"
   },
   "jest": {
-    "testTimeout": 30000
+    "testTimeout": 30000,
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/tests_playwright/"
+    ]
   },
   "dependencies": {
     "express": "^4.19.2",
