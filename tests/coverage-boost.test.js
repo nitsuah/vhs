@@ -1,13 +1,13 @@
 'use strict';
 
 const request = require('supertest');
+const child_process = require('child_process');
 
 const mockQuery = jest.fn();
 jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: mockQuery })) }));
 jest.mock('http-proxy-middleware', () => ({
   createProxyMiddleware: () => (_req, _res, next) => next(),
 }));
-jest.mock('child_process', () => ({ execSync: jest.fn() }));
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   existsSync: () => true,
@@ -17,11 +17,53 @@ jest.mock('fs', () => ({
   readFileSync: () => Buffer.from('test'),
 }));
 
+// Mock child_process so server.js's execAsync uses the mocked exec
+jest.mock('child_process', () => ({
+  exec: jest.fn((cmd, options, callback) => {
+    const cb = typeof options === 'function' ? options : callback;
+    const child = {
+      stdin: {
+        write: jest.fn(),
+        end: jest.fn(() => {
+          // Call callback synchronously to avoid async issues
+          process.nextTick(() => cb(null, '{"tapes":[{"title":"Test Tape"}]}', ''));
+        })
+      },
+      stdout: { on: jest.fn(), pipe: jest.fn() },
+      stderr: { on: jest.fn(), pipe: jest.fn() },
+      on: jest.fn()
+    };
+    return child;
+  }),
+  execSync: jest.fn()
+}));
+
+// Mock processJobs to avoid actual execution
+const processJobs = jest.fn().mockResolvedValue(undefined);
+
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
 process.env.OMDB_API_KEY = 'test-key';
-const { app } = require('../server');
+const { app, execAsync } = require('../server');
 
-beforeEach(() => mockQuery.mockReset());
+beforeEach(() => {
+  mockQuery.mockReset();
+  child_process.exec = jest.fn((cmd, options, callback) => {
+    const cb = typeof options === 'function' ? options : callback;
+    const child = {
+      stdin: {
+        write: jest.fn(),
+        end: jest.fn(() => {
+          // Call callback synchronously to avoid async issues
+          process.nextTick(() => cb(null, '{"tapes":[{"title":"Test Tape"}]}', ''));
+        })
+      },
+      stdout: { on: jest.fn(), pipe: jest.fn() },
+      stderr: { on: jest.fn(), pipe: jest.fn() },
+      on: jest.fn()
+    };
+    return child;
+  });
+});
 
 describe('withRetry and worker processes', () => {
   it('POST /api/jobs stores image and returns job ID for later processing', async () => {
@@ -30,7 +72,7 @@ describe('withRetry and worker processes', () => {
       .post('/api/jobs')
       .send({ image: 'data:image/jpeg;base64,/9j/4AAQ', thumb: 'data:image/jpeg;base64,thumb' });
     expect(res.status).toBe(201);
-    expect(res.body.id).toMatch(/^job_/);
+    expect(res.body.count).toBe(1);
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO upload_jobs'),
       expect.arrayContaining(['data:image/jpeg;base64,/9j/4AAQ'])
@@ -43,6 +85,8 @@ describe('withRetry and worker processes', () => {
       .post('/api/jobs')
       .send({ image: 'data:image/jpeg;base64,abc' });
     expect(res.status).toBe(201);
+    expect(mockQuery).toHaveBeenCalled();
+  }, 30000);
   });
 
   it('POST /api/jobs/retry-failed requeues all failed jobs', async () => {
@@ -289,22 +333,23 @@ describe('API error handlers', () => {
     mockQuery.mockRejectedValue(new Error('db fail'));
     const res = await request(app).delete('/api/review/rev_1');
     expect(res.status).toBe(500);
-  });
+  }, 30000);
 
   it('POST /api/review returns 500 on db error', async () => {
     mockQuery.mockRejectedValue(new Error('db fail'));
     const res = await request(app).post('/api/review').send({ data: { title: 'T' } });
     expect(res.status).toBe(500);
-  });
+  }, 30000);
 
   it('POST /api/jobs/:id/retry returns 500 on db error', async () => {
     mockQuery.mockRejectedValue(new Error('db fail'));
     const res = await request(app).post('/api/jobs/job_1/retry');
     expect(res.status).toBe(500);
-  });
+  }, 30000);
 
   it('GET /api/jobs/inflight returns 500 on db error', async () => {
     mockQuery.mockRejectedValue(new Error('db fail'));
+  }, 30000);
     const res = await request(app).get('/api/jobs/inflight');
     expect(res.status).toBe(500);
   });

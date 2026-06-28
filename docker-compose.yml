@@ -46,13 +46,13 @@ services:
       retries: 20
       start_period: 15s
     # Uncomment for NVIDIA GPU:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   # ── HTTPS tunnel (mobile camera access) ───────────────────────────────────
   # Exposes the app at a random *.trycloudflare.com HTTPS URL.

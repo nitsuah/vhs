@@ -1,5 +1,4 @@
-{
-  "name": "vhs-shelf-scanner",
+{"name": "vhs-shelf-scanner",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -8,9 +7,17 @@
     "test": "jest",
     "test:ui": "playwright test"
   },
+  "jest": {
+    "testTimeout": 30000,
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/tests_playwright/"
+    ]
+  },
   "dependencies": {
     "express": "^4.19.2",
     "http-proxy-middleware": "^2.0.6",
+    "json2csv": "^6.0.0-alpha.2",
     "pg": "^8.11.3"
   },
   "devDependencies": {

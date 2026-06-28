@@ -123,6 +123,9 @@ function renderInv(){
         const src=t.photo_spine||t.photo_thumbnail;
         const inner=src?`<img class="spine-img" src="${src}" alt=""${_cropStyle(t,'spine')}>`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
         return `<div class="spine-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="spine-lbl">${esc(t.title)}</div></div>`;
+        const img=src?`<img class="spine-img" src="${src}" alt="">`:`<div class="spine-ph-txt">${esc(t.title)}</div>`;
+        const _eggAttrs=t=>`${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}${/\bghostbusters?\b/i.test(t.title)?' data-ghostbusters="1"':''}${/\b(living dead|zombie|night of)\b/i.test(t.title)?' data-notld="1"':''}${/\b(speed racer|fast and furious|fast furious)\b/i.test(t.title)?' data-speedracer="1"':''}`;
+        return `<div class="spine-card" data-id="${t.id}"${_eggAttrs(t)}>${img}<div class="spine-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else if(wallMode===3){
       wall.innerHTML=items.map(t=>{
@@ -133,6 +136,8 @@ function renderInv(){
           ?`<img class="su-img${isSpine?' su-img-spine':''}" src="${src}" alt=""${_cropStyle(t,cropRole,isSpine)}>`
           :`<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
         return `<div class="su-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
+        const _eggAttrs2=t=>`${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}${/\bghostbusters?\b/i.test(t.title)?' data-ghostbusters="1"':''}${/\b(living dead|zombie|night of)\b/i.test(t.title)?' data-notld="1"':''}${/\b(speed racer|fast and furious|fast furious)\b/i.test(t.title)?' data-speedracer="1"':''}`;
+        return `<div class="su-card" data-id="${t.id}"${_eggAttrs2(t)}>${img}<div class="su-lbl">${esc(t.title)}</div></div>`;
       }).join('');
     }else{
       wall.innerHTML=items.map(t=>{
@@ -141,6 +146,8 @@ function renderInv(){
         const meta=[t.year,t.label].filter(Boolean).join(' · ');
         const val=t.sold_price?`Sold $${t.sold_price}`:(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:'';
         return `<div class="wall-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
+        const _eggAttrs3=t=>`${/\bakira\b/i.test(t.title)?' data-akira="1"':''}${/\bjaws\b/i.test(t.title)?' data-jaws="1"':''}${/\bghostbusters?\b/i.test(t.title)?' data-ghostbusters="1"':''}${/\b(living dead|zombie|night of)\b/i.test(t.title)?' data-notld="1"':''}${/\b(speed racer|fast and furious|fast furious)\b/i.test(t.title)?' data-speedracer="1"':''}`;
+        return `<div class="wall-card" data-id="${t.id}"${_eggAttrs3(t)}>${img}<div class="wall-lbl">${esc(t.title)}</div>${meta?`<div class="wall-meta">${esc(meta)}</div>`:''}${val?`<div class="wall-val">${esc(val)}</div>`:''}</div>`;
       }).join('');
     }
     wall.querySelectorAll('.wall-card,.spine-card,.su-card').forEach(c=>{
@@ -286,7 +293,7 @@ function renderInv(){
     const selPend=(field,def)=>isEd&&pe[field]!==undefined&&pe[field]!==(t[field]||def||'');
     const actCell=isEd
       ?`<td style="white-space:nowrap;text-align:center"><button class="tbl-save" data-id="${t.id}" title="Save">✓</button><button class="tbl-cancel" data-id="${t.id}" title="Cancel">✕</button></td>`
-      :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button></td>`;
+      :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button><button class="tbl-edit" data-id="${t.id}" title="Edit row">✎</button></td>`;
     return `<tr class="tape-row${checked?' selected':''}${isEd?' editing':''}" data-id="${t.id}"${isAkira(t)?' data-akira="1"':''}${isJaws(t)?' data-jaws="1"':''}${isGhostbusters(t)?' data-ghostbusters="1"':''}${isNotld(t)?' data-notld="1"':''}${isSpeedRacer(t)?' data-speedracer="1"':''}>
       <td style="text-align:center"><input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''}></td>
       <td class="tbl-open mc-2" data-id="${t.id}">${thumb}</td>
@@ -516,7 +523,9 @@ const updateCount=()=>{
   if(collectLbl)collectLbl.textContent=isFiltered?`${n}/${all}`:String(all);
   const fillBtn=document.getElementById('btn-fill-data');
   if(fillBtn)fillBtn.style.display=all?'':'none';
-  checkMilestoneConfetti(all);
+  const checkBtn=document.getElementById('btn-revalidate');
+  if(checkBtn)checkBtn.style.display=n?'':'none';
+  checkMilestoneConfetti(n);
 };
 
 function updateBulkBar(){
@@ -922,18 +931,33 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
     if(fillRevStatus)fillRevStatus.innerHTML=`⚡ Filling ${i+1}/${targets.length}: <em style="color:var(--text2)">${esc(t.title||'…')}</em>`;
     const meta=await _fillLookup(t);
     if(!meta||!meta.imdb_id)continue;
-    let hasChanges=false;
-    if(meta.year&&!t.year){t.year=meta.year;hasChanges=true;}
-    if(meta.label&&!t.label){t.label=meta.label;hasChanges=true;}
-    if(meta.imdb_id&&!t.imdb_id){t.imdb_id=meta.imdb_id;hasChanges=true;}
-    if(meta.value_low&&!t.value_low){t.value_low=meta.value_low;hasChanges=true;}
-    if(meta.value_high&&!t.value_high){t.value_high=meta.value_high;hasChanges=true;}
-    if(meta.genres?.length&&!(t.tags?.length)){t.tags=[...meta.genres];hasChanges=true;}
-    if(meta.poster&&!t.photos?.length){
-      const dataUrl=await _fetchPosterImage(meta.poster);
-      if(dataUrl){t.photos=[dataUrl];t.photo_thumbnail=dataUrl;t.photo_face=dataUrl;hasChanges=true;}
+
+    // Confirmed match: Auto-overwrite everything except Title/Images (unless missing)
+    const isConfirmed = t.imdb_id && meta.imdb_id === t.imdb_id;
+
+    if (isConfirmed) {
+      let hasChanges=false;
+      if(meta.year && meta.year !== t.year){t.year=meta.year;hasChanges=true;}
+      if(meta.label && meta.label !== t.label){t.label=meta.label;hasChanges=true;}
+      if(meta.imdb_id && meta.imdb_id !== t.imdb_id){t.imdb_id=meta.imdb_id;hasChanges=true;}
+      if(meta.value_low && meta.value_low !== t.value_low){t.value_low=meta.value_low;hasChanges=true;}
+      if(meta.value_high && meta.value_high !== t.value_high){t.value_high=meta.value_high;hasChanges=true;}
+      if(meta.genres?.length && JSON.stringify(meta.genres) !== JSON.stringify(t.tags)){t.tags=[...meta.genres];hasChanges=true;}
+      if(meta.poster && !t.photos?.length){
+        const dataUrl=await _fetchPosterImage(meta.poster);
+        if(dataUrl){t.photos=[dataUrl];t.photo_thumbnail=dataUrl;t.photo_face=dataUrl;hasChanges=true;}
+      }
+      if(hasChanges){try{await dbPut(t);done++;}catch(e){console.warn('Fill save:',t.id,e);}}
+    } else {
+      // Propose update via review queue
+      await apiReq('/api/review', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { ...t, ...meta, title: t.title }, source: 'fill_proposal' }) 
+      });
+      // Do not increment done count for proposals
     }
-    if(hasChanges){try{await dbPut(t);done++;}catch(e){console.warn('Fill save:',t.id,e);}}
+
   }
   if(progBar)progBar.style.width='100%';
   setTimeout(()=>{if(progWrap)progWrap.style.display='none';},600);

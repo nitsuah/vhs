@@ -7,11 +7,15 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 - **VHS Shelf Scanner** — browser app (`src/app.js`, `public/`) served via Docker/Nginx
 - **Barcode Scanning** — webcam-based barcode scanning with auto-confirm and staging flow
 - **AI Photo Scanning** — batch photo upload, AI title recognition, accuracy checking
+- **Multi-tape Detection** — detect and crop individual tapes from batch photos (OpenCV)
+- **Image Optimization** — optimized image quality for performance
 - **Mobile UI** — mobile-first layout with queue visualization and retry controls
 - **Tape Registry** — append-only `data/tapes.json` with immutable `VHS-XXXX` IDs
 - **Status & Condition Tracking** — `in_collection`, `for_sale`, `sold`, `donated`, `missing`; `great/good/fair/poor` with notes
 - **Tabbed Edit Form** — expanded tape editing with tabbed UI
 - **Review Queue** — queue visualization and management for pending tapes
+- **Sell Queue Export** — one-command workflow that auto-populates eBay/Mercari draft templates for each `for_sale` tape
+- **Tape Wall Gallery** — scrollable masonry grid of tape thumbnails
 - **StacksUp Integration** — spine rotation enrichment
 - **OMDb Verification** — movie database verification of AI scan results
 - **Analytics** — basic collection analytics

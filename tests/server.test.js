@@ -1,5 +1,6 @@
 'use strict';
 const request = require('supertest');
+const child_process = require('child_process');
 
 // Must mock pg and http-proxy-middleware before requiring server.js
 const mockQuery = jest.fn();
@@ -8,7 +9,6 @@ jest.mock('http-proxy-middleware', () => ({
   createProxyMiddleware: () => (_req, _res, next) => next(),
 }));
 // Prevent openssl/fs calls during test load
-jest.mock('child_process', () => ({ execSync: jest.fn() }));
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   existsSync: () => true,
@@ -18,10 +18,49 @@ jest.mock('fs', () => ({
   readFileSync: () => Buffer.from('test'),
 }));
 
+// Mock child_process so server.js's execAsync uses the mocked exec
+jest.mock('child_process', () => ({
+  exec: jest.fn((cmd, options, callback) => {
+    const cb = typeof options === 'function' ? options : callback;
+    const child = {
+      stdin: {
+        write: jest.fn(),
+        end: jest.fn(() => {
+          // Call callback synchronously to avoid async issues
+          process.nextTick(() => cb(null, '{"tapes":[{"title":"Test Tape"}]}', ''));
+        })
+      },
+      stdout: { on: jest.fn(), pipe: jest.fn() },
+      stderr: { on: jest.fn(), pipe: jest.fn() },
+      on: jest.fn()
+    };
+    return child;
+  }),
+ 2.  execSync: jest.fn()
+}));
+
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
 const { app } = require('../server');
 
-beforeEach(() => mockQuery.mockReset());
+beforeEach(() => {
+  mockQuery.mockReset();
+  child_process.exec = jest.fn((cmd, options, callback) => {
+    const cb = typeof options === 'function' ? options : callback;
+    const child = {
+      stdin: {
+        write: jest.fn(),
+        end: jest.fn(() => {
+          cb(null, '{"tapes":[{"title":"Test Tape"}]}', ''); // Simulate success with sample JSON output
+        })
+      },
+      stdout: { on: jest.fn(), pipe: jest.fn() },
+      stderr: { on: jest.fn(), pipe: jest.fn() },
+      on: jest.fn()
+    };
+    return child;
+  });
+  child_process.execSync = jest.fn(); // Mock execSync as well, if needed
+});
 
 // ── Tapes ─────────────────────────────────────────────────────────────────────
 
@@ -89,7 +128,7 @@ describe('POST /api/jobs', () => {
     mockQuery.mockResolvedValue({ rows: [] });
     const res = await request(app).post('/api/jobs').send({ image: 'data:image/jpeg;base64,abc' });
     expect(res.status).toBe(201);
-    expect(res.body.id).toMatch(/^job_/);
+    expect(res.body.count).toBe(1);
   });
 });
 

@@ -191,17 +191,51 @@ async function logScanAnalytics(pool, { jobId: jid, aiModel, suggestions, omdbVe
   }
 }
 
+const child_process = require('child_process');
+const util = require('util');
+const execAsync = (typeof child_process.exec === 'function') ? util.promisify(child_process.exec) : null;
+// ...
 app.post('/api/jobs', async (req, res) => {
   const { image, thumb } = req.body;
   if (!image) return res.status(400).json({ error: 'image required' });
-  const id = jobId();
-  const now = new Date().toISOString();
+
   try {
-    await pool.query(
-      'INSERT INTO upload_jobs(id,image_data,thumb,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6)',
-      [id, image, thumb || null, 'pending', now, now]
-    );
-    res.status(201).json({ id });
+    // Run detection
+    if (!execAsync) throw new Error('exec not available');
+    const { stdout } = await execAsync('python3 scripts/detect_tapes.py', { input: image });
+    const detectedTapes = JSON.parse(stdout);
+    const imagesToProcess = detectedTapes.length > 0 ? detectedTapes : [{ image: image, bbox: null }];
+
+    const now = new Date().toISOString();
+    for (const tapeData of imagesToProcess) {
+      const id = jobId();
+      // Calculate spine and face bboxes based on full crop bbox
+      const fullBbox = tapeData.bbox;
+      let spineBbox = null;
+      let faceBbox = null;
+      if (fullBbox) {
+        // Assuming spine is 25% width and centered
+        spineBbox = {
+          x: fullBbox.x + fullBbox.w * 0.375,
+          y: fullBbox.y,
+          w: fullBbox.w * 0.25,
+          h: fullBbox.h,
+        };
+        // Assuming face is 60% width and centered with a slight offset to the left
+        faceBbox = {
+          x: fullBbox.x + fullBbox.w * 0.05,
+          y: fullBbox.y,
+          w: fullBbox.w * 0.60,
+          h: fullBbox.h,
+        };
+      }
+
+      await pool.query(
+        'INSERT INTO upload_jobs(id,image_data,thumb,status,created_at,updated_at,photo_spine_bbox,photo_face_bbox) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+        [id, tapeData.image, thumb || null, 'pending', now, now, JSON.stringify(spineBbox), JSON.stringify(faceBbox)]
+      );
+    }
+    res.status(201).json({ count: imagesToProcess.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -498,7 +532,7 @@ async function processJobs() {
     }
 
     const { rows } = await pool.query(
-      "SELECT id, image_data, thumb FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
+      "SELECT id, image_data, thumb, photo_spine_bbox, photo_face_bbox FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
     );
     if (!rows.length) return;
     const job = rows[0];
@@ -519,6 +553,28 @@ async function processJobs() {
       const result = await callOllamaServer(job.image_data);
       const ts = new Date().toISOString();
       console.log(`✓ Ollama: job ${job.id} → ${result.length} tape(s): ${result.map(r=>r.title||'?').join(', ')}`);
+
+      let photoSpine = null;
+      if (job.photo_spine_bbox) {
+        // Ensure bbox is parsed if it's a string
+        const parsedSpineBbox = typeof job.photo_spine_bbox === 'string' ? JSON.parse(job.photo_spine_bbox) : job.photo_spine_bbox;
+        const { stdout: spineStdout } = await execAsync(
+          'python3 scripts/crop_image.py',
+          { input: JSON.stringify({ image: job.image_data, bbox: parsedSpineBbox }) }
+        );
+        photoSpine = JSON.parse(spineStdout).cropped_image;
+      }
+
+      let photoFace = null;
+      if (job.photo_face_bbox) {
+        // Ensure bbox is parsed if it's a string
+        const parsedFaceBbox = typeof job.photo_face_bbox === 'string' ? JSON.parse(job.photo_face_bbox) : job.photo_face_bbox;
+        const { stdout: faceStdout } = await execAsync(
+          'python3 scripts/crop_image.py',
+          { input: JSON.stringify({ image: job.image_data, bbox: parsedFaceBbox }) }
+        );
+        photoFace = JSON.parse(faceStdout).cropped_image;
+      }
 
       if (!result.length) {
         // Honest no-detection — do NOT retry, surface immediately so user can re-scan
@@ -544,8 +600,8 @@ async function processJobs() {
 
         for (const item of enriched) {
           await pool.query(
-            'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
-            [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', ts]
+            'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at,photo_spine,photo_face) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+            [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', ts, photoSpine, photoFace]
           );
         }
       }
@@ -731,8 +787,10 @@ if (require.main === module) {
       }
     })
     .then(() => {
-      setInterval(processJobs, 5000);
-      processJobs();
+      if (process.env.NODE_ENV !== 'test') {
+        setInterval(processJobs, 5000);
+        processJobs();
+      }
 
       app.listen(PORT, () => console.log(`✓ VHS Scanner HTTP  on :${PORT}`));
 
@@ -752,4 +810,4 @@ if (require.main === module) {
 }
 
 // Export internal functions for testing
-module.exports = { app, pool, processJobs, ensureCerts, runMigrations, callOllamaServer, callOmdb, parseJsonArray, jobId, reviewItemId, analyticsId, logScanAnalytics, logActivity, withRetry };
+module.exports = { app, pool, processJobs, ensureCerts, runMigrations, callOllamaServer, callOmdb, parseJsonArray, jobId, reviewItemId, analyticsId, logScanAnalytics, logActivity, withRetry, execAsync };

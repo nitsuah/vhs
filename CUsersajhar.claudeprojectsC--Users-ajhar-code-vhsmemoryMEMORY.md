@@ -1,0 +1,1 @@
+- [Automatic task pickup](feedback_automatic_task_pickup.md) — When out of assigned tasks, automatically pick up next work from ROADMAP.md/TASKS.md

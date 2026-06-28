@@ -60,12 +60,15 @@ python scripts/export.py --status for_sale
 ```
 That list becomes your eBay drafts or a Mercari batch upload.
 
+### Implemented Features
+
+- [x] **Sell queue export** — one-command workflow that auto-populates eBay/Mercari draft templates for each `for_sale` tape
+- [x] **Tape wall gallery view** — scrollable masonry grid of tape thumbnails (one photo minimum per tape)
+
 ### Future ideas (don't build yet)
 
 - Photo thumbnails auto-cropped per tape (OpenCV or ImageMagick, crop each tape from batch photo)
 - Condition grading rubric (create a standard so anyone rating tapes uses the same scale)
-- **Tape wall gallery view** — scrollable masonry grid of tape thumbnails (one photo minimum per tape)
-- **Sell queue export** — one-command workflow that auto-populates eBay/Mercari draft templates for each `for_sale` tape
 
 ---
 

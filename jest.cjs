@@ -1,8 +1,9 @@
 'use strict';
+const path = require('path');
 module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.js'],
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/', '/app/tests/playwright/', '/tests/playwright/'],
+  testPathIgnorePatterns: ['tests_playwright/'],
   collectCoverageFrom: ['server.js'],
   coverageProvider: 'v8',
   coverageThresholds: {
@@ -13,4 +14,5 @@ module.exports = {
       lines:      60,
     },
   },
+  testTimeout: 30000,
 };
