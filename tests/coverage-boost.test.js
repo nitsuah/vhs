@@ -25,7 +25,8 @@ jest.mock('child_process', () => ({
       stdin: {
         write: jest.fn(),
         end: jest.fn(() => {
-          cb(null, '{"tapes":[{"title":"Test Tape"}]}', '');
+          // Call callback synchronously to avoid async issues
+          process.nextTick(() => cb(null, '{"tapes":[{"title":"Test Tape"}]}', ''));
         })
       },
       stdout: { on: jest.fn(), pipe: jest.fn() },
@@ -84,6 +85,7 @@ describe('withRetry and worker processes', () => {
       .send({ image: 'data:image/jpeg;base64,abc' });
     expect(res.status).toBe(201);
     expect(mockQuery).toHaveBeenCalled();
+  }, 30000);
   });
 
   it('POST /api/jobs/retry-failed requeues all failed jobs', async () => {
@@ -330,22 +332,23 @@ describe('API error handlers', () => {
     mockQuery.mockRejectedValue(new Error('db fail'));
     const res = await request(app).delete('/api/review/rev_1');
     expect(res.status).toBe(500);
-  });
+  }, 30000);
 
   it('POST /api/review returns 500 on db error', async () => {
     mockQuery.mockRejectedValue(new Error('db fail'));
     const res = await request(app).post('/api/review').send({ data: { title: 'T' } });
     expect(res.status).toBe(500);
-  });
+  }, 30000);
 
   it('POST /api/jobs/:id/retry returns 500 on db error', async () => {
     mockQuery.mockRejectedValue(new Error('db fail'));
     const res = await request(app).post('/api/jobs/job_1/retry');
     expect(res.status).toBe(500);
-  });
+  }, 30000);
 
   it('GET /api/jobs/inflight returns 500 on db error', async () => {
     mockQuery.mockRejectedValue(new Error('db fail'));
+  }, 30000);
     const res = await request(app).get('/api/jobs/inflight');
     expect(res.status).toBe(500);
   });

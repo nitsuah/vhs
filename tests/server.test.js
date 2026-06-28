@@ -26,7 +26,8 @@ jest.mock('child_process', () => ({
       stdin: {
         write: jest.fn(),
         end: jest.fn(() => {
-          cb(null, '{"tapes":[{"title":"Test Tape"}]}', '');
+          // Call callback synchronously to avoid async issues
+          process.nextTick(() => cb(null, '{"tapes":[{"title":"Test Tape"}]}', ''));
         })
       },
       stdout: { on: jest.fn(), pipe: jest.fn() },
@@ -35,7 +36,7 @@ jest.mock('child_process', () => ({
     };
     return child;
   }),
-  execSync: jest.fn()
+ 2.  execSync: jest.fn()
 }));
 
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';

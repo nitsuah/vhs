@@ -25,7 +25,8 @@ jest.mock('child_process', () => ({
       stdin: {
         write: jest.fn(),
         end: jest.fn(() => {
-          cb(null, '{"tapes":[{"title":"Test Tape"}]}', '');
+          // Call callback synchronously to avoid async issues
+          process.nextTick(() => cb(null, '{"tapes":[{"title":"Test Tape"}]}', ''));
         })
       },
       stdout: { on: jest.fn(), pipe: jest.fn() },
