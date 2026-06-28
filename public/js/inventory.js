@@ -524,9 +524,7 @@ const updateCount=()=>{
   if(collectLbl)collectLbl.textContent=isFiltered?`${n}/${all}`:String(all);
   const fillBtn=document.getElementById('btn-fill-data');
   if(fillBtn)fillBtn.style.display=all?'':'none';
-  checkMilestoneConfetti(all);
   const checkBtn=document.getElementById('btn-revalidate');
-  if(fillBtn)fillBtn.style.display=n?'':'none';
   if(checkBtn)checkBtn.style.display=n?'':'none';
   checkMilestoneConfetti(n);
 };
