@@ -166,21 +166,41 @@ async function processQueue(){
   }
 
   let submitted=0;
-  for(const item of imageItems){
-    try{
-      const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},
+  showRevPanel();
+  // Create processing cards for all items in batch
+  const batchCards = imageItems.map(item => ({
+      uid: ++uidSeq,
+      data: { format:'VHS', condition:'good', status:'in_collection', notes:'' },
+      source: null,
+      thumb: item.thumb,
+      expanded: false,
+      jobId: null,
+      srcJobId: null,
+      processingState: 'processing',
+      failReason: '',
+      inflightSince: new Date().toISOString()
+  }));
+  cards.push(...batchCards);
+  renderCards();
+
+  // Submit jobs concurrently
+  await Promise.all(imageItems.map(async (item, idx) => {
+    try {
+      const r = await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({image:item.base64,thumb:item.thumb})});
       if(r.ok){
         const {id:uploadJobId}=await r.json();
-        const card={uid:++uidSeq,data:{format:'VHS',condition:'good',status:'in_collection',notes:''},source:null,thumb:item.thumb,expanded:false,jobId:uploadJobId,srcJobId:uploadJobId,processingState:submitted===0&&!barcodeItems.length?'processing':'queued',failReason:'',inflightSince:new Date().toISOString()};
-        cards.push(card);
-        submitted++;
+        const card = cards.find(c => c.uid === batchCards[idx].uid);
+        if(card){
+            card.jobId = uploadJobId;
+            card.srcJobId = uploadJobId;
+            submitted++;
+        }
       }
     }catch(e){console.warn('Job submit error:',e);}
-  }
+  }));
+  renderCards();
   if(submitted){
-    showRevPanel();
-    renderCards();
     toast(`${submitted} image${submitted>1?'s':''} queued — Ollama is analyzing…`,'ok',4000);
   }
 }

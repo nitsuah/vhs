@@ -934,18 +934,33 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
     if(fillRevStatus)fillRevStatus.innerHTML=`⚡ Filling ${i+1}/${targets.length}: <em style="color:var(--text2)">${esc(t.title||'…')}</em>`;
     const meta=await _fillLookup(t);
     if(!meta||!meta.imdb_id)continue;
-    let hasChanges=false;
-    if(meta.year&&!t.year){t.year=meta.year;hasChanges=true;}
-    if(meta.label&&!t.label){t.label=meta.label;hasChanges=true;}
-    if(meta.imdb_id&&!t.imdb_id){t.imdb_id=meta.imdb_id;hasChanges=true;}
-    if(meta.value_low&&!t.value_low){t.value_low=meta.value_low;hasChanges=true;}
-    if(meta.value_high&&!t.value_high){t.value_high=meta.value_high;hasChanges=true;}
-    if(meta.genres?.length&&!(t.tags?.length)){t.tags=[...meta.genres];hasChanges=true;}
-    if(meta.poster&&!t.photos?.length){
-      const dataUrl=await _fetchPosterImage(meta.poster);
-      if(dataUrl){t.photos=[dataUrl];t.photo_thumbnail=dataUrl;t.photo_face=dataUrl;hasChanges=true;}
+
+    // Confirmed match: Auto-overwrite everything except Title/Images (unless missing)
+    const isConfirmed = t.imdb_id && meta.imdb_id === t.imdb_id;
+
+    if (isConfirmed) {
+      let hasChanges=false;
+      if(meta.year && meta.year !== t.year){t.year=meta.year;hasChanges=true;}
+      if(meta.label && meta.label !== t.label){t.label=meta.label;hasChanges=true;}
+      if(meta.imdb_id && meta.imdb_id !== t.imdb_id){t.imdb_id=meta.imdb_id;hasChanges=true;}
+      if(meta.value_low && meta.value_low !== t.value_low){t.value_low=meta.value_low;hasChanges=true;}
+      if(meta.value_high && meta.value_high !== t.value_high){t.value_high=meta.value_high;hasChanges=true;}
+      if(meta.genres?.length && JSON.stringify(meta.genres) !== JSON.stringify(t.tags)){t.tags=[...meta.genres];hasChanges=true;}
+      if(meta.poster && !t.photos?.length){
+        const dataUrl=await _fetchPosterImage(meta.poster);
+        if(dataUrl){t.photos=[dataUrl];t.photo_thumbnail=dataUrl;t.photo_face=dataUrl;hasChanges=true;}
+      }
+      if(hasChanges){try{await dbPut(t);done++;}catch(e){console.warn('Fill save:',t.id,e);}}
+    } else {
+      // Propose update via review queue
+      await apiReq('/api/review', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { ...t, ...meta, title: t.title }, source: 'fill_proposal' }) 
+      });
+      // Do not increment done count for proposals
     }
-    if(hasChanges){try{await dbPut(t);done++;}catch(e){console.warn('Fill save:',t.id,e);}}
+
   }
   if(progBar)progBar.style.width='100%';
   setTimeout(()=>{if(progWrap)progWrap.style.display='none';},600);
