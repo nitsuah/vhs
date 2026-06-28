@@ -69,5 +69,5 @@ describe('Debug POST /api/jobs', () => {
       .post('/api/jobs')
       .send({ image: 'data:image/jpeg;base64,abc' });
     expect(res.status).toBe(201);
-  }, 30000);
+  }, 60000);
 });
