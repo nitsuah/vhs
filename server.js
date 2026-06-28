@@ -180,7 +180,7 @@ function analyticsId() {
   return `anl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function logScanAnalytics(pool, { jobId: jid, aiModel, suggestions, omdbVerified = false }) {
+async function logScanAnalytics(db, { jobId: jid, aiModel, suggestions, omdbVerified = false }) {
   try {
     await pool.query(
       'INSERT INTO scan_analytics(id,captured_at,job_id,ai_model,suggestions,omdb_verified,action) VALUES($1,$2,$3,$4,$5,$6,$7)',
@@ -526,7 +526,7 @@ async function processJobs() {
           'INSERT INTO review_items(id,job_id,data,thumb,source,status,fail_reason,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
           [reviewItemId(), job.id, '{}', job.thumb, 'scan', 'failed', 'No tapes detected — try better lighting or adjust the crop box', ts]
         );
-        await logScanAnalytics(pool, { jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: [] });
+        await logScanAnalytics(db, { jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: [] });
       } else {
         // Enrich each detected tape with OMDb if available (verifies title + gets imdb_id)
         const enriched = await Promise.all(result.map(async item => {
@@ -540,7 +540,7 @@ async function processJobs() {
         }));
 
         const omdbVerified = enriched.some(i => i.imdb_id);
-        await logScanAnalytics(pool, { jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: enriched, omdbVerified });
+        await logScanAnalytics(db, { jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: enriched, omdbVerified });
 
         for (const item of enriched) {
           await pool.query(
