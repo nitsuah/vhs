@@ -37,6 +37,9 @@ jest.mock('child_process', () => ({
   execSync: jest.fn()
 }));
 
+// Mock processJobs to avoid actual execution
+const processJobs = jest.fn().mockResolvedValue(undefined);
+
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
 process.env.OMDB_API_KEY = 'test-key';
 const { app } = require('../server');
@@ -80,6 +83,7 @@ describe('withRetry and worker processes', () => {
       .post('/api/jobs')
       .send({ image: 'data:image/jpeg;base64,abc' });
     expect(res.status).toBe(201);
+    expect(mockQuery).toHaveBeenCalled();
   });
 
   it('POST /api/jobs/retry-failed requeues all failed jobs', async () => {
