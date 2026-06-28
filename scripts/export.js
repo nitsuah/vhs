@@ -45,12 +45,13 @@ function exportTapes(format, statusFilter) {
     const html = `<!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <title>VHS Collection</title>
 <style>
   body { font-family: sans-serif; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-  th { background-color: #f2f2f2; }
+  th, td { border: 1px solid `#ddd`; padding: 8px; text-align: left; }
+  th { background-color: `#f2f2f2`; }
 </style>
 </head>
 <body>
