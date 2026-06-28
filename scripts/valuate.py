@@ -33,8 +33,13 @@ def valuate_tapes(api_key=None):
     else:
         print("No eBay API key provided. Opening eBay search for each unvalued tape for manual lookup...")
         for tape in unvalued_tapes:
+from urllib.parse import urlencode
             query = f"{tape.get('title', '')} VHS"
-            ebay_url = f"https://www.ebay.com/sch/i.html?_nkw={query}&LH_Sold=1&LH_Complete=1"
+            ebay_url = "https://www.ebay.com/sch/i.html?" + urlencode({
+                "_nkw": query,
+                "LH_Sold": "1",
+                "LH_Complete": "1",
+            })
             print(f"Opening eBay for: {tape.get('title')} (ID: {tape.get('id')})")
             webbrowser.open_new_tab(ebay_url)
             # User will manually update values in the app and re-run.
