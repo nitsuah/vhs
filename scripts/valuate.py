@@ -8,7 +8,8 @@ import sys
 
 def valuate_tapes(api_key=None):
     try:
-        with open('data/tapes.json', 'r', encoding='utf-8') as f:
+        tapes_path = Path(__file__).resolve().parent.parent / 'data' / 'tapes.json'
+        with open(tapes_path, 'r', encoding='utf-8') as f:
             tapes = json.load(f)
     except FileNotFoundError:
         print("Error: data/tapes.json not found.")
