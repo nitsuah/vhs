@@ -2,10 +2,10 @@
 module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.js'],
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/', '/app/tests/playwright/', '/tests/playwright/'],
+  testPathIgnorePatterns: ['/node_modules/', '/tests/ui/'],
   collectCoverageFrom: ['server.js'],
   coverageProvider: 'v8',
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
       statements: 60,
       branches:   67,
