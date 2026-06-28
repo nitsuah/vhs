@@ -191,17 +191,70 @@ async function logScanAnalytics(pool, { jobId: jid, aiModel, suggestions, omdbVe
   }
 }
 
+const child_process = require('child_process');
+const util = require('util');
+const execAsync = (typeof child_process.exec === 'function') ? util.promisify(child_process.exec) : null;
+const spawnAsync = (cmd, args, input) => new Promise((resolve, reject) => {
+  const proc = child_process.spawn(cmd, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+  let stdout = '', stderr = '';
+  proc.stdout.on('data', d => stdout += d);
+  proc.stderr.on('data', d => stderr += d);
+  proc.on('close', code => code === 0 ? resolve({ stdout }) : reject(new Error(stderr || `exit ${code}`)));
+  proc.on('error', reject);
+  if (input) proc.stdin.write(input);
+  proc.stdin.end();
+});
+// ...
 app.post('/api/jobs', async (req, res) => {
   const { image, thumb } = req.body;
   if (!image) return res.status(400).json({ error: 'image required' });
-  const id = jobId();
-  const now = new Date().toISOString();
+
   try {
-    await pool.query(
-      'INSERT INTO upload_jobs(id,image_data,thumb,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6)',
-      [id, image, thumb || null, 'pending', now, now]
-    );
-    res.status(201).json({ id });
+    // Run detection
+    const { stdout } = await spawnAsync('python3', ['scripts/detect_tapes.py'], image);
+    const detectedTapes = JSON.parse(stdout);
+    const imagesToProcess = detectedTapes.length > 0 ? detectedTapes : [{ image: image, bbox: null }];
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const now = new Date().toISOString();
+      for (const tapeData of imagesToProcess) {
+        const id = jobId();
+        // Calculate spine and face bboxes based on full crop bbox
+        const fullBbox = tapeData.bbox;
+        let spineBbox = null;
+        let faceBbox = null;
+        if (fullBbox) {
+          // Assuming spine is 25% width and centered
+          spineBbox = {
+            x: fullBbox.x + fullBbox.w * 0.375,
+            y: fullBbox.y,
+            w: fullBbox.w * 0.25,
+            h: fullBbox.h,
+          };
+          // Assuming face is 60% width and centered with a slight offset to the left
+          faceBbox = {
+            x: fullBbox.x + fullBbox.w * 0.05,
+            y: fullBbox.y,
+            w: fullBbox.w * 0.60,
+            h: fullBbox.h,
+          };
+        }
+
+        await client.query(
+          'INSERT INTO upload_jobs(id,image_data,thumb,status,created_at,updated_at,photo_spine_bbox,photo_face_bbox) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+          [id, tapeData.image, thumb || null, 'pending', now, now, JSON.stringify(spineBbox), JSON.stringify(faceBbox)]
+        );
+      }
+      await client.query('COMMIT');
+      res.status(201).json({ count: imagesToProcess.length });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -469,49 +522,50 @@ let workerBusy = false;
 async function processJobs() {
   if (workerBusy) return;
   workerBusy = true;
+  const client = await pool.connect();
   try {
     const now = new Date().toISOString();
     const stuckCutoff    = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const retryCutoff    = new Date(Date.now() -      60 * 1000).toISOString();
 
-    await pool.query(
+    await client.query(
       "UPDATE upload_jobs SET status='pending', updated_at=$1 WHERE status='processing' AND updated_at<$2",
       [now, stuckCutoff]
     );
-    await pool.query(
+    await client.query(
       "UPDATE upload_jobs SET status='pending', updated_at=$1 WHERE status='failed' AND retry_count<$2 AND updated_at<$3",
       [now, MAX_RETRIES, retryCutoff]
     );
 
     // Convert permanently-failed jobs into review_items so they surface cross-session
-    const { rows: permFailed } = await pool.query(
+    const { rows: permFailed } = await client.query(
       "SELECT id, thumb, error FROM upload_jobs WHERE status='failed' AND retry_count>=$1",
       [MAX_RETRIES]
     );
     for (const pf of permFailed) {
-      await pool.query(
+      await client.query(
         'INSERT INTO review_items(id,job_id,data,thumb,source,status,fail_reason,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
         [reviewItemId(), pf.id, '{}', pf.thumb, 'scan', 'failed', pf.error || 'Analysis failed after max retries', now]
       );
-      await pool.query('DELETE FROM upload_jobs WHERE id=$1', [pf.id]);
+      await client.query('DELETE FROM upload_jobs WHERE id=$1', [pf.id]);
       console.warn(`✗ Job ${pf.id} permanently failed → review_items`);
     }
 
-    const { rows } = await pool.query(
-      "SELECT id, image_data, thumb FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
+    const { rows } = await client.query(
+      "SELECT id, image_data, thumb, photo_spine_bbox, photo_face_bbox FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
     );
     if (!rows.length) return;
     const job = rows[0];
-    await pool.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [now, job.id]);
+    await client.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [now, job.id]);
     console.log(`⟳ Ollama: sending job ${job.id} to ${OLLAMA} (model: ${OLLAMA_MODEL})`);
 
     try {
       // Guard against duplicate review_items if a stuck-job reset caused double-processing
-      const { rows: existingItems } = await pool.query(
+      const { rows: existingItems } = await client.query(
         'SELECT id FROM review_items WHERE job_id=$1 LIMIT 1', [job.id]
       );
       if (existingItems.length) {
-        await pool.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
+        await client.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
         console.log(`↷ Job ${job.id}: review_item already exists — skipping duplicate`);
         return;
       }
@@ -520,9 +574,30 @@ async function processJobs() {
       const ts = new Date().toISOString();
       console.log(`✓ Ollama: job ${job.id} → ${result.length} tape(s): ${result.map(r=>r.title||'?').join(', ')}`);
 
+      let photoSpine = null;
+      if (job.photo_spine_bbox) {
+        // Ensure bbox is parsed if it's a string
+        const parsedSpineBbox = typeof job.photo_spine_bbox === 'string' ? JSON.parse(job.photo_spine_bbox) : job.photo_spine_bbox;
+        // Rebase bbox to cropped tape image ROI (relative coordinates)
+        // The stored bboxes are in full image coords; crop_image.py expects coords relative to the input image
+        // Since tapeData.image is the full image, we need to pass the bbox as-is
+        const { stdout } = await spawnAsync('python3', ['scripts/crop_image.py'],
+          JSON.stringify({ image: job.image_data, bbox: parsedSpineBbox }));
+        photoSpine = JSON.parse(stdout).cropped_image;
+      }
+
+      let photoFace = null;
+      if (job.photo_face_bbox) {
+        // Ensure bbox is parsed if it's a string
+        const parsedFaceBbox = typeof job.photo_face_bbox === 'string' ? JSON.parse(job.photo_face_bbox) : job.photo_face_bbox;
+        const { stdout } = await spawnAsync('python3', ['scripts/crop_image.py'],
+          JSON.stringify({ image: job.image_data, bbox: parsedFaceBbox }));
+        photoFace = JSON.parse(stdout).cropped_image;
+      }
+
       if (!result.length) {
         // Honest no-detection — do NOT retry, surface immediately so user can re-scan
-        await pool.query(
+        await client.query(
           'INSERT INTO review_items(id,job_id,data,thumb,source,status,fail_reason,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
           [reviewItemId(), job.id, '{}', job.thumb, 'scan', 'failed', 'No tapes detected — try better lighting or adjust the crop box', ts]
         );
@@ -543,16 +618,16 @@ async function processJobs() {
         await logScanAnalytics(pool, { jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: enriched, omdbVerified });
 
         for (const item of enriched) {
-          await pool.query(
-            'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
-            [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', ts]
+          await client.query(
+            'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at,photo_spine,photo_face) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+            [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', ts, photoSpine, photoFace]
           );
         }
       }
-      await pool.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
+      await client.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
       console.log(`✓ Job ${job.id}: ${result.length} tape(s) → review_items`);
     } catch (err) {
-      await pool.query(
+      await client.query(
         "UPDATE upload_jobs SET status='failed', error=$1, updated_at=$2, retry_count=retry_count+1 WHERE id=$3",
         [err.message, new Date().toISOString(), job.id]
       );
@@ -561,6 +636,7 @@ async function processJobs() {
   } catch (err) {
     console.warn('Worker error:', err.message);
   } finally {
+    client.release();
     workerBusy = false;
   }
 }
@@ -752,4 +828,4 @@ if (require.main === module) {
 }
 
 // Export internal functions for testing
-module.exports = { app, pool, processJobs, ensureCerts, runMigrations, callOllamaServer, callOmdb, parseJsonArray, jobId, reviewItemId, analyticsId, logScanAnalytics, logActivity, withRetry };
+module.exports = { app, pool, processJobs, ensureCerts, runMigrations, callOllamaServer, callOmdb, parseJsonArray, jobId, reviewItemId, analyticsId, logScanAnalytics, logActivity, withRetry, spawnAsync };

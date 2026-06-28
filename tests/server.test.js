@@ -8,7 +8,7 @@ jest.mock('http-proxy-middleware', () => ({
   createProxyMiddleware: () => (_req, _res, next) => next(),
 }));
 // Prevent openssl/fs calls during test load
-jest.mock('child_process', () => ({ execSync: jest.fn() }));
+jest.mock('child_process', () => ({ execSync: jest.fn(), spawn: jest.fn() }));
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   existsSync: () => true,

@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose build *)",
+      "Bash(docker compose down *)",
+      "Bash(docker compose run *)",
+      "Bash(docker compose up *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git restore *)",
+      "Bash(git status *)",
+      "Bash(node *)",
+      "Bash(npm install *)",
+      "Bash(npm test *)",
+      "Bash(python3 *)",
+      "Bash(ls *)",
+      "Bash(cp *)",
+      "PowerShell(docker info)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(docker compose up *)"
+    ]
+  }
+}
