@@ -293,7 +293,6 @@ function renderInv(){
     const selPend=(field,def)=>isEd&&pe[field]!==undefined&&pe[field]!==(t[field]||def||'');
     const actCell=isEd
       ?`<td style="white-space:nowrap;text-align:center"><button class="tbl-save" data-id="${t.id}" title="Save">✓</button><button class="tbl-cancel" data-id="${t.id}" title="Cancel">✕</button></td>`
-      :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button></td>`;
       :`<td style="white-space:nowrap;text-align:center"><button class="tbl-del" data-id="${t.id}" title="Delete">×</button><button class="tbl-edit" data-id="${t.id}" title="Edit row">✎</button></td>`;
     return `<tr class="tape-row${checked?' selected':''}${isEd?' editing':''}" data-id="${t.id}"${isAkira(t)?' data-akira="1"':''}${isJaws(t)?' data-jaws="1"':''}${isGhostbusters(t)?' data-ghostbusters="1"':''}${isNotld(t)?' data-notld="1"':''}${isSpeedRacer(t)?' data-speedracer="1"':''}>
       <td style="text-align:center"><input type="checkbox" class="row-check" data-id="${t.id}" ${checked?'checked':''}></td>
