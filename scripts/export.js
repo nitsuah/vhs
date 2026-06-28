@@ -1,9 +1,14 @@
 const fs = require('fs');
 const { parse } = require('json2csv');
 
+const fs = require('fs');
+const path = require('path');
+const { parse } = require('json2csv');
+
 function getTapes() {
   try {
-    const tapes = JSON.parse(fs.readFileSync('data/tapes.json', 'utf8'));
+    const tapesPath = path.resolve(__dirname, '..', 'data', 'tapes.json');
+    const tapes = JSON.parse(fs.readFileSync(tapesPath, 'utf8'));
     return tapes;
   } catch (e) {
     console.error(`Error reading tapes.json: ${e.message}`);
