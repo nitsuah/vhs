@@ -43,7 +43,7 @@ const processJobs = jest.fn().mockResolvedValue(undefined);
 
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
 process.env.OMDB_API_KEY = 'test-key';
-const { app } = require('../server');
+const { app, execAsync } = require('../server');
 
 beforeEach(() => {
   mockQuery.mockReset();
@@ -53,7 +53,8 @@ beforeEach(() => {
       stdin: {
         write: jest.fn(),
         end: jest.fn(() => {
-          cb(null, '{"tapes":[{"title":"Test Tape"}]}', ''); // Simulate success with sample JSON output
+          // Call callback synchronously to avoid async issues
+          process.nextTick(() => cb(null, '{"tapes":[{"title":"Test Tape"}]}', ''));
         })
       },
       stdout: { on: jest.fn(), pipe: jest.fn() },
