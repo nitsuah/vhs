@@ -1,9 +1,14 @@
 const fs = require('fs');
 const { parse } = require('json2csv');
 
+const fs = require('fs');
+const path = require('path');
+const { parse } = require('json2csv');
+
 function getTapes() {
   try {
-    const tapes = JSON.parse(fs.readFileSync('data/tapes.json', 'utf8'));
+    const tapesPath = path.resolve(__dirname, '..', 'data', 'tapes.json');
+    const tapes = JSON.parse(fs.readFileSync(tapesPath, 'utf8'));
     return tapes;
   } catch (e) {
     console.error(`Error reading tapes.json: ${e.message}`);
@@ -40,12 +45,13 @@ function exportTapes(format, statusFilter) {
     const html = `<!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <title>VHS Collection</title>
 <style>
   body { font-family: sans-serif; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-  th { background-color: #f2f2f2; }
+  th, td { border: 1px solid `#ddd`; padding: 8px; text-align: left; }
+  th { background-color: `#f2f2f2`; }
 </style>
 </head>
 <body>
