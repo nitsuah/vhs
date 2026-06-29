@@ -1,0 +1,31 @@
+repos:
+  # General hooks for common issues and file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0 # Latest stable as of early 2024
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=500'] # Warns on files larger than 500KB
+      - id: detect-private-key
+
+  # JavaScript specific hooks for linting and formatting
+  # Ensure ESLint and Prettier are installed in your project's dev dependencies (e.g., npm install --save-dev eslint prettier)
+  # and configured with .eslintrc.* and .prettierrc.* files.
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.57.1 # Latest stable version of mirrors-eslint (reflects ESLint v8.57.1)
+    hooks:
+      - id: eslint
+        # --fix attempts to automatically fix linting issues
+        # --cache speeds up subsequent runs by only checking changed files
+        args: [--fix, --cache]
+        # files: '\.(js|jsx|ts|tsx|vue)$' # Uncomment and adjust if you need to limit file types
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0 # Latest stable version of mirrors-prettier (reflects Prettier v3.1.0)
+    hooks:
+      - id: prettier
+        # --write formats the files in-place
+        args: [--write]
+        # files: '\.(js|jsx|ts|tsx|json|css|scss|md|yaml|yml|html)$' # Uncomment and adjust if you need to limit file types
