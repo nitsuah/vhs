@@ -27,7 +27,7 @@ jobs:
       - name: Lint HTML
         run: |
           npm install -g htmlhint@1
-          htmlhint --config .htmlhintrc public/index.html
+          htmlhint --config public/.htmlhintrc public/index.html
 
       - name: Check JS deps install cleanly
         run: npm ci --omit=dev

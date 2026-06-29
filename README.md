@@ -4,7 +4,7 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 
 ## What's Shipped
 
-- **VHS Shelf Scanner** — browser app (`src/app.js`, `public/`) served via Docker/Nginx
+- **VHS Shelf Scanner** — browser app (`public/`) served via Express
 - **Barcode Scanning** — webcam-based barcode scanning with auto-confirm and staging flow
 - **AI Photo Scanning** — batch photo upload, AI title recognition, accuracy checking
 - **Mobile UI** — mobile-first layout with queue visualization and retry controls
@@ -65,8 +65,6 @@ vhs/
 ├── photos/
 │   └── ...
 ├── public/                 ← browser app static files
-├── src/
-│   └── app.js              ← VHS Shelf Scanner app
 ├── scripts/
 │   ├── valuate.py          ← eBay sold-listings lookup (planned)
 │   └── export.py           ← CSV/HTML/print export (planned)
@@ -93,7 +91,7 @@ self-signed TLS cert on first boot and serves it for easy installation.
 
 1. Set `HOST_IP=<your LAN IP>` in `.env` (e.g. `HOST_IP=192.168.1.171`)
 2. Start the app: `docker compose -f config/docker-compose.yml up -d --build`
-3. On your phone, open: `http://192.168.1.171:8082/ca.crt`
+3. On your phone, open: `http://192.168.1.171:8080/ca.crt`
 4. Android: tap the downloaded file → Install → name it "VHS Scanner" → OK
    iOS: tap Allow → go to Settings → General → VPN & Device Management → trust it
 5. Use `https://192.168.1.171:8443` on your phone — camera will work
