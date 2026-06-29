@@ -79,7 +79,7 @@ vhs/
 
 ```bash
 cp .env.example .env   # fill in DATABASE_URL and HOST_IP
-docker compose up
+docker compose -f config/docker-compose.yml up -d --build
 ```
 
 App at `http://localhost:8080`. HTTPS at `https://localhost:8443`.
@@ -92,16 +92,18 @@ self-signed TLS cert on first boot and serves it for easy installation.
 **One-time setup per device:**
 
 1. Set `HOST_IP=<your LAN IP>` in `.env` (e.g. `HOST_IP=192.168.1.171`)
-2. Start the app: `docker compose up`
+2. Start the app: `docker compose -f config/docker-compose.yml up -d --build`
 3. On your phone, open: `http://192.168.1.171:8082/ca.crt`
 4. Android: tap the downloaded file → Install → name it "VHS Scanner" → OK
    iOS: tap Allow → go to Settings → General → VPN & Device Management → trust it
 5. Use `https://192.168.1.171:8443` on your phone — camera will work
 
 **If your IP changes:**
+
 ```bash
 docker volume rm vhs_certs   # forces cert regeneration with new IP on next start
 ```
+
 Then update `HOST_IP` in `.env` and restart.
 
 > **Note:** The cert is self-signed by a local CA that only your devices trust.
