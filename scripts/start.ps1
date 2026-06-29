@@ -1,4 +1,4 @@
-# start.ps1 — port-adaptive launcher for VHS Shelf Scanner (PowerShell / Windows)
+# scripts/start.ps1 — port-adaptive launcher for VHS Shelf Scanner (PowerShell / Windows)
 #
 # GPU mode (native Windows Ollama with AMD DirectML or NVIDIA):
 #   Install Ollama, run: ollama pull llava:7b
