@@ -734,19 +734,21 @@ if (require.main === module) {
       setInterval(processJobs, 5000);
       processJobs();
 
-      app.listen(PORT, () => console.log(`✓ VHS Scanner HTTP  on :${PORT}`));
+      if (process.env.NODE_ENV !== 'test') {
+        app.listen(PORT, () => console.log(`✓ VHS Scanner HTTP  on :${PORT}`));
 
-      const tlsOpts = {
-        key:  fs.readFileSync(path.join(CERT_DIR, 'server.key')),
-        cert: fs.readFileSync(path.join(CERT_DIR, 'server.crt')),
-      };
-      https.createServer(tlsOpts, app).listen(HTTPS_PORT, () => {
-        console.log(`✓ VHS Scanner HTTPS on :${HTTPS_PORT}`);
-        if (HOST_IP) {
-          console.log(`  → Install CA : http://${HOST_IP}:${PORT}/ca.crt`);
-          console.log(`  → App (HTTPS): https://${HOST_IP}:${HTTPS_PORT}`);
-        }
-      });
+        const tlsOpts = {
+          key:  fs.readFileSync(path.join(CERT_DIR, 'server.key')),
+          cert: fs.readFileSync(path.join(CERT_DIR, 'server.crt')),
+        };
+        https.createServer(tlsOpts, app).listen(HTTPS_PORT, () => {
+          console.log(`✓ VHS Scanner HTTPS on :${HTTPS_PORT}`);
+          if (HOST_IP) {
+            console.log(`  → Install CA : http://${HOST_IP}:${PORT}/ca.crt`);
+            console.log(`  → App (HTTPS): https://${HOST_IP}:${HTTPS_PORT}`);
+          }
+        });
+      }
     })
     .catch(err => { console.error('DB init failed:', err.message); process.exit(1); });
 }
