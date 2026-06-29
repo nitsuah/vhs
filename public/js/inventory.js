@@ -980,8 +980,8 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
     // Year: only flag if difference > 1 year
     const aiYear=parseInt(r.year)||0;
     const existYear=parseInt(tape.year)||0;
-    if(aiYear&&existYear&&Math.abs(aiYear-existYear)>1){proposed.year=String(aiYear);hasChanges=true;}
-    else if(aiYear&&!existYear){proposed.year=String(aiYear);hasChanges=true;}
+    if(aiYear&&existYear&&Math.abs(aiYear-existYear)>1){proposed.year=String(aiYear);hasDiff=true;}
+    else if(aiYear&&!existYear){proposed.year=String(aiYear);hasDiff=true;}
     if(!hasDiff)continue;
     proposed.title=proposed.title||existTitle;
     try{
