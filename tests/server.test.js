@@ -1,14 +1,10 @@
 'use strict';
 const request = require('supertest');
 
-// Must mock pg and http-proxy-middleware before requiring server.js
-const mockQuery = jest.fn();
-jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: mockQuery })) }));
 jest.mock('http-proxy-middleware', () => ({
   createProxyMiddleware: () => (_req, _res, next) => next(),
 }));
-// Prevent openssl/fs calls during test load
-jest.mock('child_process', () => ({ execSync: jest.fn() }));
+jest.mock('child_process', () => ({ execSync: jest.fn(), exec: jest.fn() }));
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   existsSync: () => true,
@@ -19,22 +15,24 @@ jest.mock('fs', () => ({
 }));
 
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
-const { app } = require('../server');
+const { app, db } = require('../server');
 
-beforeEach(() => mockQuery.mockReset());
+beforeEach(() => {
+  db.query = jest.fn().mockResolvedValue({});
+});
 
 // ── Tapes ─────────────────────────────────────────────────────────────────────
 
 describe('GET /api/tapes', () => {
   it('returns array of tape data objects', async () => {
-    mockQuery.mockResolvedValue({ rows: [{ data: { id: 'VHS-0001', title: 'Jaws' } }] });
+    db.query.mockResolvedValue({ rows: [{ data: { id: 'VHS-0001', title: 'Jaws' } }] });
     const res = await request(app).get('/api/tapes');
     expect(res.status).toBe(200);
     expect(res.body).toEqual([{ id: 'VHS-0001', title: 'Jaws' }]);
   });
 
   it('returns 500 on db error', async () => {
-    mockQuery.mockRejectedValue(new Error('connection refused'));
+    db.query.mockRejectedValue(new Error('connection refused'));
     const res = await request(app).get('/api/tapes');
     expect(res.status).toBe(500);
     expect(res.body.error).toMatch(/connection refused/);
@@ -43,7 +41,7 @@ describe('GET /api/tapes', () => {
 
 describe('POST /api/tapes', () => {
   it('inserts tape and returns 201 with the tape', async () => {
-    mockQuery.mockResolvedValue({ rows: [] });
+    db.query.mockResolvedValue({ rows: [] });
     const tape = { id: 'VHS-0002', title: 'Alien', scanned_at: new Date().toISOString() };
     const res = await request(app).post('/api/tapes').send(tape);
     expect(res.status).toBe(201);
@@ -53,13 +51,13 @@ describe('POST /api/tapes', () => {
 
 describe('PUT /api/tapes/:id', () => {
   it('returns 404 when tape does not exist', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 0 });
+    db.query.mockResolvedValue({ rowCount: 0 });
     const res = await request(app).put('/api/tapes/VHS-9999').send({ id: 'VHS-9999', title: 'Ghost' });
     expect(res.status).toBe(404);
   });
 
   it('returns 200 with updated tape when tape exists', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    db.query.mockResolvedValue({ rowCount: 1 });
     const tape = { id: 'VHS-0001', title: 'Updated' };
     const res = await request(app).put('/api/tapes/VHS-0001').send(tape);
     expect(res.status).toBe(200);
@@ -69,7 +67,7 @@ describe('PUT /api/tapes/:id', () => {
 
 describe('DELETE /api/tapes/:id', () => {
   it('returns {ok:true} on success', async () => {
-    mockQuery.mockResolvedValue({});
+    db.query.mockResolvedValue({});
     const res = await request(app).delete('/api/tapes/VHS-0001');
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
@@ -86,7 +84,7 @@ describe('POST /api/jobs', () => {
   });
 
   it('returns 201 with job id when image provided', async () => {
-    mockQuery.mockResolvedValue({ rows: [] });
+    db.query.mockResolvedValue({ rows: [] });
     const res = await request(app).post('/api/jobs').send({ image: 'data:image/jpeg;base64,abc' });
     expect(res.status).toBe(201);
     expect(res.body.id).toMatch(/^job_/);
@@ -94,9 +92,8 @@ describe('POST /api/jobs', () => {
 });
 
 describe('GET /api/jobs/status', () => {
-  // Regression: this route was shadowed by GET /api/jobs/:id — must return counts not a job
   it('returns status counts object with review_pending, not a job record', async () => {
-    mockQuery.mockResolvedValue({
+    db.query.mockResolvedValue({
       rows: [
         { status: 'pending', count: '3' },
         { status: 'done', count: '7' },
@@ -114,14 +111,14 @@ describe('GET /api/jobs/status', () => {
 
 describe('GET /api/jobs/:id', () => {
   it('returns 404 for unknown job id', async () => {
-    mockQuery.mockResolvedValue({ rows: [] });
+    db.query.mockResolvedValue({ rows: [] });
     const res = await request(app).get('/api/jobs/job_unknown');
     expect(res.status).toBe(404);
   });
 
   it('returns job record for known id', async () => {
     const job = { id: 'job_1', status: 'done', result: '[{"title":"Jaws"}]', error: null, retry_count: 0 };
-    mockQuery.mockResolvedValue({ rows: [job] });
+    db.query.mockResolvedValue({ rows: [job] });
     const res = await request(app).get('/api/jobs/job_1');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('done');
@@ -135,7 +132,7 @@ describe('GET /api/review/pending', () => {
     const items = [
       { id: 'rev_1', job_id: 'job_1', data: { title: 'Jaws', condition: 'good' }, thumb: null, source: 'scan', status: 'pending', fail_reason: null, created_at: new Date().toISOString() },
     ];
-    mockQuery.mockResolvedValue({ rows: items });
+    db.query.mockResolvedValue({ rows: items });
     const res = await request(app).get('/api/review/pending');
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
@@ -147,14 +144,14 @@ describe('GET /api/review/pending', () => {
     const items = [
       { id: 'rev_2', job_id: 'job_2', data: {}, thumb: null, source: 'scan', status: 'failed', fail_reason: 'Ollama timeout', created_at: new Date().toISOString() },
     ];
-    mockQuery.mockResolvedValue({ rows: items });
+    db.query.mockResolvedValue({ rows: items });
     const res = await request(app).get('/api/review/pending');
     expect(res.status).toBe(200);
     expect(res.body[0].fail_reason).toBe('Ollama timeout');
   });
 
   it('returns 500 on db error', async () => {
-    mockQuery.mockRejectedValue(new Error('db down'));
+    db.query.mockRejectedValue(new Error('db down'));
     const res = await request(app).get('/api/review/pending');
     expect(res.status).toBe(500);
   });
@@ -162,7 +159,7 @@ describe('GET /api/review/pending', () => {
 
 describe('DELETE /api/review/:id', () => {
   it('deletes a review item and returns {ok:true}', async () => {
-    mockQuery.mockResolvedValue({});
+    db.query.mockResolvedValue({});
     const res = await request(app).delete('/api/review/rev_1');
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
@@ -177,7 +174,7 @@ describe('POST /api/review', () => {
   });
 
   it('creates a fill review item and returns 201 with id', async () => {
-    mockQuery.mockResolvedValue({ rows: [] });
+    db.query.mockResolvedValue({ rows: [] });
     const res = await request(app).post('/api/review').send({
       source: 'fill',
       data: { tape_id: 'VHS-0001', title: 'Jaws', year: '1975' },
@@ -187,7 +184,7 @@ describe('POST /api/review', () => {
   });
 
   it('creates a revalidate review item and returns 201 with id', async () => {
-    mockQuery.mockResolvedValue({ rows: [] });
+    db.query.mockResolvedValue({ rows: [] });
     const res = await request(app).post('/api/review').send({
       source: 'revalidate',
       data: { tape_id: 'VHS-0002', title: 'Alien', year: '1979' },
@@ -214,7 +211,7 @@ describe('GET /api/jobs/inflight', () => {
       { id: 'job_p', thumb: null, created_at: new Date().toISOString() },
       { id: 'job_q', thumb: null, created_at: new Date().toISOString() },
     ];
-    mockQuery.mockResolvedValue({ rows: jobs });
+    db.query.mockResolvedValue({ rows: jobs });
     const res = await request(app).get('/api/jobs/inflight');
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(2);
@@ -222,7 +219,7 @@ describe('GET /api/jobs/inflight', () => {
   });
 
   it('returns empty array when no inflight jobs', async () => {
-    mockQuery.mockResolvedValue({ rows: [] });
+    db.query.mockResolvedValue({ rows: [] });
     const res = await request(app).get('/api/jobs/inflight');
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
@@ -233,14 +230,14 @@ describe('GET /api/jobs/inflight', () => {
 
 describe('POST /api/jobs/:id/retry', () => {
   it('resets failed job to pending and returns {ok:true}', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    db.query.mockResolvedValue({ rowCount: 1 });
     const res = await request(app).post('/api/jobs/job_2/retry');
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
   });
 
   it('returns 404 when job id does not exist', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 0 });
+    db.query.mockResolvedValue({ rowCount: 0 });
     const res = await request(app).post('/api/jobs/job_unknown/retry');
     expect(res.status).toBe(404);
   });
@@ -253,7 +250,7 @@ describe('GET /api/health', () => {
   afterEach(() => { global.fetch = origFetch; });
 
   it('returns 200 with db:ok and ollama:ok when both healthy', async () => {
-    mockQuery.mockResolvedValue({ rows: [{ '?column?': 1 }] });
+    db.query.mockResolvedValue({ rows: [{ '?column?': 1 }] });
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ models: [{ name: 'llava:7b' }] }),
@@ -266,7 +263,7 @@ describe('GET /api/health', () => {
   });
 
   it('returns 503 with db:error when database is down', async () => {
-    mockQuery.mockRejectedValue(new Error('connection refused'));
+    db.query.mockRejectedValue(new Error('connection refused'));
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ models: [] }),
@@ -277,7 +274,7 @@ describe('GET /api/health', () => {
   });
 
   it('returns 200 with ollama:error when Ollama is unreachable', async () => {
-    mockQuery.mockResolvedValue({ rows: [{ '?column?': 1 }] });
+    db.query.mockResolvedValue({ rows: [{ '?column?': 1 }] });
     global.fetch = jest.fn().mockRejectedValue(new Error('fetch failed'));
     const res = await request(app).get('/api/health');
     expect(res.status).toBe(200);
@@ -298,7 +295,7 @@ describe('POST /api/analytics/outcome', () => {
   });
 
   it('updates scan_analytics and returns {ok:true}', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    db.query.mockResolvedValue({ rowCount: 1 });
     const res = await request(app).post('/api/analytics/outcome').send({
       job_id: 'job_1',
       action: 'accepted',
@@ -312,7 +309,7 @@ describe('POST /api/analytics/outcome', () => {
   });
 
   it('records corrected action when user changed the AI title', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    db.query.mockResolvedValue({ rowCount: 1 });
     const res = await request(app).post('/api/analytics/outcome').send({
       job_id: 'job_2',
       action: 'corrected',
@@ -474,7 +471,7 @@ describe('GET /api/fetch-image', () => {
 
 describe('DELETE /api/jobs/:id', () => {
   it('deletes a job and returns {ok:true}', async () => {
-    mockQuery.mockResolvedValue({});
+    db.query.mockResolvedValue({});
     const res = await request(app).delete('/api/jobs/job_1');
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
@@ -483,14 +480,14 @@ describe('DELETE /api/jobs/:id', () => {
 
 describe('POST /api/jobs/retry-failed', () => {
   it('resets all failed jobs to pending and returns count', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 3 });
+    db.query.mockResolvedValue({ rowCount: 3 });
     const res = await request(app).post('/api/jobs/retry-failed');
     expect(res.status).toBe(200);
     expect(res.body.requeued).toBe(3);
   });
 
   it('returns 0 when no failed jobs exist', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 0 });
+    db.query.mockResolvedValue({ rowCount: 0 });
     const res = await request(app).post('/api/jobs/retry-failed');
     expect(res.status).toBe(200);
     expect(res.body.requeued).toBe(0);

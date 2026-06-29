@@ -1,13 +1,10 @@
 'use strict';
-
 const request = require('supertest');
 
-const mockQuery = jest.fn();
-jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: mockQuery })) }));
 jest.mock('http-proxy-middleware', () => ({
   createProxyMiddleware: () => (_req, _res, next) => next(),
 }));
-jest.mock('child_process', () => ({ execSync: jest.fn() }));
+jest.mock('child_process', () => ({ execSync: jest.fn(), exec: jest.fn() }));
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   existsSync: () => true,
@@ -19,19 +16,19 @@ jest.mock('fs', () => ({
 
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
 process.env.OMDB_API_KEY = 'test-key';
-const { app } = require('../server');
 
-beforeEach(() => mockQuery.mockReset());
+const { app, db } = require('../server');
+
+beforeEach(() => {
+  db.query = jest.fn().mockImplementation(() => Promise.resolve({}));
+});
 
 describe('Debug POST /api/jobs', () => {
   it('should return 201 on success', async () => {
-    mockQuery.mockResolvedValue({ rows: [] });
+    db.query.mockResolvedValue({ rows: [] });
     const res = await request(app)
       .post('/api/jobs')
       .send({ image: 'data:image/jpeg;base64,abc' });
-    console.log('Status:', res.status);
-    console.log('Body:', res.body);
-    console.log('Mock calls:', mockQuery.mock.calls);
     expect(res.status).toBe(201);
   });
 });

@@ -1,11 +1,12 @@
 'use strict';
 const express = require('express');
-const { Pool } = require('pg');
+const db = require("./lib/db");
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
 const https = require('https');
 const fs = require('fs');
-const { execSync } = require('child_process');
+const { exec, execSync } = require('child_process');
+const util = require('util');
 
 // ── Activity log ring buffer ──────────────────────────────────────────────────
 const LOG_LIMIT = 200;
@@ -37,12 +38,6 @@ const CERT_DIR   = '/app/certs';
 app.use(express.json({ limit: '50mb' }));
 
 // ── Database ─────────────────────────────────────────────────────────────────
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: (process.env.DATABASE_URL || '').includes('neon')
-    ? { rejectUnauthorized: false }
-    : false,
-});
 
 async function withRetry(fn, maxAttempts = 5, baseDelay = 1000) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -57,7 +52,7 @@ async function withRetry(fn, maxAttempts = 5, baseDelay = 1000) {
 }
 
 async function runMigrations() {
-  await withRetry(() => pool.query(`
+  await withRetry(() => db.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version    TEXT PRIMARY KEY,
       applied_at TEXT NOT NULL
@@ -65,13 +60,13 @@ async function runMigrations() {
   `));
   const migrationsDir = path.join(__dirname, 'migrations');
   const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
-  const { rows } = await pool.query('SELECT version FROM schema_migrations');
+  const { rows } = await db.query('SELECT version FROM schema_migrations');
   const applied = new Set(rows.map(r => r.version));
   for (const file of files) {
     if (applied.has(file)) { console.log(`  ↷ ${file}`); continue; }
     const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-    await pool.query(sql);
-    await pool.query('INSERT INTO schema_migrations(version,applied_at) VALUES($1,$2)', [file, new Date().toISOString()]);
+    await db.query(sql);
+    await db.query('INSERT INTO schema_migrations(version,applied_at) VALUES($1,$2)', [file, new Date().toISOString()]);
     console.log(`  ✓ ${file}`);
   }
   console.log('✓ Migrations complete');
@@ -180,9 +175,9 @@ function analyticsId() {
   return `anl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function logScanAnalytics(pool, { jobId: jid, aiModel, suggestions, omdbVerified = false }) {
+async function logScanAnalytics( { jobId: jid, aiModel, suggestions, omdbVerified = false }) {
   try {
-    await pool.query(
+    await db.query(
       'INSERT INTO scan_analytics(id,captured_at,job_id,ai_model,suggestions,omdb_verified,action) VALUES($1,$2,$3,$4,$5,$6,$7)',
       [analyticsId(), new Date().toISOString(), jid, aiModel, JSON.stringify(suggestions), omdbVerified, 'pending']
     );
@@ -197,7 +192,7 @@ app.post('/api/jobs', async (req, res) => {
   const id = jobId();
   const now = new Date().toISOString();
   try {
-    await pool.query(
+    await db.query(
       'INSERT INTO upload_jobs(id,image_data,thumb,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6)',
       [id, image, thumb || null, 'pending', now, now]
     );
@@ -210,7 +205,7 @@ app.post('/api/jobs', async (req, res) => {
 // ── Review items (cross-session queue) ───────────────────────────────────────
 app.get('/api/review/pending', async (_req, res) => {
   try {
-    const { rows } = await pool.query(
+    const { rows } = await db.query(
       "SELECT id, job_id, data, thumb, source, status, fail_reason, created_at FROM review_items WHERE status IN ('pending','failed') ORDER BY created_at ASC"
     );
     res.json(rows);
@@ -221,7 +216,7 @@ app.get('/api/review/pending', async (_req, res) => {
 
 app.delete('/api/review/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM review_items WHERE id=$1', [req.params.id]);
+    await db.query('DELETE FROM review_items WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -233,7 +228,7 @@ app.post('/api/analytics/outcome', async (req, res) => {
   const { job_id, action, final_title, final_year, final_label, imdb_id } = req.body;
   if (!job_id || !action) return res.status(400).json({ error: 'job_id and action required' });
   try {
-    await pool.query(
+    await db.query(
       `UPDATE scan_analytics SET action=$1, final_title=$2, final_year=$3, final_label=$4, imdb_id=$5
        WHERE job_id=$6`,
       [action, final_title || null, final_year || null, final_label || null, imdb_id || null, job_id]
@@ -250,7 +245,7 @@ app.post('/api/review', async (req, res) => {
   const id = reviewItemId();
   const now = new Date().toISOString();
   try {
-    await pool.query(
+    await db.query(
       'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
       [id, null, JSON.stringify(data), thumb || null, source || 'manual', 'pending', now]
     );
@@ -268,7 +263,7 @@ app.get('/api/jobs/ready', async (_req, res) => {
 
 app.post('/api/jobs/:id/retry', async (req, res) => {
   try {
-    const { rowCount } = await pool.query(
+    const { rowCount } = await db.query(
       "UPDATE upload_jobs SET status='pending', retry_count=0, error=NULL, updated_at=$1 WHERE id=$2",
       [new Date().toISOString(), req.params.id]
     );
@@ -282,7 +277,7 @@ app.post('/api/jobs/:id/retry', async (req, res) => {
 // Jobs that are in-flight (pending/processing) or transiently failed (will be retried)
 app.get('/api/jobs/inflight', async (_req, res) => {
   try {
-    const { rows } = await pool.query(
+    const { rows } = await db.query(
       `SELECT id, thumb, created_at, status, retry_count FROM upload_jobs
        WHERE status IN ('pending','processing')
           OR (status='failed' AND retry_count<$1)
@@ -298,8 +293,8 @@ app.get('/api/jobs/inflight', async (_req, res) => {
 app.get('/api/jobs/status', async (_req, res) => {
   try {
     const [jobsRes, reviewRes] = await Promise.all([
-      pool.query('SELECT status, COUNT(*) as count FROM upload_jobs GROUP BY status'),
-      pool.query("SELECT COUNT(*) as count FROM review_items WHERE status='pending'"),
+      db.query('SELECT status, COUNT(*) as count FROM upload_jobs GROUP BY status'),
+      db.query("SELECT COUNT(*) as count FROM review_items WHERE status='pending'"),
     ]);
     const counts = { pending: 0, processing: 0, done: 0, failed: 0, review_pending: 0 };
     jobsRes.rows.forEach(r => { counts[r.status] = parseInt(r.count, 10); });
@@ -312,7 +307,7 @@ app.get('/api/jobs/status', async (_req, res) => {
 
 app.get('/api/jobs/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query(
+    const { rows } = await db.query(
       'SELECT id, status, result, error, retry_count FROM upload_jobs WHERE id=$1',
       [req.params.id]
     );
@@ -441,7 +436,7 @@ app.get('/api/trailer', async (req, res) => {
 
 app.delete('/api/jobs/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
+    await db.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -453,7 +448,7 @@ app.delete('/api/jobs/:id', async (req, res) => {
 // Reset failed jobs so they get re-queued on next worker tick
 app.post('/api/jobs/retry-failed', async (_req, res) => {
   try {
-    const { rowCount } = await pool.query(
+    const { rowCount } = await db.query(
       `UPDATE upload_jobs SET status='pending', retry_count=0, updated_at=$1 WHERE status='failed'`,
       [new Date().toISOString()]
     );
@@ -469,64 +464,101 @@ let workerBusy = false;
 async function processJobs() {
   if (workerBusy) return;
   workerBusy = true;
+  let job = null;
   try {
     const now = new Date().toISOString();
     const stuckCutoff    = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const retryCutoff    = new Date(Date.now() -      60 * 1000).toISOString();
 
-    await pool.query(
+    await db.query(
       "UPDATE upload_jobs SET status='pending', updated_at=$1 WHERE status='processing' AND updated_at<$2",
       [now, stuckCutoff]
     );
-    await pool.query(
+    await db.query(
       "UPDATE upload_jobs SET status='pending', updated_at=$1 WHERE status='failed' AND retry_count<$2 AND updated_at<$3",
       [now, MAX_RETRIES, retryCutoff]
     );
 
     // Convert permanently-failed jobs into review_items so they surface cross-session
-    const { rows: permFailed } = await pool.query(
+    const { rows: permFailed } = await db.query(
       "SELECT id, thumb, error FROM upload_jobs WHERE status='failed' AND retry_count>=$1",
       [MAX_RETRIES]
     );
     for (const pf of permFailed) {
-      await pool.query(
+      await db.query(
         'INSERT INTO review_items(id,job_id,data,thumb,source,status,fail_reason,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
         [reviewItemId(), pf.id, '{}', pf.thumb, 'scan', 'failed', pf.error || 'Analysis failed after max retries', now]
       );
-      await pool.query('DELETE FROM upload_jobs WHERE id=$1', [pf.id]);
+      await db.query('DELETE FROM upload_jobs WHERE id=$1', [pf.id]);
       console.warn(`✗ Job ${pf.id} permanently failed → review_items`);
     }
 
-    const { rows } = await pool.query(
-      "SELECT id, image_data, thumb FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
+    const { rows } = await db.query(
+      "SELECT id, image_data, thumb, photo_spine_bbox, photo_face_bbox FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
     );
-    if (!rows.length) return;
-    const job = rows[0];
-    await pool.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [now, job.id]);
-    console.log(`⟳ Ollama: sending job ${job.id} to ${OLLAMA} (model: ${OLLAMA_MODEL})`);
+    if (!rows.length) {
+      workerBusy = false;
+      return;
+    }
+    job = rows[0];
 
-    try {
+    if (job) {
       // Guard against duplicate review_items if a stuck-job reset caused double-processing
-      const { rows: existingItems } = await pool.query(
+      const { rows: existingItems } = await db.query(
         'SELECT id FROM review_items WHERE job_id=$1 LIMIT 1', [job.id]
       );
       if (existingItems.length) {
-        await pool.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
+        await db.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
         console.log(`↷ Job ${job.id}: review_item already exists — skipping duplicate`);
         return;
       }
 
+      // Run detection
+      const execAsync = util.promisify(exec);
+      const { stdout } = await execAsync('python3 scripts/detect_tapes.py', { input: job.image_data });
+      const detectedTapes = JSON.parse(stdout);
+      const imagesToProcess = detectedTapes.length > 0 ? detectedTapes : [{ image: job.image_data, bbox: null }];
+
+      const nowIso = new Date().toISOString();
+      const createdJobIds = [];
+      for (const tapeData of imagesToProcess) {
+        const id = jobId();
+        createdJobIds.push(id);
+        // Calculate spine and face bboxes based on full crop bbox
+        const fullBbox = tapeData.bbox;
+        let spineBbox = null;
+        let faceBbox = null;
+        if (fullBbox) {
+          spineBbox = {
+            x: fullBbox.x + fullBbox.w * 0.375,
+            y: fullBbox.y,
+            w: fullBbox.w * 0.25,
+            h: fullBbox.h,
+          };
+          faceBbox = {
+            x: fullBbox.x + fullBbox.w * 0.05,
+            y: fullBbox.y,
+            w: fullBbox.w * 0.60,
+            h: fullBbox.h,
+          };
+        }
+
+        await db.query(
+          'INSERT INTO upload_jobs(id,image_data,thumb,status,created_at,updated_at,photo_spine_bbox,photo_face_bbox) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+          [id, tapeData.image, job.thumb || null, 'pending', nowIso, nowIso, JSON.stringify(spineBbox), JSON.stringify(faceBbox)]
+        );
+      }
       const result = await callOllamaServer(job.image_data);
       const ts = new Date().toISOString();
       console.log(`✓ Ollama: job ${job.id} → ${result.length} tape(s): ${result.map(r=>r.title||'?').join(', ')}`);
 
       if (!result.length) {
         // Honest no-detection — do NOT retry, surface immediately so user can re-scan
-        await pool.query(
+        await db.query(
           'INSERT INTO review_items(id,job_id,data,thumb,source,status,fail_reason,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
           [reviewItemId(), job.id, '{}', job.thumb, 'scan', 'failed', 'No tapes detected — try better lighting or adjust the crop box', ts]
         );
-        await logScanAnalytics(pool, { jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: [] });
+        await logScanAnalytics({ jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: [] });
       } else {
         // Enrich each detected tape with OMDb if available (verifies title + gets imdb_id)
         const enriched = await Promise.all(result.map(async item => {
@@ -540,26 +572,28 @@ async function processJobs() {
         }));
 
         const omdbVerified = enriched.some(i => i.imdb_id);
-        await logScanAnalytics(pool, { jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: enriched, omdbVerified });
+        await logScanAnalytics({ jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: enriched, omdbVerified });
 
         for (const item of enriched) {
-          await pool.query(
+          await db.query(
             'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
             [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', ts]
           );
         }
       }
-      await pool.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
+      await db.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
       console.log(`✓ Job ${job.id}: ${result.length} tape(s) → review_items`);
-    } catch (err) {
-      await pool.query(
+    }
+  } catch (err) {
+    if (job) {
+      await db.query(
         "UPDATE upload_jobs SET status='failed', error=$1, updated_at=$2, retry_count=retry_count+1 WHERE id=$3",
         [err.message, new Date().toISOString(), job.id]
       );
       console.warn(`✗ Job ${job.id} failed (will retry):`, err.message);
+    } else {
+      console.warn('Worker error (no job):', err.message);
     }
-  } catch (err) {
-    console.warn('Worker error:', err.message);
   } finally {
     workerBusy = false;
   }
@@ -569,7 +603,7 @@ async function processJobs() {
 app.get('/api/health', async (_req, res) => {
   const result = { db: 'unknown', ollama: 'unknown', ts: new Date().toISOString() };
   try {
-    await pool.query('SELECT 1');
+    await db.query('SELECT 1');
     result.db = 'ok';
   } catch (err) {
     result.db = 'error';
@@ -606,10 +640,19 @@ app.get('/api/logs/stream', (req, res) => {
   req.on('close', () => logClients.delete(res));
 });
 
+// ── Rate Limit ────────────────────────────────────────────────────────────────
+const rateLimit = require('express-rate-limit');
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again after 15 minutes',
+});
+app.use('/api/jobs', limiter);
+
 // ── REST API ──────────────────────────────────────────────────────────────────
 app.get('/api/tapes', async (_req, res) => {
   try {
-    const { rows } = await pool.query('SELECT data FROM tapes ORDER BY scanned_at DESC');
+    const { rows } = await db.query('SELECT data FROM tapes ORDER BY scanned_at DESC');
     res.json(rows.map(r => r.data));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -619,7 +662,7 @@ app.get('/api/tapes', async (_req, res) => {
 app.post('/api/tapes', async (req, res) => {
   const tape = req.body;
   try {
-    await pool.query(
+    await db.query(
       'INSERT INTO tapes(id, data, scanned_at) VALUES($1, $2, $3)',
       [tape.id, tape, tape.scanned_at || new Date().toISOString()]
     );
@@ -632,7 +675,7 @@ app.post('/api/tapes', async (req, res) => {
 app.put('/api/tapes/:id', async (req, res) => {
   const tape = req.body;
   try {
-    const { rowCount } = await pool.query(
+    const { rowCount } = await db.query(
       'UPDATE tapes SET data=$1, scanned_at=$2 WHERE id=$3',
       [tape, tape.scanned_at || new Date().toISOString(), req.params.id]
     );
@@ -645,7 +688,7 @@ app.put('/api/tapes/:id', async (req, res) => {
 
 app.delete('/api/tapes/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM tapes WHERE id=$1', [req.params.id]);
+    await db.query('DELETE FROM tapes WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -713,19 +756,19 @@ if (require.main === module) {
 
   runMigrations()
     .then(async () => {
+      const { rows: done } = await db.query("SELECT id, result, thumb, created_at FROM upload_jobs WHERE status='done'");
       // One-time backfill: convert any pre-migration 'done' upload_jobs into review_items
-      const { rows: done } = await pool.query("SELECT id, result, thumb, created_at FROM upload_jobs WHERE status='done'");
       if (done.length) {
         console.log(`⟳ Backfilling ${done.length} done upload_jobs → review_items…`);
         for (const job of done) {
           const items = Array.isArray(job.result) ? job.result : [];
           for (const item of items) {
-            await pool.query(
+            await db.query(
               'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
               [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', job.created_at]
             );
           }
-          await pool.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
+          await db.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
         }
         console.log(`✓ Backfill complete`);
       }
@@ -752,4 +795,4 @@ if (require.main === module) {
 }
 
 // Export internal functions for testing
-module.exports = { app, pool, processJobs, ensureCerts, runMigrations, callOllamaServer, callOmdb, parseJsonArray, jobId, reviewItemId, analyticsId, logScanAnalytics, logActivity, withRetry };
+module.exports = { app, db, processJobs, ensureCerts, runMigrations, callOllamaServer, callOmdb, parseJsonArray, jobId, reviewItemId, analyticsId, logScanAnalytics, logActivity, withRetry };
