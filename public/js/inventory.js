@@ -918,65 +918,6 @@ document.getElementById('btn-fill-data').addEventListener('click',async()=>{
   for(let i=0;i<targets.length;i++){
     if(_fillCancelled)break;
     if(progBar)progBar.style.width=`${Math.round((i/targets.length)*100)}%`;
-    const t=targets[i];
-    if(fillRevStatus)fillRevStatus.innerHTML=`⚡ Filling ${i+1}/${targets.length}: <em style="color:var(--text2)">${esc(t.title||'…')}</em>`;
-    const meta=await _fillLookup(t);
-    if(!meta||!meta.imdb_id)continue;
-    let hasChanges=false;
-    if(meta.year&&!t.year){t.year=meta.year;hasChanges=true;}
-    if(meta.label&&!t.label){t.label=meta.label;hasChanges=true;}
-    if(meta.imdb_id&&!t.imdb_id){t.imdb_id=meta.imdb_id;hasChanges=true;}
-    if(meta.value_low&&!t.value_low){t.value_low=meta.value_low;hasChanges=true;}
-    if(meta.value_high&&!t.value_high){t.value_high=meta.value_high;hasChanges=true;}
-    if(meta.genres?.length&&!(t.tags?.length)){t.tags=[...meta.genres];hasChanges=true;}
-    if(meta.poster&&!t.photos?.length){
-      const dataUrl=await _fetchPosterImage(meta.poster);
-      if(dataUrl){t.photos=[dataUrl];t.photo_thumbnail=dataUrl;t.photo_face=dataUrl;hasChanges=true;}
-    }
-    if(hasChanges){try{await dbPut(t);done++;}catch(e){console.warn('Fill save:',t.id,e);}}
-  }
-  if(progBar)progBar.style.width='100%';
-  setTimeout(()=>{if(progWrap)progWrap.style.display='none';},600);
-  btn.disabled=false;btn.textContent=selectedIds.size>0?`⚡ Fill (${selectedIds.size})`:'⚡ Fill';
-  if(fillRevStatus){
-    if(done)fillRevStatus.innerHTML=`<span style="color:var(--green)">✓ Filled ${done} tape${done!==1?'s':''}</span>`;
-    else if(_fillCancelled)fillRevStatus.innerHTML='<span style="color:var(--text3)">Fill cancelled</span>';
-    else fillRevStatus.innerHTML='<span style="color:var(--text3)">No matches found</span>';
-    setTimeout(()=>{fillRevStatus.style.display='none';fillRevStatus.innerHTML='';},4000);
-  }
-  if(done){renderInv();updateCount();toast(`Filled ${done} tape${done!==1?'s':''}`, 'ok',4000);}
-  else if(!_fillCancelled){toast(`No reliable matches found for ${targets.length} tape${targets.length!==1?'s':''}`, '',4000);}
-  _fillCancelled=false;
-});
-document.getElementById('btn-add-tape').addEventListener('click',openNewTapeModal);
-document.getElementById('bulk-fill')?.addEventListener('click',()=>document.getElementById('btn-fill-data').click());
-
-// ── RE-VALIDATE DIFF ─────────────────────────────────────────────────────
-function _normTitle(s){return(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();}
-function _titleSim(a,b){
-  const wa=_normTitle(a).split(' ').filter(Boolean);
-  const wb=_normTitle(b).split(' ').filter(Boolean);
-  if(!wa.length||!wb.length)return 0;
-  const sa=new Set(wa),sb=new Set(wb);
-  const common=[...sa].filter(w=>sb.has(w)).length;
-  return common/Math.max(sa.size,sb.size);
-}
-async function runRevalidate(){
-  const pool=selectedIds.size>0?inventory.filter(t=>selectedIds.has(t.id)):inventory;
-  // Prefer face photos for better OCR accuracy; fall back to thumbnail
-  const targets=pool.filter(t=>t.photo_face||t.photo_thumbnail);
-  if(!targets.length){toast('No tapes with photos to check','');return;}
-  const modal=document.getElementById('m-revalidate');
-  const statusEl=document.getElementById('rv-status');
-  const progBar=document.getElementById('rv-prog-bar');
-  const progWrap=document.getElementById('rv-progress');
-  statusEl.textContent=`Queuing ${targets.length} photo${targets.length>1?'s':''} for analysis…`;
-  progWrap.style.display='';progBar.style.width='0%';
-  modal.style.display='flex';
-
-  const batch=[];
-  for(let i=0;i<targets.length;i++){
-    progBar.style.width=`${Math.round((i/targets.length)*40)}%`;
     statusEl.textContent=`Submitting ${i+1}/${targets.length}…`;
     try{
       const img=targets[i].photo_face||targets[i].photo_thumbnail;
