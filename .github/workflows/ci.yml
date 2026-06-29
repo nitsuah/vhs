@@ -22,7 +22,7 @@ jobs:
       - name: Lint shell scripts
         run: |
           sudo apt-get install -y shellcheck
-          shellcheck start.sh
+          shellcheck scripts/start.sh
 
       - name: Lint HTML
         run: |
