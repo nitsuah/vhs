@@ -7,11 +7,13 @@ All notable changes to this project are documented here.
 ### Added
 
 #### Storage & Backend
+
 - **Neon PostgreSQL backend** — Node.js/Express server replaces nginx; REST CRUD at `/api/tapes`; Ollama proxy at `/api/ollama`; auto-creates schema on startup
 - **DB health dot** — live green/red indicator next to tape count; red dot retries connection on click
 - **Photo compression** — `compressImage()` resizes to max 1200px at JPEG 0.75 before storing in Neon JSONB
 
 #### Capture & Scanning
+
 - **Capture queue** — Space stages webcam frames as thumbnails; Enter sends all to AI at once
 - **Barcode scanner** — multi-pass canvas preprocessing (grayscale/contrast, adaptive threshold, sharpen+threshold), ZXing `TRY_HARDER`, HD 1920×1080 stream request, tight horizontal targeting band
 - **Torch toggle** — manual flashlight control when device supports it
@@ -19,6 +21,7 @@ All notable changes to this project are documented here.
 - **UPC/barcode database lookup** — UPCitemdb.com auto-fills title on barcode scan
 
 #### Collection Management
+
 - **Quick-add tape** — `+ Add` button / `N` keyboard shortcut; blank form with next VHS-XXXX ID; no photo required
 - **Full CRUD** — create, edit, delete with confirm dialog; multi-photo per tape
 - **Batch AI metadata fill** — ⚡ Fill Data auto-fills year, label, and estimated value for incomplete tapes via Claude or Ollama
@@ -28,6 +31,7 @@ All notable changes to this project are documented here.
 - **Tags / genres** — preset genre chips (Horror, SOV, Anime, etc.) plus custom tags
 
 #### Discovery & Filtering
+
 - **Full-text search** — searches title, label, barcode, notes, and tags simultaneously
 - **Clickable stats bar** — status and condition chips filter inventory on click
 - **Filter bar** — by status, condition, label, tag, year range
@@ -37,6 +41,7 @@ All notable changes to this project are documented here.
 - **Thumbnails in list view** — 48×34px thumbnail on every list row
 
 #### Exports & Imports
+
 - **CSV export** — full collection with all fields
 - **For-sale CSV** — filtered export with eBay condition labels
 - **JSON export/import** — full round-trip backup including photos
@@ -45,12 +50,14 @@ All notable changes to this project are documented here.
 - **Printable HTML list** — clean table sorted by ID with Print button
 
 #### Mobile & Responsive
+
 - **Responsive layout** — `@media (max-width:700px)` stacks panels vertically; camera fixed 280px (160px landscape)
 - **Rear camera preference** — `facingMode: 'environment'` on mobile for scanning VHS tapes
 - **Permission UX** — contextual `#no-cam-msg` (denied / not found / no API); "📷 Enable Camera" retry button
 - **Touch events on crop box** — `touchstart/touchmove/touchend` mirrors mouse drag/resize so crop works on mobile
 
 #### UX
+
 - **Better empty state** — action buttons (Capture / Add Manually / Upload) on first run
 - **eBay sold-listings search** — one-click search for comps on any tape
 - **🔍 Lookup button** — AI-fills year, label, format, and value from title
@@ -59,6 +66,7 @@ All notable changes to this project are documented here.
 - **Keyboard shortcuts** — `Space` stage, `Enter` analyze, `N` add tape, `?` help, `Esc` close
 
 #### CI
+
 - Hadolint Dockerfile linting
 - Shellcheck for shell scripts
 - HTMLHint for `index.html`

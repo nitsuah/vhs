@@ -19,7 +19,7 @@ jest.mock('fs', () => ({
 
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
 process.env.OMDB_API_KEY = 'test-key';
-const { app } = require('../server');
+const { app } = require('../src/server.js');
 
 beforeEach(() => mockQuery.mockReset());
 

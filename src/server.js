@@ -63,7 +63,7 @@ async function runMigrations() {
       applied_at TEXT NOT NULL
     )
   `));
-  const migrationsDir = path.join(__dirname, 'migrations');
+  const migrationsDir = path.join(__dirname, '..', 'migrations');
   const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
   const { rows } = await pool.query('SELECT version FROM schema_migrations');
   const applied = new Set(rows.map(r => r.version));
@@ -695,7 +695,7 @@ app.use(
 );
 
 // ── Static ────────────────────────────────────────────────────────────────────
-const publicDir = path.join(__dirname, 'public');
+const publicDir = path.join(__dirname, '..', 'public');
 app.use(express.static(publicDir, { index: false }));
 app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 

@@ -1,8 +1,8 @@
 services:
 
   web:
-    build: .
-    env_file: .env          # explicit dep — compose errors if .env is missing
+    build: ..
+    env_file: .env
     ports:
       - "${APP_PORT:-8082}:8080"
       - "${HTTPS_PORT:-8443}:8443"

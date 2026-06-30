@@ -19,7 +19,7 @@ jest.mock('fs', () => ({
 
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
 process.env.OMDB_API_KEY = 'test-key';
-const { app } = require('../server');
+const { app } = require('../src/server.js');
 
 beforeEach(() => mockQuery.mockReset());
 
@@ -190,18 +190,18 @@ describe('withRetry and worker processes', () => {
   });
 
   it('calls ensureCerts for certificate setup', () => {
-    const { ensureCerts } = require('../server');
+    const { ensureCerts } = require('../src/server.js');
     expect(() => ensureCerts()).not.toThrow();
   });
 
   it('calls runMigrations for database setup', async () => {
     mockQuery.mockResolvedValue({ rows: [] });
-    const { runMigrations } = require('../server');
+    const { runMigrations } = require('../src/server.js');
     await expect(runMigrations()).resolves.toBeUndefined();
   });
 
   it('calls callOllamaServer with mock fetch', async () => {
-    const { callOllamaServer } = require('../server');
+    const { callOllamaServer } = require('../src/server.js');
     const origFetch = global.fetch;
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -213,7 +213,7 @@ describe('withRetry and worker processes', () => {
   });
 
   it('calls callOmdb with mock fetch', async () => {
-    const { callOmdb } = require('../server');
+    const { callOmdb } = require('../src/server.js');
     const origFetch = global.fetch;
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -229,14 +229,14 @@ describe('withRetry and worker processes', () => {
   });
 
   it('calls parseJsonArray with various inputs', () => {
-    const { parseJsonArray } = require('../server');
+    const { parseJsonArray } = require('../src/server.js');
     expect(parseJsonArray(null)).toEqual([]);
     expect(parseJsonArray('')).toEqual([]);
     expect(parseJsonArray('[{"x":1}]')).toEqual([{ x: 1 }]);
   });
 
   it('calls ID generators', () => {
-    const { jobId, reviewItemId, analyticsId } = require('../server');
+    const { jobId, reviewItemId, analyticsId } = require('../src/server.js');
     expect(jobId()).toMatch(/^job_/);
     expect(reviewItemId()).toMatch(/^rev_/);
     expect(analyticsId()).toMatch(/^anl_/);
@@ -244,14 +244,14 @@ describe('withRetry and worker processes', () => {
 
   it('calls logScanAnalytics', async () => {
     mockQuery.mockResolvedValue({ rows: [] });
-    const { logScanAnalytics } = require('../server');
+    const { logScanAnalytics } = require('../src/server.js');
     await expect(logScanAnalytics({}, { jobId: 'j1', aiModel: 'm', suggestions: [] })).resolves.toBeUndefined();
   });
 
   // logActivity tested indirectly via other tests; console mocking order prevents direct test
 
   it('calls withRetry', async () => {
-    const { withRetry } = require('../server');
+    const { withRetry } = require('../src/server.js');
     const fn = jest.fn().mockResolvedValue('success');
     const result = await withRetry(fn, 3, 1);
     expect(result).toBe('success');
@@ -259,7 +259,7 @@ describe('withRetry and worker processes', () => {
   });
 
   it('calls withRetry retries on failure', async () => {
-    const { withRetry } = require('../server');
+    const { withRetry } = require('../src/server.js');
     const fn = jest.fn()
       .mockRejectedValueOnce(new Error('fail'))
       .mockResolvedValueOnce('success');
@@ -273,7 +273,7 @@ describe('withRetry and worker processes', () => {
       .mockResolvedValueOnce({ rowCount: 1 })  // stuck jobs
       .mockResolvedValueOnce({ rowCount: 1 })  // failed conversion
       .mockResolvedValueOnce({ rows: [] });     // no pending
-    const { processJobs } = require('../server');
+    const { processJobs } = require('../src/server.js');
     await expect(processJobs()).resolves.toBeUndefined();
   });
 });

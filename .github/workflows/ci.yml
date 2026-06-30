@@ -22,18 +22,18 @@ jobs:
       - name: Lint shell scripts
         run: |
           sudo apt-get install -y shellcheck
-          shellcheck start.sh
+          shellcheck scripts/start.sh
 
       - name: Lint HTML
         run: |
           npm install -g htmlhint@1
-          htmlhint --config .htmlhintrc public/index.html
+          htmlhint --config public/.htmlhintrc public/index.html
 
       - name: Check JS deps install cleanly
         run: npm ci --omit=dev
 
       - name: Check server.js syntax
-        run: node --check server.js
+        run: node --check src/server.js
 
       - name: ESLint server.js
         run: |

@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node server.js",
-    "lint": "eslint server.js",
+    "start": "node src/server.js",
+    "lint": "eslint --config ./.eslintrc.json src/server.js",
     "test": "jest",
     "test:ui": "playwright test"
   },
