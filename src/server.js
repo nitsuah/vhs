@@ -6,6 +6,7 @@ const path = require('path');
 const https = require('https');
 const fs = require('fs');
 const { execSync } = require('child_process');
+const crypto = require('crypto');
 
 // ── Activity log ring buffer ──────────────────────────────────────────────────
 const LOG_LIMIT = 200;
@@ -149,15 +150,24 @@ const OMDB_API_KEY = (process.env.OMDB_API_KEY || '').trim();
 // Enhanced title normalization for OMDb lookup
 function normalizeTitleForLookup(title) {
   if (!title) return '';
+  const tagsToRemove = ['vhs', 'dvd', 'bluray', 'blu-ray', 'digital', 'other', 'collection', 'special',
+    'edition', "director's cut", 'extended', 'unrated', '3d', 'imax', 'collectible', 'movie', 'film', 'sde'];
+  const tagsPattern = tagsToRemove.map(t => `\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).join('|');
+
   return title
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, ' ') // Normalize multiple spaces
-    .replace(/[&+]/g, ' and ') // Convert common symbols to words
-    .replace(/[µ]|[^\x00-\x7F]/g, '') // Remove special chars and Unicode
-    .replace(/(vhs|dvd|bluray|digital|other|collection|special|edition|director\'s cut|blue-ray|3d|imax|\d+)/g, '') // Remove media types, editions, numbers
-    .replace(/^the /i, '') // Remove "the" prefix
-    .replace(/\s+/, ' ') // Clean up extra spaces
+    .replace(/\s+/g, ' ')
+    .replace(/[&+]/g, ' and ')
+    // Remove media/edition tags with surrounding parentheses like "(VHS)" "(Special Edition)"
+    .replace(new RegExp(`\\(\\s*(?:${tagsPattern})\\s*\\)`, 'gi'), '')
+    // Remove standalone media/edition tags
+    .replace(new RegExp(tagsPattern, 'gi'), '')
+    .replace(/[µ]|[^\x00-\x7F]/g, '')
+    .replace(/^the\s+/i, '')
+    .replace(/^(an?)\s+/i, '')
+    .replace(/[!?:,…'"“”‘’\-–—\[\]{}()]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
     .trim();
 }
 
@@ -166,7 +176,7 @@ function levenshteinDistance(s1, s2) {
   const lenS2 = s2.length;
   let costRow = Array.from({ length: lenS2 + 1 }, (_, i) => i);
   for (let i = 1; i <= s1.length; i++) {
-    let costCol = i - 1;
+    let costCol = i;
     let row = [costCol];
     for (let j = 1; j <= lenS2; j++) {
       const deleteCost = row[j - 1] + 1;
@@ -185,14 +195,40 @@ function levenshteinDistance(s1, s2) {
 async function enhancedLookup({ title, imdbId }, apiKey) {
   if (!apiKey) return null;
 
-  // Log the lookup attempt for analytics
-  const titleHash = Buffer.from(title.toLowerCase()).toString('md5');
+  const titleHash = crypto.createHash('md5').update(title.toLowerCase()).digest('hex');
   const normalizedTitle = normalizeTitleForLookup(title);
 
+  const now = new Date();
+
+  // Cache read-through: check omdb_lookups before hitting OMDb API
+  try {
+    const { rows } = await pool.query(
+      `SELECT lookup_data, year, label, imdb_id, poster, genres, source, success
+       FROM omdb_lookups WHERE title_hash = $1 AND normalized_title = $2
+       ORDER BY last_attempt DESC LIMIT 1`,
+      [titleHash, normalizedTitle]
+    );
+    if (rows.length > 0 && rows[0].success) {
+      const cached = rows[0];
+      return {
+        title:   (cached.lookup_data && cached.lookup_data.original_title) || title,
+        year:    cached.year || '',
+        label:   cached.label || '',
+        imdb_id: cached.imdb_id || '',
+        poster:  cached.poster || '',
+        genres:  cached.genres || [],
+        source:  cached.source || 'cache',
+      };
+    }
+  } catch (e) {
+    console.warn('Cache read-through failed:', e.message);
+  }
+
+  const lookupId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${Math.random().toString(36).slice(2, 4)}`;
   const lookupData = {
     original_title: title,
     normalized_title: normalizedTitle,
-    timestamp: new Date().toISOString(),
+    timestamp: now.toISOString(),
     attempts: 1
   };
 
@@ -217,7 +253,6 @@ async function enhancedLookup({ title, imdbId }, apiKey) {
     if (r.ok) {
       const d = await r.json();
       if (d.Response === 'False' || !d.Title) {
-        // Exact match failed, try with common VHS variations
         source = 'omdb_fuzzy';
         result = await tryVHSVariations(title, apiKey);
       } else {
@@ -242,32 +277,34 @@ async function enhancedLookup({ title, imdbId }, apiKey) {
     result = await tryVHSVariations(title, apiKey);
   }
 
-  // Store lookup result for analytics
-  if (result) {
-    try {
-      await pool.query(
-        'INSERT INTO omdb_lookups (id, title_hash, original_title, normalized_title, lookup_data, year, label, imdb_id, poster, genres, source, found_at, attempts, last_attempt, success) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)',
-        [
-          `lookup_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          titleHash,
-          title,
-          normalizedTitle,
-          JSON.stringify(lookupData),
-          result.year || '',
-          result.label || '',
-          result.imdb_id || '',
-          result.poster || '',
-          result.genres || [],
-          source,
-          new Date().toISOString(),
-          1,
-          new Date().toISOString(),
-          true
-        ]
-      );
-    } catch (e) {
-      console.warn('Failed to store OMDb lookup result:', e.message);
-    }
+  // Persist lookup result (success or failure) with collision-safe ID
+  try {
+    const success = result !== null;
+    await pool.query(
+      `INSERT INTO omdb_lookups (id, title_hash, original_title, normalized_title, lookup_data,
+        year, label, imdb_id, poster, genres, source, found_at, attempts, last_attempt, success)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        lookupId,
+        titleHash,
+        title,
+        normalizedTitle,
+        JSON.stringify(lookupData),
+        (result && result.year) || '',
+        (result && result.label) || '',
+        (result && result.imdb_id) || '',
+        (result && result.poster) || '',
+        (result && result.genres) || [],
+        source,
+        now.toISOString(),
+        1,
+        now.toISOString(),
+        success
+      ]
+    );
+  } catch (e) {
+    console.warn('Failed to persist OMDb lookup:', e.message);
   }
 
   return result;
@@ -301,7 +338,12 @@ async function tryVHSVariations(originalTitle, apiKey) {
         const d = await r.json();
         if (d.Response === 'False' || !d.Title) continue;
 
-        // Store alternative lookup
+        // Store alternative lookup with real computed similarity
+        const normOrig = normalizeTitleForLookup(originalTitle);
+        const normVar = normalizeTitleForLookup(variant);
+        const maxLen = Math.max(normOrig.length, normVar.length);
+        const similarity = maxLen > 0 ? 1 - levenshteinDistance(normOrig, normVar) / maxLen : 0.5;
+
         try {
           await pool.query(
             'INSERT INTO lookup_alternatives (id, original_title, alternative_title, alternative_type, similarity, source, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
@@ -310,12 +352,14 @@ async function tryVHSVariations(originalTitle, apiKey) {
               originalTitle,
               variant,
               'fuzzy_match',
-              0.7,
+              similarity,
               'omdb_fuzzy',
               new Date().toISOString()
             ]
           );
-        } catch (e) {}
+        } catch (e) {
+          console.warn(`Failed to persist lookup_alternative for "${originalTitle}" -> "${variant}": ${e.message}`);
+        }
 
         return {
           title:   d.Title,
@@ -955,4 +999,4 @@ if (require.main === module) {
 }
 
 // Export internal functions for testing
-module.exports = { app, pool, processJobs, ensureCerts, runMigrations, callOllamaServer, callOmdb, parseJsonArray, jobId, reviewItemId, analyticsId, logScanAnalytics, logActivity, withRetry };
+module.exports = { app, pool, processJobs, ensureCerts, runMigrations, callOllamaServer, callOmdb, parseJsonArray, jobId, reviewItemId, analyticsId, logScanAnalytics, logActivity, withRetry, normalizeTitleForLookup, levenshteinDistance, enhancedLookup };
