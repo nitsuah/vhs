@@ -146,6 +146,210 @@ async function callOllamaServer(base64) {
 // ── OMDb lookup ───────────────────────────────────────────────────────────────
 const OMDB_API_KEY = (process.env.OMDB_API_KEY || '').trim();
 
+// Enhanced title normalization for OMDb lookup
+function normalizeTitleForLookup(title) {
+  if (!title) return '';
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ') // Normalize multiple spaces
+    .replace(/[&+]/g, ' and ') // Convert common symbols to words
+    .replace(/[µ]|[^\x00-\x7F]/g, '') // Remove special chars and Unicode
+    .replace(/(vhs|dvd|bluray|digital|other|collection|special|edition|director\'s cut|blue-ray|3d|imax|\d+)/g, '') // Remove media types, editions, numbers
+    .replace(/^the /i, '') // Remove "the" prefix
+    .replace(/\s+/, ' ') // Clean up extra spaces
+    .trim();
+}
+
+function levenshteinDistance(s1, s2) {
+  if (s1.length < s2.length) [s1, s2] = [s2, s1];
+  const lenS2 = s2.length;
+  let costRow = Array.from({ length: lenS2 + 1 }, (_, i) => i);
+  for (let i = 1; i <= s1.length; i++) {
+    let costCol = i - 1;
+    let row = [costCol];
+    for (let j = 1; j <= lenS2; j++) {
+      const deleteCost = row[j - 1] + 1;
+      const insertCost = costRow[j] + 1;
+      const s1Char = s1[i - 1];
+      const s2Char = s2[j - 1];
+      const subCost = s1Char === s2Char ? costRow[j - 1] : costRow[j - 1] + 1;
+      row.push(Math.min(deleteCost, insertCost, subCost));
+    }
+    costRow = row;
+  }
+  return costRow[lenS2];
+}
+
+// Enhanced lookup function with fuzzy matching and fallbacks
+async function enhancedLookup({ title, imdbId }, apiKey) {
+  if (!apiKey) return null;
+
+  // Log the lookup attempt for analytics
+  const titleHash = Buffer.from(title.toLowerCase()).toString('md5');
+  const normalizedTitle = normalizeTitleForLookup(title);
+
+  const lookupData = {
+    original_title: title,
+    normalized_title: normalizedTitle,
+    timestamp: new Date().toISOString(),
+    attempts: 1
+  };
+
+  // First attempt: try exact match with normalized title
+  const params1 = new URLSearchParams({ apikey: apiKey });
+  if (imdbId) {
+    params1.set('i', imdbId);
+  } else {
+    params1.set('t', normalizedTitle);
+    params1.set('type', 'movie');
+  }
+
+  let result = null;
+  let source = 'omdb_exact';
+
+  try {
+    let r = await fetch(`https://www.omdbapi.com/?${params1}`, {
+      signal: AbortSignal.timeout(5000),
+      headers: { 'User-Agent': 'VHS-Scanner/1.0' }
+    });
+
+    if (r.ok) {
+      const d = await r.json();
+      if (d.Response === 'False' || !d.Title) {
+        // Exact match failed, try with common VHS variations
+        source = 'omdb_fuzzy';
+        result = await tryVHSVariations(title, apiKey);
+      } else {
+        result = {
+          title:   d.Title,
+          year:    (d.Year || '').match(/\d{4}/)?.[0] || '',
+          label:   d.Production || '',
+          imdb_id: d.imdbID || '',
+          poster:  d.Poster && d.Poster !== 'N/A' ? d.Poster : '',
+          genres:  d.Genre ? d.Genre.split(',').map(g => g.trim()).filter(Boolean) : [],
+          source: source
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('OMDb exact lookup failed:', e.message);
+    source = 'omdb_fuzzy';
+  }
+
+  // Fallback: try VHS variations if exact match failed
+  if (!result) {
+    result = await tryVHSVariations(title, apiKey);
+  }
+
+  // Store lookup result for analytics
+  if (result) {
+    try {
+      await pool.query(
+        'INSERT INTO omdb_lookups (id, title_hash, original_title, normalized_title, lookup_data, year, label, imdb_id, poster, genres, source, found_at, attempts, last_attempt, success) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)',
+        [
+          `lookup_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          titleHash,
+          title,
+          normalizedTitle,
+          JSON.stringify(lookupData),
+          result.year || '',
+          result.label || '',
+          result.imdb_id || '',
+          result.poster || '',
+          result.genres || [],
+          source,
+          new Date().toISOString(),
+          1,
+          new Date().toISOString(),
+          true
+        ]
+      );
+    } catch (e) {
+      console.warn('Failed to store OMDb lookup result:', e.message);
+    }
+  }
+
+  return result;
+}
+
+async function tryVHSVariations(originalTitle, apiKey) {
+  const variations = [
+    originalTitle,
+    originalTitle.replace('(VHS)', '').trim(),
+    originalTitle.replace('(VHS Collectible)', '').trim(),
+    originalTitle.replace('(VHS Special Edition)', '').trim(),
+    originalTitle.replace('(SDE)', '').trim(),
+    normalizeTitleForLookup(originalTitle),
+    originalTitle.includes('(') ? originalTitle.split('(')[0].trim() : originalTitle,
+    originalTitle + ' (Movie)',
+    originalTitle + ' (Film)',
+    originalTitle.replace(/DVD|BLUE-RAY|BLURAY|VHS/i, '')
+  ].filter(v => v && v.trim() && v !== originalTitle);
+
+  const params = new URLSearchParams({ apikey: apiKey, type: 'movie' });
+
+  for (const variant of variations.slice(0, 5)) { // Try up to 5 variations
+    try {
+      params.set('t', variant);
+      const r = await fetch(`https://www.omdbapi.com/?${params}`, {
+        signal: AbortSignal.timeout(4000),
+        headers: { 'User-Agent': 'VHS-Scanner/1.0' }
+      });
+
+      if (r.ok) {
+        const d = await r.json();
+        if (d.Response === 'False' || !d.Title) continue;
+
+        // Store alternative lookup
+        try {
+          await pool.query(
+            'INSERT INTO lookup_alternatives (id, original_title, alternative_title, alternative_type, similarity, source, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [
+              `alt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+              originalTitle,
+              variant,
+              'fuzzy_match',
+              0.7,
+              'omdb_fuzzy',
+              new Date().toISOString()
+            ]
+          );
+        } catch (e) {}
+
+        return {
+          title:   d.Title,
+          year:    (d.Year || '').match(/\d{4}/)?.[0] || '',
+          label:   d.Production || '',
+          imdb_id: d.imdbID || '',
+          poster:  d.Poster && d.Poster !== 'N/A' ? d.Poster : '',
+          genres:  d.Genre ? d.Genre.split(',').map(g => g.trim()).filter(Boolean) : [],
+          source: 'omdb_fuzzy'
+        };
+      }
+    } catch (e) {
+      console.warn(`OMDb variant lookup failed for "${variant}":`, e.message);
+    }
+  }
+
+  return null;
+}
+
+async function cleanupOldLookups(daysToKeep = 30) {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+    const cutoffStr = cutoffDate.toISOString();
+
+    await pool.query('DELETE FROM omdb_lookups WHERE last_attempt < $1', [cutoffStr]);
+    await pool.query('DELETE FROM lookup_alternatives WHERE created_at < $1', [cutoffStr]);
+    console.log(`Cleaned up OMDb lookup records older than ${cutoffStr}`);
+  } catch (e) {
+    console.warn('Failed to cleanup old OMDb lookups:', e.message);
+  }
+}
+
+// Keep existing callOmdb for backward compatibility
 async function callOmdb({ title, imdbId }, apiKey) {
   if (!apiKey) return null;
   const params = new URLSearchParams({ apikey: apiKey });
