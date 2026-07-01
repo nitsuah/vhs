@@ -123,6 +123,7 @@ async function enhancedLookup({ title, imdbId }, apiKey = OMDB_API_KEY) {
   }
 
   return result;
+}
 
 async function tryVHSVariations(originalTitle, apiKey) {
   const variations = [
