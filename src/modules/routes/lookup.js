@@ -78,7 +78,17 @@ async function lookupTitleHandler(req, res) {
   const omdbKey = (req.headers['x-omdb-key'] || OMDB_API_KEY).trim();
   const noai = req.query.noai === '1';
 
-  const prompt = `You are VHS collectibles expert. For title: "${title.replace(/"/g, '\\"')}"
+  // Escape prompt content for JSON structure to prevent injection
+	  const escapedTitle = title
+	    .replace(/\\/g, '\\\\')  // Escape backslashes first
+	    .replace(/`/g, '\\`')
+	    .replace(/\${/g, '\\${');
+	  // Escape prompt content for JSON structure to prevent injection
+  const escapedTitle = title
+    .replace(/\\/g, '\\\\')  // Escape backslashes first
+    .replace(/`/g, '\\`')
+    .replace(/\${/g, '\\${');
+  const prompt = `You are VHS collectibles expert. For title: "${escapedTitle}"
 Return ONLY JSON object — no other text:
 {"year":"1984","label":"Orion Pictures","format":"VHS","value_low":"8","value_high":"25"}
 Rules: year=4-digit release year, label=VHS distributor/studio, value_low/value_high=USD resale range in good condition.
