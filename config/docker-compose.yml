@@ -1,15 +1,13 @@
+name: vhs
+
 services:
 
   web:
     build: ..
-    env_file: .env
+    env_file: ../.env
     ports:
       - "${APP_PORT:-8082}:8080"
       - "${HTTPS_PORT:-8443}:8443"
-    environment:
-      - OLLAMA_UPSTREAM=${OLLAMA_UPSTREAM:-http://ollama:11434}
-      - DATABASE_URL=${DATABASE_URL}
-      - HOST_IP=${HOST_IP:-}
     volumes:
       - certs:/app/certs
     depends_on:
@@ -23,11 +21,9 @@ services:
   web-gpu:
     build: .
     profiles: [gpu]
+    env_file: ../.env
     ports:
       - "${APP_PORT:-8082}:8080"
-    environment:
-      - OLLAMA_UPSTREAM=${OLLAMA_UPSTREAM:-http://host.docker.internal:11434}
-      - DATABASE_URL=${DATABASE_URL}
     restart: unless-stopped
 
   ollama:
@@ -45,14 +41,14 @@ services:
       timeout: 5s
       retries: 20
       start_period: 15s
-    # Uncomment for NVIDIA GPU:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
+  #GPU Support
+  #  deploy:
+  #    resources:
+  #      reservations:
+  #        devices:
+  #          - driver: nvidia
+  #            count: all
+  #            capabilities: [gpu]
 
   # ── HTTPS tunnel (mobile camera access) ───────────────────────────────────
   # Exposes the app at a random *.trycloudflare.com HTTPS URL.
@@ -68,6 +64,7 @@ services:
   # One-shot: pulls the vision model on first run, skips if already cached.
   ollama-pull:
     image: ollama/ollama:latest
+    env_file: ../.env
     volumes:
       - ollama_models:/root/.ollama
     environment:
