@@ -1,5 +1,8 @@
+// ── VHS STATE ──────────────────────────────────────────────────────────────────
+import { inventory, getInventory, setInventory, getSelectedId, setSelectedId, getIsNewTape, setIsNewTape, getSelectedIds, getWallMode, setWallMode } from './inventory.js';
+
 // ── PROMPTS ──────────────────────────────────────────────────────────────
-const VISION_PROMPT_FAST = `You are reading VHS tape titles from a photo for a cataloging system.
+export const VISION_PROMPT_FAST = `You are reading VHS tape titles from a photo for a cataloging system.
 
 The image may show:
 - SPINE: narrow tape edge with text printed sideways/rotated 90° — mentally rotate to read vertical text
@@ -11,7 +14,7 @@ Output ONLY a JSON array:
 One entry per distinct tape. Include a "low" confidence guess rather than omitting it.
 Do NOT hallucinate — only read text actually visible. Return [] only if truly unreadable.`;
 
-const VISION_PROMPT_FULL = `You are cataloging VHS tapes from a photo.
+export const VISION_PROMPT_FULL = `You are cataloging VHS tapes from a photo.
 
 Determine what the image shows:
 - SPINE view: narrow vertical tape edge, text printed sideways/rotated 90° along the edge
@@ -32,41 +35,39 @@ A "low" confidence entry is better than omitting it — the user will verify.
 Return [] only if genuinely unreadable.`;
 
 // ── STATE ────────────────────────────────────────────────────────────────
-let apiKey      = localStorage.getItem('vhs-apikey')       || '';
-let ollamaUrl   = localStorage.getItem('vhs-ollama-url')   || defaultOllamaUrl();
-let ollamaModel = localStorage.getItem('vhs-ollama-model') || 'llava:7b';
-let fastMode    = localStorage.getItem('vhs-fast-mode') !== 'false';
-let omdbKey     = localStorage.getItem('vhs-omdb-key')     || '';
-let ollamaAvail = false;
-let inventory      = [];
-let cards          = [];   // pending review: [{uid, data, thumb, expanded, source}]
-let captureQueue   = [];   // staged captures: [{base64, thumb}]
-let uidSeq         = 0;
-let isCapturing    = false;
-let barcodeMode    = false;
-let barcodeRdr  = null;
-let lastCode    = { val:'', t:0 };
-let wallMode    = 0; // 0=list, 1=cover wall, 2=spine landscape, 3=stacksup (upright)
-let selectedId  = null;
-let isNewTape   = false;
-let selectedIds = new Set();
-let cropFrac    = { x:.12, y:.08, w:.76, h:.84 };
-let bcZoom      = 0.7;
-let torchOn     = false;
-let dragging=false, resizing=false, dragOrig={};
-let editingId=null;
-const pendingEdits=new Map();
+export let apiKey      = localStorage.getItem('vhs-apikey')       || '';
+export let ollamaUrl   = localStorage.getItem('vhs-ollama-url')   || defaultOllamaUrl();
+export let ollamaModel = localStorage.getItem('vhs-ollama-model') || 'llava:7b';
+export let fastMode    = localStorage.getItem('vhs-fast-mode') !== 'false';
+export let omdbKey     = localStorage.getItem('vhs-omdb-key')     || '';
+export let ollamaAvail = false;
+export let cards          = [];   // pending review: [{uid, data, thumb, expanded, source}]
+export let captureQueue   = [];   // staged captures: [{base64, thumb}]
+export let uidSeq         = 0;
+export let isCapturing    = false;
+export let barcodeMode    = false;
+export let barcodeRdr     = null;
+export let lastCode       = { val:'', t:0 };
+export let cropFrac       = { x:.12, y:.08, w:.76, h:.84 };
+export let bcZoom         = 0.7;
+export let torchOn        = false;
+export let dragging       = false, resizing = false, dragOrig = {};
+export let editingId      = null;
+export const pendingEdits = new Map();
+
+// Re-export inventory state getters/setters
+export { inventory, getInventory, setInventory, getSelectedId, setSelectedId, getIsNewTape, setIsNewTape, getSelectedIds, getWallMode, setWallMode };
 
 function defaultOllamaUrl() {
   return location.protocol==='file:' ? 'http://localhost:11434' : '/api/ollama';
 }
 
 // ── CONSTANTS ────────────────────────────────────────────────────────────
-const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const FORMAT_LIST = ['VHS','DVD','Blu-ray','Betamax','LaserDisc','8mm/Hi8','Digital','Other'];
-const colFilters = {title:'',label:'',format:'',condition:'',status:'',tags:'',yrFrom:'',yrTo:''};
-const GENRES = ['Horror','Comedy','Action','Drama','Sci-Fi','Thriller','Documentary','Animation','Romance','Mystery','Western','Musical','Fantasy','Crime','Family','Foreign','Anime','SOV','Cult','Sports'];
-const CROP_PRESETS = {
+export const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+export const FORMAT_LIST = ['VHS','DVD','Blu-ray','Betamax','LaserDisc','8mm/Hi8','Digital','Other'];
+export const colFilters = {title:'',label:'',format:'',condition:'',status:'',tags:'',yrFrom:'',yrTo:''};
+export const GENRES = ['Horror','Comedy','Action','Drama','Sci-Fi','Thriller','Documentary','Animation','Romance','Mystery','Western','Musical','Fantasy','Crime','Family','Foreign','Anime','SOV','Cult','Sports'];
+export const CROP_PRESETS = {
   default:{x:.05,y:.05,w:.9,h:.9},
   cover:{x:.2,y:.1,w:.6,h:.78},
   spine:{x:.38,y:.12,w:.24,h:.66},
