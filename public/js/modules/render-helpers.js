@@ -1,5 +1,5 @@
 // ── RENDER HELPERS ────────────────────────────────────────────────────────────
-const esc = s => String(s).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 function _cropStyle(t, role, includeRotate) {
   const c = (t.photo_crop || {})[role];

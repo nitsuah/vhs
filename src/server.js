@@ -7,6 +7,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
 const https = require('https');
 const fs = require('fs');
+const rateLimit = require('express-rate-limit');
 
 // Local modules
 const { PORT, HTTPS_PORT, OLLAMA, OMDB_API_KEY } = require('./modules/config');
@@ -100,11 +101,19 @@ app.use(
   })
 );
 
+// Rate limiters for tape endpoints
+const tapeLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false
+});
+const tapeWriteLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false
+});
+
 // ── Tapes CRUD ─────────────────────────────────────────────────────────────────
-app.get('/api/tapes', tapesGetHandler);
-app.post('/api/tapes', tapesPostHandler);
-app.put('/api/tapes/:id', tapesPutHandler);
-app.delete('/api/tapes/:id', tapesDeleteHandler);
+app.get('/api/tapes', tapeLimiter, tapesGetHandler);
+app.post('/api/tapes', tapeLimiter, tapesPostHandler);
+app.put('/api/tapes/:id', tapeWriteLimiter, tapesPutHandler);
+app.delete('/api/tapes/:id', tapeWriteLimiter, tapesDeleteHandler);
 
 // ── Lookup endpoints ───────────────────────────────────────────────────────────
 app.get('/api/lookup/barcode/:code', async (req, res) => {
@@ -176,7 +185,8 @@ app.get('/api/lookup', async (req, res) => {
   const omdbKey = (req.headers['x-omdb-key'] || OMDB_API_KEY).trim();
   const noai = req.query.noai === '1';
 
-  const prompt = `You are VHS collectibles expert. For title: "${title.replace(/"/g, '\\"')}"
+  const safeTitle = title.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const prompt = `You are VHS collectibles expert. For title: "${safeTitle}"
 Return ONLY JSON object — no other text:
 {"year":"1984","label":"Orion Pictures","format":"VHS","value_low":"8","value_high":"25"}
 Rules: year=4-digit release year, label=VHS distributor/studio, value_low/value_high=USD resale range in good condition.
@@ -361,8 +371,7 @@ if (require.main === module) {
           cert: fs.readFileSync(srvCrt),
           key: fs.readFileSync(srvKey),
           ca: fs.readFileSync(caCert),
-          requestCert: false,
-          rejectUnauthorized: false
+          requestCert: false
         }, app);
         server.listen(HTTPS_PORT, '0.0.0.0', () => console.log(`✓ HTTPS server listening on :${HTTPS_PORT}`));
       }

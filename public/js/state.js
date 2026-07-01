@@ -63,7 +63,7 @@ function defaultOllamaUrl() {
 }
 
 // ── CONSTANTS ────────────────────────────────────────────────────────────
-export const esc = s => String(s).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
+export const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 export const FORMAT_LIST = ['VHS','DVD','Blu-ray','Betamax','LaserDisc','8mm/Hi8','Digital','Other'];
 export const colFilters = {title:'',label:'',format:'',condition:'',status:'',tags:'',yrFrom:'',yrTo:''};
 export const GENRES = ['Horror','Comedy','Action','Drama','Sci-Fi','Thriller','Documentary','Animation','Romance','Mystery','Western','Musical','Fantasy','Crime','Family','Foreign','Anime','SOV','Cult','Sports'];
