@@ -83,12 +83,7 @@ async function lookupTitleHandler(req, res) {
 	    .replace(/\\/g, '\\\\')  // Escape backslashes first
 	    .replace(/`/g, '\\`')
 	    .replace(/\${/g, '\\${');
-	  // Escape prompt content for JSON structure to prevent injection
-  const escapedTitle = title
-    .replace(/\\/g, '\\\\')  // Escape backslashes first
-    .replace(/`/g, '\\`')
-    .replace(/\${/g, '\\${');
-  const prompt = `You are VHS collectibles expert. For title: "${escapedTitle}"
+	  const prompt = `You are VHS collectibles expert. For title: "${escapedTitle}"
 Return ONLY JSON object — no other text:
 {"year":"1984","label":"Orion Pictures","format":"VHS","value_low":"8","value_high":"25"}
 Rules: year=4-digit release year, label=VHS distributor/studio, value_low/value_high=USD resale range in good condition.

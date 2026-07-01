@@ -8,7 +8,7 @@ const { LOG_LIMIT } = require('./config');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: (process.env.DATABASE_URL || '').includes('neon')
-    ? { rejectUnauthorized: false }
+    ? { rejectUnauthorized: true }
     : false,
 });
 
