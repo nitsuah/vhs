@@ -1,6 +1,6 @@
 // ── ROUTES: JOBS ──────────────────────────────────────────────────────────────
-const { pool } = require('./db');
-const { logActivity } = require('./activity-log');
+const { pool } = require('../db');
+const { logActivity } = require('../activity-log');
 const { jobId, reviewItemId } = require('./ids');
 
 async function jobsReadyHandler(req, res) {

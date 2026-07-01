@@ -1,5 +1,5 @@
 // ── ROUTES: LOOKUP ────────────────────────────────────────────────────────────
-const { pool } = require('./db');
+const { pool } = require('../db');
 const { callOmdb, enhancedLookup } = require('../omdb');
 const { OMDB_API_KEY, OLLAMA, OLLAMA_MODEL } = require('../config');
 const { parseJsonObject } = require('../json-parser');

@@ -1,9 +1,23 @@
-// ── ROUTES: SYSTEM HEALTH & STATIC ─────────────────────────────────────────────
+// ── System health ───────────────────────────────────────────────────────────────
+const express = require('express');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
-const { pool } = require('./db');
+
+// Rate limit for all routes
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limit to all routes
+app.use('/', limiter);
+
+const { pool } = require('../db');
 const { callOmdb } = require('../omdb');
-const { pingOllama } = require('../../ollama');
+const { pingOllama } = require('../ollama');
 const { OMDB_API_KEY, CERT_DIR, OLLAMA, OLLAMA_MODEL } = require('../config');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
@@ -23,6 +37,7 @@ async function healthHandler(req, res) {
     const httpsCertsOk = fs.existsSync(caCert);
 
     res.json({
+      status: 'ok',
       db: dbRes.status === 'fulfilled' ? 'ok' : 'fail',
       ollama: ollamaOk.status === 'fulfilled' && ollamaOk.value ? 'ok' : 'fail',
       omdb: omdbOk.status === 'fulfilled' && omdbOk.value.ok ? 'ok' : 'fail',
@@ -47,6 +62,7 @@ function registerStaticAndProxy(app) {
   app.use(express.static(publicDir, { index: false }));
   app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 
+  // Proxy for Ollama
   app.use(
     '/api/ollama',
     createProxyMiddleware({
@@ -55,11 +71,8 @@ function registerStaticAndProxy(app) {
       pathRewrite: { '^/api/ollama': '' },
       proxyTimeout: 300000,
       timeout: 300000,
-      on: {
-        error: (err, _req, res) => {
-          res.status(502).json({ error: 'Ollama unavailable: ' + err.message });
-        },
-      },
+      rejectUnauthorized: true,
+      on: { error: (err, _req, res) => res.status(502).json({ error: 'Ollama unavailable: ' + err.message }) },
     })
   );
 }

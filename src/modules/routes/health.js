@@ -1,7 +1,7 @@
 // ── ROUTES: HEALTH ────────────────────────────────────────────────────────────
-const { pool } = require('./db');
-const { logActivity } = require('./activity-log');
-const { OLLAMA } = require('./config');
+const { pool } = require('../db');
+const { logActivity } = require('../activity-log');
+const { OLLAMA } = require('../config');
 
 async function healthHandler(req, res) {
   try {

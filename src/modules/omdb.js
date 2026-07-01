@@ -95,10 +95,10 @@ async function enhancedLookup({ title, imdbId }, apiKey = OMDB_API_KEY) {
   try {
     const success = result !== null;
     await pool.query(
-      `INSERT INTO omdb_lookups (id, title_hash, original_title, normalized_title, lookup_data,
-        year, label, imdb_id, poster, genres, source, found_at, attempts, last_attempt, success)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-       ON CONFLICT (id) DO NOTHING`,
+      'INSERT INTO omdb_lookups (id, title_hash, original_title, normalized_title, lookup_data,' +
+        'year, label, imdb_id, poster, genres, source, found_at, attempts, last_attempt, success) ' +
+      'VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) ' +
+      'ON CONFLICT (id) DO NOTHING',
       [
         lookupId,
         titleHash,
@@ -118,11 +118,11 @@ async function enhancedLookup({ title, imdbId }, apiKey = OMDB_API_KEY) {
       ]
     );
   } catch (e) {
+    // Safe error logging without externally-controlled format string
     console.warn('Failed to persist OMDb lookup:', e.message);
   }
 
   return result;
-}
 
 async function tryVHSVariations(originalTitle, apiKey) {
   const variations = [
