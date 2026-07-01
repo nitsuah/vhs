@@ -227,4 +227,11 @@ async function callOmdb({ title, imdbId }, apiKey = OMDB_API_KEY) {
   };
 }
 
-module.exports = { enhancedLookup, callOmdb, cleanupOldLookups, tryVHSVariations, normalizeTitleForLookup, levenshteinDistance };
+module.exports = {
+  enhancedLookup,
+  callOmdb,
+  cleanupOldLookups,
+  tryVHSVariations,
+  normalizeTitleForLookup,
+  levenshteinDistance
+};
