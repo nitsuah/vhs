@@ -35,6 +35,12 @@ app.use(express.json({ limit: '50mb' }));
 
 // ── Activity log SSE endpoint ──────────────────────────────────────────────────
 app.get('/api/logs', (req, res) => {
+  const wantsSSE = req.headers.accept?.includes('text/event-stream');
+  if (!wantsSSE) {
+    // Regular request: return log array
+    return res.json(getActivityLog());
+  }
+  // SSE stream
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -152,8 +158,9 @@ app.get('/api/lookup/barcode/:code', async (req, res) => {
       if (r.ok) {
         const d = await r.json();
         const key = `ISBN:${code}`;
-        if (d[key]) {
-          const b = d[key];
+        // Handle both formats: { ISBN:... } and direct response
+        const b = d[key] || d;
+        if (b && (b.title || b.publishers?.length)) {
           found = {
             title: b.title || '',
             year: (b.publish_date || '').match(/\d{4}/)?.[0] || '',
@@ -206,6 +213,11 @@ Omit fields you're unsure about. Return {} if completely unknown.`;
   let ai = {};
   try { ai = JSON.parse(ollamaRes.response || '{}'); } catch {}
 
+  // If both fail, return empty object
+  if (!omdb && (!ai || Object.keys(ai).length === 0)) {
+    return res.json({});
+  }
+
   const result = {
     title,
     year: omdb?.year || ai.year || '',
@@ -214,8 +226,12 @@ Omit fields you're unsure about. Return {} if completely unknown.`;
     value_low: ai.value_low || '',
     value_high: ai.value_high || '',
     imdb_id: omdb?.imdb_id || '',
+    poster: omdb?.poster && omdb.poster !== 'N/A' ? omdb.poster : undefined,
     source: omdb ? 'omdb_enhanced' : 'ai'
   };
+
+  // Remove undefined poster
+  if (result.poster === undefined) delete result.poster;
 
   res.json(result);
 });
@@ -241,6 +257,38 @@ app.get('/api/trailer', async (req, res) => {
 });
 
 // ── Job endpoints ──────────────────────────────────────────────────────────────
+app.post('/api/jobs', async (req, res) => {
+  const { image, barcode } = req.body;
+  if (!image) return res.status(400).json({ error: 'image required' });
+  const id = jobId();
+  const now = new Date().toISOString();
+  try {
+    await pool.query(
+      'INSERT INTO upload_jobs(id,image,barcode,status,created_at) VALUES($1,$2,$3,$4,$5)',
+      [id, image, barcode || null, 'pending', now]
+    );
+    logActivity('info', `Upload job created: ${id}`);
+    res.status(201).json({ id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/fetch-image', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return res.status(404).json({ error: 'image not found' });
+    const buf = await r.arrayBuffer();
+    const b64 = Buffer.from(buf).toString('base64');
+    const ct = r.headers.get('content-type') || 'image/jpeg';
+    res.json({ dataUrl: `data:${ct};base64,${b64}` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.delete('/api/jobs/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
@@ -252,11 +300,15 @@ app.delete('/api/jobs/:id', async (req, res) => {
 
 app.post('/api/jobs/retry-failed', async (_req, res) => {
   try {
-    await pool.query("UPDATE upload_jobs SET status='pending' WHERE status='failed' AND retry_count<3");
-    res.json({ ok: true });
+    const { rowCount } = await pool.query("UPDATE upload_jobs SET status='pending' WHERE status='failed' AND retry_count<3");
+    res.json({ ok: true, requeued: rowCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get('/api/jobs/ready', async (_req, res) => {
+  res.json([]);
 });
 
 // ── Review endpoints ───────────────────────────────────────────────────────────
@@ -277,12 +329,21 @@ app.post('/api/review', async (req, res) => {
   }
 });
 
-app.get('/api/jobs/ready', async (_req, res) => {
+app.get('/api/review/pending', async (_req, res) => {
   try {
     const { rows } = await pool.query(
-      "SELECT id, data, thumb, created_at FROM review_items WHERE status='pending' ORDER BY created_at DESC LIMIT 50"
+      "SELECT id, job_id, data, thumb, source, status, fail_reason, created_at FROM review_items WHERE status IN ('pending','failed') ORDER BY created_at DESC"
     );
-    res.json(rows.map(r => ({ id: r.id, data: r.data, thumb: r.thumb, created_at: r.created_at })));
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/review/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM review_items WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -295,9 +356,33 @@ app.get('/api/jobs/status', async (_req, res) => {
       pool.query("SELECT COUNT(*) c FROM review_items WHERE status='pending'")
     ]);
     const counts = { pending: 0, processing: 0, done: 0, failed: 0, review_pending: 0 };
-    jobsRes.rows.forEach(r => { counts[r.status] = parseInt(r.c, 10); });
-    counts.review_pending = parseInt(reviewRes.rows[0]?.c || '0', 10);
+    jobsRes.rows.forEach(r => { counts[r.status] = parseInt(r.c || r.count || '0', 10); });
+    counts.review_pending = parseInt(reviewRes.rows[0]?.c || reviewRes.rows[0]?.count || '0', 10);
     res.json(counts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/jobs/inflight', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, thumb, created_at FROM upload_jobs WHERE status IN ('pending','processing') ORDER BY created_at"
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/jobs/:id/retry', async (req, res) => {
+  try {
+    const { rowCount } = await pool.query(
+      "UPDATE upload_jobs SET status='pending', error=NULL, retry_count=retry_count+1 WHERE id=$1 AND status='failed' AND retry_count<3",
+      [req.params.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'not found or not retryable' });
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -308,6 +393,24 @@ app.get('/api/jobs/:id', async (req, res) => {
     const { rows } = await pool.query('SELECT id, status, result, error, retry_count FROM upload_jobs WHERE id=$1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'not found' });
     res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/jobs/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/jobs/retry-failed', async (_req, res) => {
+  try {
+    const { rowCount } = await pool.query("UPDATE upload_jobs SET status='pending' WHERE status='failed' AND retry_count<3");
+    res.json({ ok: true, requeued: rowCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -327,11 +430,6 @@ app.post('/api/analytics/outcome', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-// ── Static & SPA fallback ──────────────────────────────────────────────────────
-const publicDir = path.join(__dirname, '..', '..', 'public');
-app.use(express.static(publicDir, { index: false }));
-app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 if (require.main === module) {
