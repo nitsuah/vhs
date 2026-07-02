@@ -1,15 +1,6 @@
 'use strict';
-const { Pool } = require('pg');
-const { app, callOmdb, normalizeTitleForLookup, levenshteinDistance, enhancedLookup } = require('../src/server.js');
 
-jest.mock('pg');
-jest.mock('fs');
-jest.mock('child_process');
-
-// ── Mock process.env before importing server ───────────────────────────────────
-process.env.OMDB_API_KEY = 'test-omdb-key';
-
-// ── Mock pg before importing server ────────────────────────────────────────────
+// Set up all mocks BEFORE importing server
 const mockQuery = jest.fn();
 const mockPool = {
   query: mockQuery,
@@ -17,16 +8,15 @@ const mockPool = {
   end: jest.fn(),
 };
 jest.mock('pg', () => ({ Pool: jest.fn(() => mockPool) }));
-
-// ── Mock fetch globally ─────────────────────────────────────────────────────
-const originalFetch = global.fetch;
-global.fetch = jest.fn();
-
-// ── Mock fs and child_process ───────────────────────────────────────────────
 jest.mock('fs');
 jest.mock('child_process');
 
-// Import AFTER mocks are set up
+// Set up environment before importing server
+process.env.OMDB_API_KEY = 'test-omdb-key';
+const originalFetch = global.fetch;
+global.fetch = jest.fn();
+
+// Import server AFTER mocks are set up
 const { app, callOmdb, normalizeTitleForLookup, levenshteinDistance, enhancedLookup } = require('../src/server.js');
 
 // ── Test data factory functions ─────────────────────────────────────────────
