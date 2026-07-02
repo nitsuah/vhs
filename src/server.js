@@ -256,8 +256,16 @@ app.get('/api/trailer', async (req, res) => {
   }
 });
 
+// ── Rate limiter for job creation ───────────────────────────────────────────
+const jobsCreateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // ── Job endpoints ──────────────────────────────────────────────────────────────
-app.post('/api/jobs', async (req, res) => {
+app.post('/api/jobs', jobsCreateLimiter, async (req, res) => {
   const { image, barcode } = req.body;
   if (!image) return res.status(400).json({ error: 'image required' });
   const id = jobId();

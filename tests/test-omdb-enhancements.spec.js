@@ -1,6 +1,6 @@
 'use strict';
 
-// Set up all mocks BEFORE importing server
+// Mock all external dependencies BEFORE importing server
 const mockQuery = jest.fn();
 const mockPool = {
   query: mockQuery,
