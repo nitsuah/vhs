@@ -28,23 +28,29 @@ function levenshteinDistance(s1, s2) {
 function normalizeTitleForLookup(title) {
   if (!title) return '';
   const tagsToRemove = ['vhs', 'dvd', 'bluray', 'blu-ray', 'digital', 'other', 'collection', 'special',
-    'edition', "director's cut", 'extended', 'unrated', '3d', 'imax', 'collectible', 'movie', 'film', 'sde'];
+    'edition', "director's cut", 'extended', 'unrated', '3d', 'imax', 'collectible', 'sde'];
   const tagsPattern = tagsToRemove.map(t => `\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).join('|');
 
+  // Remove years and media tags in any order, more comprehensively
   return title
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, ' ')
-    .replace(/[&+]/g, ' and ')
-    // Remove media/ed media/edition tags with surrounding parentheses like "(VHS)" "(Special Edition)"
-    .replace(new RegExp(`\\(\\s*(?:${tagsPattern})\\s*\\)`, 'gi'), '')
-    // Remove standalone media/edition tags
-    .replace(new RegExp(tagsPattern, 'gi'), '')
+    // First remove years in parentheses and standalone years
+    .replace(/\(\s*\d{4}\s*\)/g, '')
+    .replace(/\b\d{4}\b/g, '')
+    // Remove media tags with brackets and standard media formats
+    .replace(new RegExp(`\\(\\s*(?:${tagsToRemove.join('|')})\\s*\\)`, 'gi'), '')
+    .replace(new RegExp(`\\b(?:${tagsToRemove.join('|')})\\b`, 'gi'), '')
+    // Handle general punctuation (including dots) - FIX: make sure multiple dots are removed properly
+    .replace(/[!?:'"“”‘’\[\]{}()]+/g, ' ')
+    .replace(/\.{2,}/g, ' ')
+    // Clean up remaining text
     .replace(/[µ]|[^\x00-\x7F]/g, '')
     .replace(/^the\s+/i, '')
     .replace(/^(an?)\s+/i, '')
-    .replace(/[!?:,…'"“”‘’\-–—\[\]{}()]+/g, ' ')
-    .replace(/\s{2,}/g, ' ')
+    // Remove any remaining dashes or separators
+    .replace(/[-–—]+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 

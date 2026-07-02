@@ -6,19 +6,28 @@ jest.mock('pg');
 jest.mock('fs');
 jest.mock('child_process');
 
-// ── Test configuration ───────────────────────────────────────────────────────
-const TEST_CONFIG = {
-  OMDB_BASE_URL: 'https://www.omdbapi.com/',
-  TIMEOUT: 5000,
-  MAX_RETRIES: 3,
-};
-
 // ── Mock process.env before importing server ───────────────────────────────────
 process.env.OMDB_API_KEY = 'test-omdb-key';
+
+// ── Mock pg before importing server ────────────────────────────────────────────
+const mockQuery = jest.fn();
+const mockPool = {
+  query: mockQuery,
+  connect: jest.fn().mockResolvedValue({}),
+  end: jest.fn(),
+};
+jest.mock('pg', () => ({ Pool: jest.fn(() => mockPool) }));
 
 // ── Mock fetch globally ─────────────────────────────────────────────────────
 const originalFetch = global.fetch;
 global.fetch = jest.fn();
+
+// ── Mock fs and child_process ───────────────────────────────────────────────
+jest.mock('fs');
+jest.mock('child_process');
+
+// Import AFTER mocks are set up
+const { app, callOmdb, normalizeTitleForLookup, levenshteinDistance, enhancedLookup } = require('../src/server.js');
 
 // ── Test data factory functions ─────────────────────────────────────────────
 function createMockOmdbSuccess(title, year = '1999', label = 'Test Studio', imdb_id = 'tt1234567', poster = '', genres = []) {
@@ -42,27 +51,11 @@ function createMockOmdbError(error = 'Movie not found!') {
 
 // ── Main test suite ─────────────────────────────────────────────────────────
 describe('Enhanced OMDb Lookup Improvements', () => {
-  let mockPool;
-  let mockQuery;
-
-  beforeEach(() => {
-    mockQuery = jest.fn();
-    mockPool = {
-      query: mockQuery,
-      connect: jest.fn().mockResolvedValue(mockPool),
-      end: jest.fn(),
-    };
-    Pool.mockImplementation(() => mockPool);
-  });
-
   afterEach(() => {
     jest.clearAllMocks();
     delete process.env.OMDB_API_KEY;
     global.fetch = originalFetch;
   });
-
-  // ── Title Normalization Tests ───────────────────────────────────────────────
-  describe('Title Normalization', () => {
     test('should normalize VHS titles correctly', () => {
       const title = 'The Godfather (VHS)';
       const normalized = normalizeTitleForLookup(title);
