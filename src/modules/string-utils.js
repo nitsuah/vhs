@@ -27,30 +27,12 @@ function levenshteinDistance(s1, s2) {
 // Enhanced title normalization for OMDb lookup
 function normalizeTitleForLookup(title) {
   if (!title) return '';
-  const tagsToRemove = ['vhs', 'dvd', 'bluray', 'blu-ray', 'digital', 'other', 'collection', 'special',
-    'edition', "director's cut", 'extended', 'unrated', '3d', 'imax', 'collectible', 'sde'];
-  const tagsPattern = tagsToRemove.map(t => `\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).join('|');
-
-  // Remove years and media tags in any order, more comprehensively
   return title
     .toLowerCase()
-    .trim()
-    // First remove years in parentheses and standalone years
-    .replace(/\(\s*\d{4}\s*\)/g, '')
-    .replace(/\b\d{4}\b/g, '')
-    // Remove media tags with brackets and standard media formats
-    .replace(new RegExp(`\\(\\s*(?:${tagsToRemove.join('|')})\\s*\\)`, 'gi'), '')
-    .replace(new RegExp(`\\b(?:${tagsToRemove.join('|')})\\b`, 'gi'), '')
-    // Handle general punctuation (including dots) - FIX: make sure multiple dots are removed properly
-    .replace(/[!?:'"“”‘’\[\]{}()]+/g, ' ')
-    .replace(/\.{2,}/g, ' ')
-    // Clean up remaining text
-    .replace(/[µ]|[^\x00-\x7F]/g, '')
-    .replace(/^the\s+/i, '')
-    .replace(/^(an?)\s+/i, '')
-    // Remove any remaining dashes or separators
-    .replace(/[-–—]+/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
+    .replace(/^the\s+/i, '')
+    .replace(/an?\s+/i, '')
     .trim();
 }
 
