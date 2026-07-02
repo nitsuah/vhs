@@ -13,6 +13,8 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
   # ── GPU / native-Windows Ollama variant ────────────────────────────────
@@ -52,6 +54,25 @@ services:
   #            count: all
   #            capabilities: [gpu]
 
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: vhs-db
+      POSTGRES_USER: neondb_owner
+      POSTGRES_PASSWORD: vhs-local
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neondb_owner -d vhs-db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
   # ── HTTPS tunnel (mobile camera access) ───────────────────────────────────
   # Exposes the app at a random *.trycloudflare.com HTTPS URL.
   # URL is printed in logs: docker compose logs cloudflared | grep trycloudflare
@@ -80,3 +101,4 @@ services:
 volumes:
   ollama_models:
   certs:
+  pgdata:

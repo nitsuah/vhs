@@ -7,9 +7,13 @@ const { LOG_LIMIT } = require('./config');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: (process.env.DATABASE_URL || '').includes('neon')
-    ? { rejectUnauthorized: true }
-    : false,
+  ssl: (() => {
+    const url = process.env.DATABASE_URL || '';
+    const host = url.replace(/^.*@/, '').replace(/[:/].*$/, '');
+    return host.includes('neon')
+      ? { rejectUnauthorized: true }
+      : false;
+  })(),
 });
 
 async function runMigrations() {
