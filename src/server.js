@@ -10,24 +10,24 @@ const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 
 // Local modules
-const { PORT, HTTPS_PORT, OLLAMA, OMDB_API_KEY } = require('./modules/config');
-const { pool, runMigrations } = require('./modules/db');
-const { ensureCerts } = require('./modules/certs');
-const { logActivity, getActivityLog, getLogClients } = require('./modules/activity-log');
-const { healthHandler } = require('./modules/routes/health');
-const { jobId, reviewItemId, analyticsId } = require('./modules/ids');
-const { enhancedLookup, callOmdb, normalizeTitleForLookup, levenshteinDistance } = require('./modules/omdb');
-const { logScanAnalytics } = require('./modules/analytics');
-const { processJobs } = require('./modules/worker');
-const { callOllamaServer, pingOllama } = require('./modules/ollama');
-const { parseJsonArray } = require('./modules/json-parser');
-const { withRetry } = require('./modules/retry');
+const { PORT, HTTPS_PORT, OLLAMA, OMDB_API_KEY } = require('./config');
+const { pool, runMigrations } = require('./db');
+const { ensureCerts } = require('./certs');
+const { logActivity, getActivityLog, getLogClients } = require('./activity-log');
+const { healthHandler } = require('./routes/health');
+const { jobId, reviewItemId, analyticsId } = require('./ids');
+const { enhancedLookup, callOmdb, normalizeTitleForLookup, levenshteinDistance } = require('./omdb');
+const { logScanAnalytics } = require('./analytics');
+const { processJobs } = require('./worker');
+const { callOllamaServer, pingOllama } = require('./ollama');
+const { parseJsonArray } = require('./json-parser');
+const { withRetry } = require('./retry');
 const {
   tapesGetHandler,
   tapesPostHandler,
   tapesPutHandler,
   tapesDeleteHandler
-} = require('./modules/routes/tapes');
+} = require('./routes/tapes');
 
 // ── App setup ──────────────────────────────────────────────────────────────────
 const app = express();
