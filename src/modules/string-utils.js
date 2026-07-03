@@ -53,6 +53,8 @@ function normalizeTitleForLookup(title) {
     .replace(/^(an?)\s+/i, '')
     // Remove em/en dashes and other separators (but keep regular hyphens in words)
     .replace(/[–—]+/g, ' ')
+    // Remove leading/trailing hyphens and separators
+    .replace(/^[-–—\s]+|[-–—\s]+$/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -63,6 +65,14 @@ function normalizeTitleForLookup(title) {
   if (!s && ['movie', 'film', 'title', 'video', 'tape'].some(t => new RegExp(`\\b${t}\\b`, 'i').test(title))) {
     return 'movie';
   }
+
+  // If result has no letter characters (only numbers/symbols/version-like), return empty
+  // Strip version-like suffixes (vX, VX, vgX, ver X, version X, etc.) before checking
+  s = s.replace(/\b(v|vg|ver|version)\s*\d+(\.\d+)*\b/gi, '').trim();
+  // Also strip trailing version-like patterns without word boundary (e.g., "123vg2.0" -> "123")
+  s = s.replace(/\d+([.\d]*)(v|vg|ver|version)?$/gi, '').trim();
+  // Strip trailing version-like letters
+  s = s.replace(/(vg|ver|version|v)$/gi, '').trim();
 
   // If result has no letter characters (only numbers/symbols), return empty
   if (!/[a-z]/.test(s)) return '';
