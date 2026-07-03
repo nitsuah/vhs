@@ -1,6 +1,20 @@
-const { normalizeTitleForLookup } = require('./src/modules/string-utils.js');
+const { levenshteinDistance, normalizeTitleForLookup } = require('./src/modules/string-utils.js');
 
-const testCases = [
+const levenshteinTests = [
+  { s1: 'test', s2: 'test', expected: 0 },
+  { s1: 'test', s2: 'testing', expected: 3 },
+  { s1: 'test', s2: 'tent', expected: 1 },
+  { s1: 'testing', s2: 'test', expected: 3 },
+  { s1: '', s2: 'test', expected: 4 },
+  { s1: '', s2: '', expected: 0 },
+  { s1: 'kitten', s2: 'sitting', expected: 3 },
+  { s1: 'algorithm', s2: 'altruistic', expected: 6 },
+  { s1: 'TEST', s2: 'test', expected: 4 },
+  { s1: 'abc', s2: 'xyz', expected: 3 },
+  { s1: 'The quick brown fox jumps over the lazy dog', s2: 'The quick brown fox leaped over the lazy cat', expected: 6 },
+];
+
+const normalizeTests = [
   { input: 'The Godfather (VHS)', expected: 'godfather' },
   { input: 'THE DARK KNIGHT DVD', expected: 'dark knight' },
   { input: 'Inception (Blu-ray) Special Edition', expected: 'inception' },
@@ -35,6 +49,8 @@ const testCases = [
   { input: '!@#$%^&*()1234567890VG2.0', expected: '' },
   { input: 'A Very Long Movie Title That Goes On and On and On and On and On and On and On and On and On and On', expected: 'a very long movie title that goes on and on and on and on and on and on and on and on and on and on' }
 ];
+
+const testCases = [...normalizeTests];
 
 function runTests() {
   let passed = 0;
