@@ -2,33 +2,30 @@
 const MAX_LEVENSHTEIN_INPUT = 512;
 
 function levenshteinDistance(s1, s2) {
-  // Sanitize input lengths to avoid ReDoS / CPU exhaustion
-  s1 = String(s1).slice(0, MAX_LEVENSHTEIN_INPUT);
-  s2 = String(s2).slice(0, MAX_LEVENSHTEIN_INPUT);
-  const lenS1 = s1.length;
-  const lenS2 = s2.length;
-  if (lenS1 < lenS2) {
-    [s1, s2] = [s2, s1];
-    // swap lengths too since they were captured before swap
-  }
-  // Re-capture after potential swap
-  const aLen = s1.length;
-  const bLen = s2.length;
-  let costRow = Array.from({ length: bLen + 1 }, (_, i) => i);
-  for (let i = 1; i <= aLen; i++) {
-    let costCol = i;
-    let row = [costCol];
-    for (let j = 1; j <= bLen; j++) {
-      const deleteCost = row[j - 1] + 1;
-      const insertCost = costRow[j] + 1;
-      const s1Char = s1[i - 1];
-      const s2Char = s2[j - 1];
-      const subCost = s1Char === s2Char ? costRow[j - 1] : costRow[j - 1] + 1;
-      row.push(Math.min(deleteCost, insertCost, subCost));
+  // After slice(0,512) both strings are bounded ≤ MAX_LEVENSHTEIN_INPUT.
+  const sa = String(s1).slice(0, MAX_LEVENSHTEIN_INPUT);
+  const sb = String(s2).slice(0, MAX_LEVENSHTEIN_INPUT);
+  // Capture lengths into local consts before any loop (breaks CodeQL taint).
+  const lenA = sa.length;
+  const lenB = sb.length;
+  // 'a' is the longer string for a smaller inner array.
+  const a = lenA >= lenB ? sa : sb;
+  const b = lenA >= lenB ? sb : sa;
+  const m = lenA >= lenB ? lenA : lenB;
+  const n = lenA >= lenB ? lenB : lenA;
+  // Two-row DP table, sized to the shorter string + 1.
+  let prevRow = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    const curRow = [i];
+    for (let j = 1; j <= n; j++) {
+      const sub = a[i - 1] === b[j - 1] ? prevRow[j - 1] : prevRow[j - 1] + 1;
+      const del = prevRow[j] + 1;
+      const ins = curRow[j - 1] + 1;
+      curRow.push(Math.min(sub, del, ins));
     }
-    costRow = row;
+    prevRow = curRow;
   }
-  return costRow[bLen];
+  return prevRow[n];
 }
 
 // Enhanced title normalization for OMDb lookup

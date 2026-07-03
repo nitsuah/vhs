@@ -113,7 +113,7 @@ app.get('/api/system', defaultLimiter, async (req, res) => {
 });
 
 // ── CA cert download ───────────────────────────────────────────────────────────
-app.get('/api/ca-cert', (req, res) => {
+app.get('/api/ca-cert', defaultLimiter, (req, res) => {
   const caCert = path.join('/app/certs', 'ca.crt');
   if (!fs.existsSync(caCert)) return res.status(404).json({ error: 'CA cert not found' });
   res.setHeader('Content-Type', 'application/x-x509-ca-cert');
@@ -302,11 +302,13 @@ app.post('/api/jobs', jobsCreateLimiter, async (req, res) => {
 });
 
 app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
-  const { url } = req.query;
-  if (!url) return res.status(400).json({ error: 'url required' });
-  if (!validatePublicUrl(url)) return res.status(403).json({ error: 'url not allowed' });
+  const rawUrl = req.query.url;
+  if (!rawUrl) return res.status(400).json({ error: 'url required' });
+  let targetUrl;
+  try { targetUrl = new URL(rawUrl); } catch { return res.status(400).json({ error: 'invalid url' }); }
+  if (!validatePublicUrl(rawUrl)) return res.status(403).json({ error: 'url not allowed' });
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    const r = await fetch(targetUrl.href, { signal: AbortSignal.timeout(15000) });
     if (!r.ok) return res.status(404).json({ error: 'image not found' });
     const buf = await r.arrayBuffer();
     const b64 = Buffer.from(buf).toString('base64');
