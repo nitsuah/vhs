@@ -187,7 +187,7 @@ async function tryVHSVariations(originalTitle, apiKey) {
         };
       }
     } catch (e) {
-      console.warn(`OMDb variant lookup failed for "${variant}":`, e.message);
+      console.warn('OMDb variant lookup failed:', variant, e.message);
     }
   }
 

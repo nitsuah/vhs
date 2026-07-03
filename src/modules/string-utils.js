@@ -5,13 +5,20 @@ function levenshteinDistance(s1, s2) {
   // Sanitize input lengths to avoid ReDoS / CPU exhaustion
   s1 = String(s1).slice(0, MAX_LEVENSHTEIN_INPUT);
   s2 = String(s2).slice(0, MAX_LEVENSHTEIN_INPUT);
-  if (s1.length < s2.length) [s1, s2] = [s2, s1];
+  const lenS1 = s1.length;
   const lenS2 = s2.length;
-  let costRow = Array.from({ length: lenS2 + 1 }, (_, i) => i);
-  for (let i = 1; i <= s1.length; i++) {
+  if (lenS1 < lenS2) {
+    [s1, s2] = [s2, s1];
+    // swap lengths too since they were captured before swap
+  }
+  // Re-capture after potential swap
+  const aLen = s1.length;
+  const bLen = s2.length;
+  let costRow = Array.from({ length: bLen + 1 }, (_, i) => i);
+  for (let i = 1; i <= aLen; i++) {
     let costCol = i;
     let row = [costCol];
-    for (let j = 1; j <= lenS2; j++) {
+    for (let j = 1; j <= bLen; j++) {
       const deleteCost = row[j - 1] + 1;
       const insertCost = costRow[j] + 1;
       const s1Char = s1[i - 1];
@@ -21,7 +28,7 @@ function levenshteinDistance(s1, s2) {
     }
     costRow = row;
   }
-  return costRow[lenS2];
+  return costRow[bLen];
 }
 
 // Enhanced title normalization for OMDb lookup

@@ -9,6 +9,22 @@ const https = require('https');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 
+// Helper: block SSRF — only allow public http/https URLs
+function validatePublicUrl(urlStr) {
+  try {
+    const url = new URL(urlStr);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    const host = url.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') return false;
+    if (/^10\.\d+\.\d+\.\d+$/.test(host)) return false;
+    if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)) return false;
+    if (/^192\.168\.\d+\.\d+$/.test(host)) return false;
+    if (/^169\.254\.\d+\.\d+$/.test(host)) return false;
+    if (host.endsWith('.local') || host.endsWith('.internal')) return false;
+    return true;
+  } catch { return false; }
+}
+
 // Local modules
 const { PORT, HTTPS_PORT, OLLAMA, OMDB_API_KEY } = require('./modules/config');
 const { pool, runMigrations } = require('./modules/db');
@@ -56,11 +72,22 @@ app.get('/api/logs', (req, res) => {
   req.on('close', () => getLogClients().delete(res));
 });
 
+// ── API rate limiters ────────────────────────────────────────────────────────────
+const tapeLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false
+});
+const tapeWriteLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false
+});
+const defaultLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false
+});
+
 // ── Health ─────────────────────────────────────────────────────────────────────
 app.get('/api/health', healthHandler);
 
 // ── System info ────────────────────────────────────────────────────────────────
-app.get('/api/system', async (req, res) => {
+app.get('/api/system', defaultLimiter, async (req, res) => {
   try {
     const ollamaOk = await pingOllama();
     const { rows: tapeCount } = await pool.query('SELECT COUNT(*) FROM tapes');
@@ -107,14 +134,6 @@ app.use(
   })
 );
 
-// Rate limiters for tape endpoints
-const tapeLimiter = rateLimit({
-  windowMs: 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false
-});
-const tapeWriteLimiter = rateLimit({
-  windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false
-});
-
 // ── Tapes CRUD ─────────────────────────────────────────────────────────────────
 app.get('/api/tapes', tapeLimiter, tapesGetHandler);
 app.post('/api/tapes', tapeLimiter, tapesPostHandler);
@@ -122,7 +141,7 @@ app.put('/api/tapes/:id', tapeWriteLimiter, tapesPutHandler);
 app.delete('/api/tapes/:id', tapeWriteLimiter, tapesDeleteHandler);
 
 // ── Lookup endpoints ───────────────────────────────────────────────────────────
-app.get('/api/lookup/barcode/:code', async (req, res) => {
+app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {
   const code = req.params.code.trim().replace(/\s/g, '');
   if (!code) return res.status(400).json({ error: 'code required' });
   const omdbKey = (req.headers['x-omdb-key'] || OMDB_API_KEY).trim();
@@ -186,7 +205,7 @@ app.get('/api/lookup/barcode/:code', async (req, res) => {
   res.json(found);
 });
 
-app.get('/api/lookup', async (req, res) => {
+app.get('/api/lookup', defaultLimiter, async (req, res) => {
   const title = (req.query.title || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
   const omdbKey = (req.headers['x-omdb-key'] || OMDB_API_KEY).trim();
@@ -237,7 +256,7 @@ Omit fields you're unsure about. Return {} if completely unknown.`;
 });
 
 // ── YouTube trailer search ─────────────────────────────────────────────────────
-app.get('/api/trailer', async (req, res) => {
+app.get('/api/trailer', defaultLimiter, async (req, res) => {
   const title = (req.query.title || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
   try {
@@ -282,9 +301,10 @@ app.post('/api/jobs', jobsCreateLimiter, async (req, res) => {
   }
 });
 
-app.get('/api/fetch-image', async (req, res) => {
+app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'url required' });
+  if (!validatePublicUrl(url)) return res.status(403).json({ error: 'url not allowed' });
   try {
     const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!r.ok) return res.status(404).json({ error: 'image not found' });
@@ -297,7 +317,7 @@ app.get('/api/fetch-image', async (req, res) => {
   }
 });
 
-app.delete('/api/jobs/:id', async (req, res) => {
+app.delete('/api/jobs/:id', defaultLimiter, async (req, res) => {
   try {
     await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
@@ -306,7 +326,7 @@ app.delete('/api/jobs/:id', async (req, res) => {
   }
 });
 
-app.post('/api/jobs/retry-failed', async (_req, res) => {
+app.post('/api/jobs/retry-failed', defaultLimiter, async (_req, res) => {
   try {
     const { rowCount } = await pool.query("UPDATE upload_jobs SET status='pending' WHERE status='failed' AND retry_count<3");
     res.json({ ok: true, requeued: rowCount });
@@ -315,12 +335,12 @@ app.post('/api/jobs/retry-failed', async (_req, res) => {
   }
 });
 
-app.get('/api/jobs/ready', async (_req, res) => {
+app.get('/api/jobs/ready', defaultLimiter, async (_req, res) => {
   res.json([]);
 });
 
 // ── Review endpoints ───────────────────────────────────────────────────────────
-app.post('/api/review', async (req, res) => {
+app.post('/api/review', defaultLimiter, async (req, res) => {
   const { data, source, thumb } = req.body;
   if (!data) return res.status(400).json({ error: 'data required' });
   const id = reviewItemId();
@@ -337,7 +357,7 @@ app.post('/api/review', async (req, res) => {
   }
 });
 
-app.get('/api/review/pending', async (_req, res) => {
+app.get('/api/review/pending', defaultLimiter, async (_req, res) => {
   try {
     const { rows } = await pool.query(
       "SELECT id, job_id, data, thumb, source, status, fail_reason, created_at FROM review_items WHERE status IN ('pending','failed') ORDER BY created_at DESC"
@@ -348,7 +368,7 @@ app.get('/api/review/pending', async (_req, res) => {
   }
 });
 
-app.delete('/api/review/:id', async (req, res) => {
+app.delete('/api/review/:id', defaultLimiter, async (req, res) => {
   try {
     await pool.query('DELETE FROM review_items WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
@@ -357,7 +377,7 @@ app.delete('/api/review/:id', async (req, res) => {
   }
 });
 
-app.get('/api/jobs/status', async (_req, res) => {
+app.get('/api/jobs/status', defaultLimiter, async (_req, res) => {
   try {
     const [jobsRes, reviewRes] = await Promise.all([
       pool.query('SELECT status, COUNT(*) c FROM upload_jobs GROUP BY status'),
@@ -372,7 +392,7 @@ app.get('/api/jobs/status', async (_req, res) => {
   }
 });
 
-app.get('/api/jobs/inflight', async (_req, res) => {
+app.get('/api/jobs/inflight', defaultLimiter, async (_req, res) => {
   try {
     const { rows } = await pool.query(
       "SELECT id, thumb, created_at FROM upload_jobs WHERE status IN ('pending','processing') ORDER BY created_at"
@@ -383,7 +403,7 @@ app.get('/api/jobs/inflight', async (_req, res) => {
   }
 });
 
-app.post('/api/jobs/:id/retry', async (req, res) => {
+app.post('/api/jobs/:id/retry', defaultLimiter, async (req, res) => {
   try {
     const { rowCount } = await pool.query(
       "UPDATE upload_jobs SET status='pending', error=NULL, retry_count=retry_count+1 WHERE id=$1 AND status='failed' AND retry_count<3",
@@ -396,7 +416,7 @@ app.post('/api/jobs/:id/retry', async (req, res) => {
   }
 });
 
-app.get('/api/jobs/:id', async (req, res) => {
+app.get('/api/jobs/:id', defaultLimiter, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT id, status, result, error, retry_count FROM upload_jobs WHERE id=$1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'not found' });
@@ -406,7 +426,7 @@ app.get('/api/jobs/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/jobs/:id', async (req, res) => {
+app.delete('/api/jobs/:id', defaultLimiter, async (req, res) => {
   try {
     await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
@@ -415,7 +435,7 @@ app.delete('/api/jobs/:id', async (req, res) => {
   }
 });
 
-app.post('/api/jobs/retry-failed', async (_req, res) => {
+app.post('/api/jobs/retry-failed', defaultLimiter, async (_req, res) => {
   try {
     const { rowCount } = await pool.query("UPDATE upload_jobs SET status='pending' WHERE status='failed' AND retry_count<3");
     res.json({ ok: true, requeued: rowCount });
@@ -425,7 +445,7 @@ app.post('/api/jobs/retry-failed', async (_req, res) => {
 });
 
 // ── Analytics ──────────────────────────────────────────────────────────────────
-app.post('/api/analytics/outcome', async (req, res) => {
+app.post('/api/analytics/outcome', defaultLimiter, async (req, res) => {
   const { job_id, action, final_title, final_year, final_label, imdb_id } = req.body;
   if (!job_id || !action) return res.status(400).json({ error: 'job_id & action required' });
   try {
