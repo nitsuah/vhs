@@ -38,41 +38,32 @@ function normalizeTitleForLookup(title) {
     // First remove years in parentheses and standalone years
     .replace(/\(\s*\d{4}\s*\)/g, '')
     .replace(/\b\d{4}\b/g, '')
+    // Convert ampersand to 'and'
+    .replace(/&/g, ' and ')
     // Remove media tags with brackets and standard media formats
     .replace(new RegExp(`\\(\\s*(?:${tagsToRemove.join('|')})\\s*\\)`, 'gi'), '')
     .replace(new RegExp(`\\b(?:${tagsToRemove.join('|')})\\b`, 'gi'), '')
-    // Convert ampersand to 'and'
-    .replace(/&/g, ' and ')
-    // Preserve E.T. style dots and hyphens in compound words
-    .replace(/\.{2,}/g, ' ')
-    // Handle general punctuation but preserve dots in abbreviations and hyphens in compound words
-    .replace(/[!?:'"“”‘’\[\]{}()]+/g, ' ')
-    .replace(/[^\w\s'.&-]|_/g, ' ')
-    // Clean up remaining text
-    .replace(/^the\s+/i, '')
-    .replace(/^(an?)\s+/i, '')
-    // Remove em/en dashes and other separators (but keep regular hyphens in words)
+    // Remove parentheses and brackets but preserve dots for abbreviations and hyphens in compound words
+    .replace(/[!?'"“”‘’\[\]{}()]/g, ' ')
+    // Remove punctuation that separates words but preserve hyphens in compound words
+    .replace(/[,:]/g, ' ')
+    .replace(/[^\w\s'.&-]/g, ' ')
+    // Remove em/en dashes (convert to spaces)
     .replace(/[–—]+/g, ' ')
-    // Remove leading/trailing hyphens and separators
-    .replace(/^[-–—\s]+|[-–—\s]+$/g, '')
+    // Remove articles at start of sentence
+    .replace(/^the\s+/i, '')
+    .replace(/^an?\s+/i, '')
+    // Clean up extra spaces
     .replace(/\s+/g, ' ')
     .trim();
 
-  // Clean up leading/trailing 'and'
-  s = s.replace(/^and\s+/, '').replace(/\s+and$/, '').trim();
+  // Remove standalone 'and' from result
+  s = s.replace(/^and\s+/i, '').replace(/\s+and$/i, '').trim();
 
   // If result is empty but original had a generic media term, default to "movie"
   if (!s && ['movie', 'film', 'title', 'video', 'tape'].some(t => new RegExp(`\\b${t}\\b`, 'i').test(title))) {
     return 'movie';
   }
-
-  // If result has no letter characters (only numbers/symbols/version-like), return empty
-  // Strip version-like suffixes (vX, VX, vgX, ver X, version X, etc.) before checking
-  s = s.replace(/\b(v|vg|ver|version)\s*\d+(\.\d+)*\b/gi, '').trim();
-  // Also strip trailing version-like patterns without word boundary (e.g., "123vg2.0" -> "123")
-  s = s.replace(/\d+([.\d]*)(v|vg|ver|version)?$/gi, '').trim();
-  // Strip trailing version-like letters
-  s = s.replace(/(vg|ver|version|v)$/gi, '').trim();
 
   // If result has no letter characters (only numbers/symbols), return empty
   if (!/[a-z]/.test(s)) return '';
