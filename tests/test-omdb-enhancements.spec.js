@@ -380,7 +380,6 @@ describe('Enhanced OMDb Lookup Improvements', () => {
       expect(result).toBeNull();
     });
   });
-});
 
 // ── VHS Collection Specific Tests ────────────────────────────────────────────
 describe('VHS Collection Lookup Patterns', () => {

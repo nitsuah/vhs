@@ -28,30 +28,46 @@ function levenshteinDistance(s1, s2) {
 function normalizeTitleForLookup(title) {
   if (!title) return '';
   const tagsToRemove = ['vhs', 'dvd', 'bluray', 'blu-ray', 'digital', 'other', 'collection', 'special',
-    'edition', "director's cut", 'extended', 'unrated', '3d', 'imax', 'collectible', 'sde'];
-  const tagsPattern = tagsToRemove.map(t => `\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\b`).join('|');
+    'edition', "director's cut", 'extended', 'unrated', '3d', 'imax', 'collectible', 'sde',
+    'movie', 'film', 'title', 'video', 'tape'];
 
   // Remove years and media tags in any order, more comprehensively
-  return title
+  let s = title
     .toLowerCase()
     .trim()
     // First remove years in parentheses and standalone years
     .replace(/\(\s*\d{4}\s*\)/g, '')
     .replace(/\b\d{4}\b/g, '')
     // Remove media tags with brackets and standard media formats
-    .replace(new RegExp(`\(\s*(?:${tagsToRemove.join('|')})\s*\)`, 'gi'), '')
-    .replace(new RegExp(`\b(?:${tagsToRemove.join('|')})\b`, 'gi'), '')
-    // Handle general punctuation (including dots) - FIX: make sure multiple dots are removed properly
-    .replace(/[!?:'"“”‘’\[\]{}()]+/g, ' ')
+    .replace(new RegExp(`\\(\\s*(?:${tagsToRemove.join('|')})\\s*\\)`, 'gi'), '')
+    .replace(new RegExp(`\\b(?:${tagsToRemove.join('|')})\\b`, 'gi'), '')
+    // Convert ampersand to 'and'
+    .replace(/&/g, ' and ')
+    // Preserve E.T. style dots and hyphens in compound words
     .replace(/\.{2,}/g, ' ')
+    // Handle general punctuation but preserve dots in abbreviations and hyphens in compound words
+    .replace(/[!?:'"“”‘’\[\]{}()]+/g, ' ')
+    .replace(/[^\w\s'.&-]|_/g, ' ')
     // Clean up remaining text
-    .replace(/[µ]|[^\x00-\x7F]/g, '')
     .replace(/^the\s+/i, '')
     .replace(/^(an?)\s+/i, '')
-    // Remove any remaining dashes or separators
-    .replace(/[-–—]+/g, ' ')
+    // Remove em/en dashes and other separators (but keep regular hyphens in words)
+    .replace(/[–—]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // Clean up leading/trailing 'and'
+  s = s.replace(/^and\s+/, '').replace(/\s+and$/, '').trim();
+
+  // If result is empty but original had a generic media term, default to "movie"
+  if (!s && ['movie', 'film', 'title', 'video', 'tape'].some(t => new RegExp(`\\b${t}\\b`, 'i').test(title))) {
+    return 'movie';
+  }
+
+  // If result has no letter characters (only numbers/symbols), return empty
+  if (!/[a-z]/.test(s)) return '';
+
+  return s;
 }
 
 module.exports = { levenshteinDistance, normalizeTitleForLookup };
