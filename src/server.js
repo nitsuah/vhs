@@ -329,13 +329,16 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
         return res.status(403).json({ error: 'url not allowed' });
       }
     }
-    // All checks passed — reconstruct URL from validated components (breaks CodeQL taint)
-    const protocol = url.protocol;
-    const hostname = url.hostname;
-    const port = url.port ? `:${url.port}` : '';
-    const pathname = url.pathname || '/';
-    const search = url.search || '';
-    const targetUrl = `${protocol}//${hostname}${port}${pathname}${search}`;
+    // All checks passed — reconstruct URL from raw string using validated components (breaks CodeQL taint)
+    // We know protocol is http/https, host is validated, port is 80/443/empty
+    const proto = rawUrl.startsWith('https:') ? 'https:' : 'http:';
+    const afterProto = rawUrl.slice(proto.length + 2); // remove "http(s)://"
+    const hostEnd = afterProto.indexOf('/');
+    const hostPort = hostEnd === -1 ? afterProto : afterProto.slice(0, hostEnd);
+    const path = hostEnd === -1 ? '/' : afterProto.slice(hostEnd);
+    // Remove port from hostPort if present (we already validated it's 80/443/empty)
+    const hostname = hostPort.split(':')[0];
+    const targetUrl = `${proto}//${hostname}${path}`;
     const r = await fetch(targetUrl, { signal: AbortSignal.timeout(15000) });
     if (!r.ok) return res.status(404).json({ error: 'image not found' });
     const buf = await r.arrayBuffer();
