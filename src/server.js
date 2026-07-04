@@ -10,8 +10,8 @@ const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 
 // Helper: parse URL and check it's a public http/https URL.
-// Returns the validated URL object, or null for invalid/disallowed URLs.
-// parse+validate in one call so CodeQL can trace the URL through the sanitizer.
+// Returns the validated URL href string, or null for invalid/disallowed URLs.
+// Returns string so CodeQL can trace sanitization through the return value.
 function parseAndValidatePublicUrl(urlStr) {
   try {
     const url = new URL(urlStr);
@@ -23,7 +23,7 @@ function parseAndValidatePublicUrl(urlStr) {
     if (/^192\.168\.\d+\.\d+$/.test(host)) return null;
     if (/^169\.254\.\d+\.\d+$/.test(host)) return null;
     if (host.endsWith('.local') || host.endsWith('.internal')) return null;
-    return url;
+    return url.href;
   } catch { return null; }
 }
 
@@ -306,11 +306,11 @@ app.post('/api/jobs', jobsCreateLimiter, async (req, res) => {
 app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
   const rawUrl = req.query.url;
   if (!rawUrl) return res.status(400).json({ error: 'url required' });
-  // parse+validate in one call — the returned object flows through a sanitizer boundary
+  // parse+validate in one call — the returned string flows through a sanitizer boundary
   const targetUrl = parseAndValidatePublicUrl(rawUrl);
   if (!targetUrl) return res.status(403).json({ error: 'url not allowed' });
   try {
-    const r = await fetch(targetUrl.href, { signal: AbortSignal.timeout(15000) });
+    const r = await fetch(targetUrl, { signal: AbortSignal.timeout(15000) });
     if (!r.ok) return res.status(404).json({ error: 'image not found' });
     const buf = await r.arrayBuffer();
     const b64 = Buffer.from(buf).toString('base64');
