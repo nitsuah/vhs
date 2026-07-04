@@ -291,30 +291,30 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
   const rawUrl = req.query.url;
   if (!rawUrl) return res.status(400).json({ error: 'url required' });
 
-  // ── SSRF protection for /api/fetch-image (inline, with DNS resolution)
-  let targetUrl;
+  // ── SSRF protection (inline, no function boundary)
+  let targetUrl = null;
   try {
     const url = new URL(rawUrl);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return res.status(403).json({ error: 'url not allowed' });
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('bad proto');
     const host = url.hostname;
-    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') return res.status(403).json({ error: 'url not allowed' });
-    if (/^10\.\d+\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
-    if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
-    if (/^192\.168\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
-    if (/^169\.254\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
-    if (host.endsWith('.local') || host.endsWith('.internal')) return res.status(403).json({ error: 'url not allowed' });
-    if (url.username || url.password) return res.status(403).json({ error: 'url not allowed' });
-    // Host allowlist from env (comma-separated)
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') throw new Error('bad host');
+    if (/^10\.\d+\.\d+\.\d+$/.test(host)) throw new Error('bad host');
+    if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)) throw new Error('bad host');
+    if (/^192\.168\.\d+\.\d+$/.test(host)) throw new Error('bad host');
+    if (/^169\.254\.\d+\.\d+$/.test(host)) throw new Error('bad host');
+    if (host.endsWith('.local') || host.endsWith('.internal')) throw new Error('bad host');
+    if (url.username || url.password) throw new Error('bad auth');
+    // Host allowlist from env
     const allowlist = (process.env.FETCH_IMAGE_HOST_ALLOWLIST || '')
       .split(',')
       .map(h => h.trim().toLowerCase())
       .filter(Boolean);
-    if (!allowlist.length) return res.status(403).json({ error: 'url not allowed' });
+    if (!allowlist.length) throw new Error('no allowlist');
     const isAllowedHost = allowlist.some(h => host === h || host.endsWith(`.${h}`));
-    if (!isAllowedHost) return res.status(403).json({ error: 'url not allowed' });
-    // Only allow standard ports
-    if (url.port && url.port !== '80' && url.port !== '443') return res.status(403).json({ error: 'url not allowed' });
-    // DNS resolution to check actual IPs
+    if (!isAllowedHost) throw new Error('not allowed');
+    // Only standard ports
+    if (url.port && url.port !== '80' && url.port !== '443') throw new Error('bad port');
+    // DNS resolution check
     const dns = require('dns').promises;
     const resolved = await dns.lookup(host, { all: true });
     for (const rec of resolved) {
@@ -327,12 +327,13 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
         /^169\.254\.\d+\.\d+$/.test(ip) ||
         /^fc00:/i.test(ip) || /^fd/i.test(ip) || /^fe80:/i.test(ip)
       ) {
-        return res.status(403).json({ error: 'url not allowed' });
+        throw new Error('bad ip');
       }
     }
     targetUrl = url.href;
   } catch { return res.status(403).json({ error: 'url not allowed' }); }
 
+  // targetUrl is only set after ALL checks pass
   try {
     const r = await fetch(targetUrl, { signal: AbortSignal.timeout(15000) });
     if (!r.ok) return res.status(404).json({ error: 'image not found' });
