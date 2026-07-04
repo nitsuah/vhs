@@ -291,7 +291,7 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
   const rawUrl = req.query.url;
   if (!rawUrl) return res.status(400).json({ error: 'url required' });
 
-  // Inline validation with early returns — no function/IIFE boundary for CodeQL to cross
+  // ── SSRF protection for /api/fetch-image (inline, with DNS resolution)
   let targetUrl;
   try {
     const url = new URL(rawUrl);
@@ -303,6 +303,33 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
     if (/^192\.168\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
     if (/^169\.254\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
     if (host.endsWith('.local') || host.endsWith('.internal')) return res.status(403).json({ error: 'url not allowed' });
+    if (url.username || url.password) return res.status(403).json({ error: 'url not allowed' });
+    // Host allowlist from env (comma-separated)
+    const allowlist = (process.env.FETCH_IMAGE_HOST_ALLOWLIST || '')
+      .split(',')
+      .map(h => h.trim().toLowerCase())
+      .filter(Boolean);
+    if (!allowlist.length) return res.status(403).json({ error: 'url not allowed' });
+    const isAllowedHost = allowlist.some(h => host === h || host.endsWith(`.${h}`));
+    if (!isAllowedHost) return res.status(403).json({ error: 'url not allowed' });
+    // Only allow standard ports
+    if (url.port && url.port !== '80' && url.port !== '443') return res.status(403).json({ error: 'url not allowed' });
+    // DNS resolution to check actual IPs
+    const dns = require('dns').promises;
+    const resolved = await dns.lookup(host, { all: true });
+    for (const rec of resolved) {
+      const ip = rec.address;
+      if (
+        ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' ||
+        /^10\.\d+\.\d+\.\d+$/.test(ip) ||
+        /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(ip) ||
+        /^192\.168\.\d+\.\d+$/.test(ip) ||
+        /^169\.254\.\d+\.\d+$/.test(ip) ||
+        /^fc00:/i.test(ip) || /^fd/i.test(ip) || /^fe80:/i.test(ip)
+      ) {
+        return res.status(403).json({ error: 'url not allowed' });
+      }
+    }
     targetUrl = url.href;
   } catch { return res.status(403).json({ error: 'url not allowed' }); }
 
