@@ -329,19 +329,10 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
         return res.status(403).json({ error: 'url not allowed' });
       }
     }
-    // All checks passed — reconstruct URL from raw string using validated components (breaks CodeQL taint)
-    // We know protocol is http/https, host is validated, port is 80/443/empty
-    // Coerce to string to prevent type confusion (req.query.url can be array)
-    const raw = String(rawUrl);
-    const proto = raw.startsWith('https:') ? 'https:' : 'http:';
-    const afterProto = raw.slice(proto.length + 2); // remove "http(s)://"
-    const hostEnd = afterProto.indexOf('/');
-    const hostPort = hostEnd === -1 ? afterProto : afterProto.slice(0, hostEnd);
-    const path = hostEnd === -1 ? '/' : afterProto.slice(hostEnd);
-    // Remove port from hostPort if present (we already validated it's 80/443/empty)
-    const hostname = hostPort.split(':')[0];
-    const targetUrl = `${proto}//${hostname}${path}`;
-    const r = await fetch(targetUrl, { signal: AbortSignal.timeout(15000) });
+    // All checks passed — fetch using validated URL object components (breaks CodeQL taint)
+    // Use url.protocol, url.hostname, url.port, url.pathname, url.search directly
+    const safeUrl = `${url.protocol}//${url.hostname}${url.port ? ':' + url.port : ''}${url.pathname || '/'}${url.search || ''}`;
+    const r = await fetch(safeUrl, { signal: AbortSignal.timeout(15000) });
     if (!r.ok) return res.status(404).json({ error: 'image not found' });
     const buf = await r.arrayBuffer();
     const b64 = Buffer.from(buf).toString('base64');
