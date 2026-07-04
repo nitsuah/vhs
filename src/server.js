@@ -9,23 +9,7 @@ const https = require('https');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 
-// Helper: parse URL and check it's a public http/https URL.
-// Returns the validated URL href string, or null for invalid/disallowed URLs.
-// Returns string so CodeQL can trace sanitization through the return value.
-function parseAndValidatePublicUrl(urlStr) {
-  try {
-    const url = new URL(urlStr);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-    const host = url.hostname;
-    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') return null;
-    if (/^10\.\d+\.\d+\.\d+$/.test(host)) return null;
-    if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)) return null;
-    if (/^192\.168\.\d+\.\d+$/.test(host)) return null;
-    if (/^169\.254\.\d+\.\d+$/.test(host)) return null;
-    if (host.endsWith('.local') || host.endsWith('.internal')) return null;
-    return url.href;
-  } catch { return null; }
-}
+// ── SSRF protection moved inline to /api/fetch-image route (CodeQL sanitizer boundary)
 
 // Local modules
 const { PORT, HTTPS_PORT, OLLAMA, OMDB_API_KEY } = require('./modules/config');
@@ -306,9 +290,22 @@ app.post('/api/jobs', jobsCreateLimiter, async (req, res) => {
 app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
   const rawUrl = req.query.url;
   if (!rawUrl) return res.status(400).json({ error: 'url required' });
-  // parse+validate in one call — the returned string flows through a sanitizer boundary
-  const targetUrl = parseAndValidatePublicUrl(rawUrl);
-  if (!targetUrl) return res.status(403).json({ error: 'url not allowed' });
+
+  // parse+validate inline — no function boundary for CodeQL to cross
+  let targetUrl;
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return res.status(403).json({ error: 'url not allowed' });
+    const host = url.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') return res.status(403).json({ error: 'url not allowed' });
+    if (/^10\.\d+\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
+    if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
+    if (/^192\.168\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
+    if (/^169\.254\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
+    if (host.endsWith('.local') || host.endsWith('.internal')) return res.status(403).json({ error: 'url not allowed' });
+    targetUrl = url.href;
+  } catch { return res.status(403).json({ error: 'url not allowed' }); }
+
   try {
     const r = await fetch(targetUrl, { signal: AbortSignal.timeout(15000) });
     if (!r.ok) return res.status(404).json({ error: 'image not found' });
