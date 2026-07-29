@@ -15,17 +15,18 @@ async function processJobs() {
   workerBusy = true;
 
   try {
-    const now = new Date().toISOString();
+    const nowMs = Date.now();
+    const now = new Date(nowMs).toISOString();
 
     // 1. Reset stuck jobs that were "processing" for >10 min
-    const stuckCutoff = new Date(now - 10 * 60 * 1000).toISOString();
+    const stuckCutoff = new Date(nowMs - 10 * 60 * 1000).toISOString();
     await pool.query(
       "UPDATE upload_jobs SET status='pending', updated_at=$1 WHERE status='processing' AND updated_at<$2",
       [now, stuckCutoff]
     );
 
     // 2. Reset failed jobs for retry (if < MAX_RETRIES and older than 5 min)
-    const retryCutoff = new Date(now - 5 * 60 * 1000).toISOString();
+    const retryCutoff = new Date(nowMs - 5 * 60 * 1000).toISOString();
     await pool.query(
       "UPDATE upload_jobs SET status='pending', updated_at=$1 WHERE status='failed' AND retry_count<$2 AND updated_at<$3",
       [now, MAX_RETRIES, retryCutoff]

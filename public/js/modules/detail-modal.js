@@ -3,6 +3,21 @@ const { getInventory, setSelectedId, getSelectedId, setIsNewTape, getIsNewTape }
 const { esc, renderTagChips } = require('./render-helpers');
 
 function initTagChips(container, getTags, setTags) {
+  function bindInput() {
+    const inp = container.querySelector('.tag-add-input');
+    if (!inp) return;
+    inp.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ',') return;
+      e.preventDefault();
+      const tag = inp.value.trim().replace(/,/g, '');
+      if (!tag) return;
+      const tags = [...getTags()];
+      if (!tags.includes(tag)) tags.push(tag);
+      setTags(tags);
+      container.innerHTML = renderTagChips(tags);
+      bindInput();
+    });
+  }
   container.addEventListener('click', e => {
     const chip = e.target.closest('.tag-chip');
     if (!chip) return;
@@ -12,21 +27,9 @@ function initTagChips(container, getTags, setTags) {
     else tags.push(tag);
     setTags(tags);
     container.innerHTML = renderTagChips(tags);
-    initTagChips(container, getTags, setTags);
+    bindInput();
   });
-  const inp = container.querySelector('.tag-add-input');
-  if (inp) inp.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const tag = inp.value.trim().replace(/,/g, '');
-      if (!tag) return;
-      const tags = [...getTags()];
-      if (!tags.includes(tag)) tags.push(tag);
-      setTags(tags);
-      container.innerHTML = renderTagChips(tags);
-      initTagChips(container, getTags, setTags);
-    }
-  });
+  bindInput();
 }
 
 function renderDetailPhotos(t) {
@@ -35,7 +38,7 @@ function renderDetailPhotos(t) {
   const photos = t.photos || [];
   wrap.innerHTML = photos.map((p, i) => `
     <div class="d-photo" data-idx="${i}">
-      <img src="${p}" alt="">
+      <img src="${esc(p)}" alt="">
       <div class="d-photo-actions">
         <button class="pin-btn" onclick="window.pinDetailPhoto?.(${i}, 'face')" title="Pin as face">${t.photo_face === p ? '★' : '☆'}</button>
         <button class="pin-btn" onclick="window.pinDetailPhoto?.(${i}, 'spine')" title="Pin as spine">${t.photo_spine === p ? '★' : '☆'}</button>

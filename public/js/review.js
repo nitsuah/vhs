@@ -3,7 +3,7 @@ import { inventory, setInventory, renderInv, updateCount } from './inventory.js'
 import { dbAdd, dbPut, nextId } from './db.js';
 import { lookupMetadata, callAI } from './ai.js';
 import { findDup, _normTitle, _titleSim } from './utils.js';
-import { esc, renderTagChips } from './inventory.js';
+import { esc, renderTagChips, initTagChips } from './inventory.js';
 import { toast, rotateImage90CCW, triggerTapeInsertAnim } from './utils.js';
 import { cards, uidSeq, seenJobIds, _seenAdd, _seenDel, renderCards, showRevPanel, hideRevPanel, setRevLoading, setRevMsg, showRevErr, addCard } from './review.js';
 
@@ -169,7 +169,7 @@ document.getElementById('btn-stop-proc')?.addEventListener('click', () => {
 function askDup(existing) {
   return new Promise(res => {
     const m = document.getElementById('m-dup');
-    document.getElementById('dup-info').innerHTML = `<strong>${esc(existing.title)}</strong><br><span style="font-size:11px;color:var(--text3)">${existing.id} · ${existing.year || ''} · ${existing.label || ''}</span>`;
+    document.getElementById('dup-info').innerHTML = `<strong>${esc(existing.title)}</strong><br><span style="font-size:11px;color:var(--text3)">${esc(existing.id)} · ${esc(existing.year || '')} · ${esc(existing.label || '')}</span>`;
     m.style.display = 'flex';
     const add = () => { cleanup(); res(true); }; const cancel = () => { cleanup(); res(false); };
     function cleanup() { m.style.display = 'none'; document.getElementById('dup-add').removeEventListener('click', add); document.getElementById('dup-cancel').removeEventListener('click', cancel); }

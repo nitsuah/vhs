@@ -24,6 +24,7 @@ async function deleteBulk() {
   for (const id of ids) {
     await dbDel(id);
   }
+  getSelectedIds().clear();
   if (typeof renderInv === 'function') renderInv();
   updateBulkBar();
   toast(`Deleted ${ids.size} tape${ids.size !== 1 ? 's' : ''}`, 'ok');

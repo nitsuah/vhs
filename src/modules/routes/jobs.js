@@ -1,12 +1,12 @@
 // ── ROUTES: JOBS ──────────────────────────────────────────────────────────────
 const { pool } = require('../db');
 const { logActivity } = require('../activity-log');
-const { jobId, reviewItemId } = require('./ids');
+const { jobId, reviewItemId } = require('../ids');
 
 async function jobsReadyHandler(req, res) {
   try {
     const { rows } = await pool.query(
-      "SELECT id, thumb, result, thumb upload_jobs WHERE status='done' ORDER BY created_at ASC"
+      "SELECT id, thumb, result FROM upload_jobs WHERE status='done' ORDER BY created_at ASC"
     );
     res.json(rows);
   } catch (err) {
@@ -53,10 +53,11 @@ async function jobsDeleteHandler(req, res) {
 
 async function jobsRetryFailedHandler(req, res) {
   try {
-    const now = new Date().toISOString();
+    const nowMs = Date.now();
+    const now = new Date(nowMs).toISOString();
     await pool.query(
       "UPDATE upload_jobs SET status='pending', updated_at=$1 WHERE status='failed' AND retry_count<$2 AND updated_at<$3",
-      [now, 3, new Date(now - 5 * 60 * 1000).toISOString()]
+      [now, 3, new Date(nowMs - 5 * 60 * 1000).toISOString()]
     );
     res.json({ ok: true });
   } catch (err) {

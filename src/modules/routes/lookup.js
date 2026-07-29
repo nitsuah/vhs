@@ -14,7 +14,8 @@ async function lookupBarcodeHandler(req, res) {
   // 1. UPC Item DB — covers most North American retail product codes
   try {
     const r = await fetch(
-      `https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`
+      `https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`,
+      { signal: AbortSignal.timeout(5000) }
     );
     if (r.ok) {
       const d = await r.json();
@@ -38,7 +39,7 @@ async function lookupBarcodeHandler(req, res) {
   // 2. Open Library fallback (ISBN/EAN)
   if (!found) {
     try {
-      const r = await fetch(`https://openlibrary.org/api/volumes/brief/isbn/${encodeURIComponent(code)}.json`);
+      const r = await fetch(`https://openlibrary.org/api/volumes/brief/isbn/${encodeURIComponent(code)}.json`, { signal: AbortSignal.timeout(5000) });
       if (r.ok) {
         const d = await r.json();
         const rec = d.records?.[Object.keys(d.records || {})[0]];

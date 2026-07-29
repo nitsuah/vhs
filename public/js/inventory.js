@@ -2,6 +2,8 @@
 import { getInventory, setInventory, getSelectedId, setSelectedId, getIsNewTape, setIsNewTape, getSelectedIds, getWallMode, setWallMode } from './modules/inventory-state.js';
 import { getFiltered } from './modules/filtering.js';
 import { renderList, renderInv as renderListView, openDetail, updateBulkBar, updateCount } from './modules/list-view.js';
+import { dbPut } from './db.js';
+import { toast } from './utils.js';
 import { renderWall, updateBulkBar as updateWallBulkBar } from './modules/wall-view.js';
 import { openDetail as openDetailModal, renderDetailPhotos, initTagChips } from './modules/detail-modal.js';
 import { openCropOverlay, closeCropOverlay, applyCrop, resetCrop, zoomIn, zoomOut } from './modules/crop-overlay.js';
@@ -22,7 +24,7 @@ export {
   // State
   inventory,
   _syncInventory,
-  getInventory, setInventory: _syncInventory,
+  getInventory, _syncInventory as setInventory,
   getSelectedId, setSelectedId,
   getIsNewTape, setIsNewTape,
   getSelectedIds,
@@ -30,9 +32,9 @@ export {
   // Filtering
   getFiltered,
   // Views
-  renderList, renderWall, renderInv: renderListView, updateBulkBar, updateCount,
+  renderList, renderWall, renderListView as renderInv, updateBulkBar, updateCount,
   // Detail modal
-  openDetail: openDetailModal, renderDetailPhotos, initTagChips,
+  openDetailModal as openDetail, renderDetailPhotos, initTagChips,
   // Crop overlay
   openCropOverlay, closeCropOverlay, applyCrop, resetCrop, zoomIn, zoomOut,
   // Bulk actions
@@ -51,7 +53,7 @@ window.pinDetailPhoto = async (idx, role) => {
   if (role === 'face') { t.photo_face = (t.photo_face === src ? null : src); }
   else { t.photo_spine = (t.photo_spine === src ? null : src); }
   renderDetailPhotos(t);
-  renderInv();
+  renderListView();
   try { await dbPut(t); } catch (e) { toast('Save failed: ' + e.message, 'err'); }
 };
 window.removeDetailPhoto = async (idx) => {
@@ -63,7 +65,7 @@ window.removeDetailPhoto = async (idx) => {
   if (t.photo_face === old) t.photo_face = null;
   if (t.photo_spine === old) t.photo_spine = null;
   await dbPut(t);
-  renderInv();
+  renderListView();
   renderDetailPhotos(t);
   const th = document.getElementById('detail-thumb');
   if (t.photo_thumbnail) { th.src = t.photo_thumbnail; th.style.display = 'block'; }
@@ -77,6 +79,6 @@ window.zoomOut = zoomOut;
 window.applyBulkStatus = applyBulkStatus;
 window.deleteBulk = deleteBulk;
 window.clearBulk = clearBulk;
-window.renderInv = renderInv;
+window.renderInv = renderListView;
 window.updateBulkBar = updateBulkBar;
 window.updateCount = updateCount;

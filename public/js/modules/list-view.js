@@ -45,8 +45,13 @@ function attachRowEvents(tbl) {
         const ids = Array.from(tbl.querySelectorAll('.tape-row')).map(r => r.dataset.id);
         const a = ids.indexOf(getSelectedId());
         const b = ids.indexOf(id);
-        const [lo, hi] = a < b ? [a, b] : [b, a];
-        ids.slice(lo, hi + 1).forEach(i => getSelectedIds().add(i));
+        if (a < 0) {
+          getSelectedIds().clear();
+          getSelectedIds().add(id);
+        } else {
+          const [lo, hi] = a < b ? [a, b] : [b, a];
+          ids.slice(lo, hi + 1).forEach(i => getSelectedIds().add(i));
+        }
       } else if (e.ctrlKey || e.metaKey) {
         const set = getSelectedIds();
         set.has(id) ? set.delete(id) : set.add(id);

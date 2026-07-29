@@ -27,8 +27,8 @@ async function tapesPutHandler(req, res) {
   const tape = req.body;
   try {
     const { rowCount } = await pool.query(
-      'UPDATE tapes SET data=$1, scanned_at=$2 WHERE id=$3',
-      [tape, tape.scanned_at || new Date().toISOString(), req.params.id]
+      'UPDATE tapes SET data=$1, scanned_at=COALESCE($2, scanned_at) WHERE id=$3',
+      [tape, tape.scanned_at ?? null, req.params.id]
     );
     if (rowCount === 0) return res.status(404).json({ error: 'not found' });
     res.json(tape);

@@ -61,6 +61,6 @@ export async function dbDel(k){const r=await apiReq(`/api/tapes/${encodeURICompo
 
 export async function nextId() {
   if(!inventory.length) return 'VHS-0001';
-  const max=Math.max(...inventory.map(t=>parseInt(t.id.slice(4),10)).filter(n=>!isNaN(n)));
+  const max=Math.max(...inventory.filter(t=>/^VHS-\d{4}$/.test(t.id)).map(t=>parseInt(t.id.slice(4),10)));
   return `VHS-${String(max+1).padStart(4,'0')}`;
 }
