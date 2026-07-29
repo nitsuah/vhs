@@ -329,10 +329,12 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
         return res.status(403).json({ error: 'url not allowed' });
       }
     }
-    // All checks passed — fetch using validated URL object components (breaks CodeQL taint)
-    // Use url.protocol, url.hostname, url.port, url.pathname, url.search directly
-    const safeUrl = `${url.protocol}//${url.hostname}${url.port ? ':' + url.port : ''}${url.pathname || '/'}${url.search || ''}`;
-    const r = await fetch(safeUrl, { signal: AbortSignal.timeout(15000) });
+    // All checks passed — fetch using a validated URL object and block redirects
+    const safeUrl = new URL(`${url.protocol}//${url.hostname}${url.port ? ':' + url.port : ''}${url.pathname || '/'}${url.search || ''}`);
+    const r = await fetch(safeUrl, {
+      signal: AbortSignal.timeout(15000),
+      redirect: 'error'
+    });
     if (!r.ok) return res.status(404).json({ error: 'image not found' });
     const buf = await r.arrayBuffer();
     const b64 = Buffer.from(buf).toString('base64');
