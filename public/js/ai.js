@@ -123,7 +123,7 @@ async function pingOllama(){
 
 // ── METADATA LOOKUPS ─────────────────────────────────────────────────────
 async function lookupMetadata(title){
-  const prompt=`You are a movie/TV database and VHS collectibles expert. For the title: "${title.replace(/"/g,'\\"')}"
+  const prompt=`You are a movie/TV database and VHS collectibles expert. For the title: ${JSON.stringify(title)}
 Return ONLY a JSON object with these fields (omit any you are unsure about):
 {"year":"1984","label":"Orion Pictures","format":"VHS","value_low":"8","value_high":"25"}
 The label is the original VHS distributor or studio.
