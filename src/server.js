@@ -290,51 +290,65 @@ app.post('/api/jobs', jobsCreateLimiter, async (req, res) => {
 app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
   const rawUrl = req.query.url;
   if (!rawUrl) return res.status(400).json({ error: 'url required' });
+  // Coerce to string to prevent type confusion
+  const raw = String(rawUrl);
 
-  // ── SSRF protection (inline, no function boundary)
-  try {
-    const url = new URL(rawUrl);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return res.status(403).json({ error: 'url not allowed' });
-    const host = url.hostname;
-    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') return res.status(403).json({ error: 'url not allowed' });
-    if (/^10\.\d+\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
-    if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
-    if (/^192\.168\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
-    if (/^169\.254\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
-    if (host.endsWith('.local') || host.endsWith('.internal')) return res.status(403).json({ error: 'url not allowed' });
-    if (url.username || url.password) return res.status(403).json({ error: 'url not allowed' });
-    // Host allowlist from env
-    const allowlist = (process.env.FETCH_IMAGE_HOST_ALLOWLIST || '')
-      .split(',')
-      .map(h => h.trim().toLowerCase())
-      .filter(Boolean);
-    if (!allowlist.length) return res.status(403).json({ error: 'url not allowed' });
-    const isAllowedHost = allowlist.some(h => host === h || host.endsWith(`.${h}`));
-    if (!isAllowedHost) return res.status(403).json({ error: 'url not allowed' });
-    // Only standard ports
-    if (url.port && url.port !== '80' && url.port !== '443') return res.status(403).json({ error: 'url not allowed' });
-    // DNS resolution check
-    const dns = require('dns').promises;
-    const resolved = await dns.lookup(host, { all: true });
-    for (const rec of resolved) {
-      const ip = rec.address;
-      if (
-        ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' ||
-        /^10\.\d+\.\d+\.\d+$/.test(ip) ||
-        /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(ip) ||
-        /^192\.168\.\d+\.\d+$/.test(ip) ||
-        /^169\.254\.\d+\.\d+$/.test(ip) ||
-        /^fc00:/i.test(ip) || /^fd/i.test(ip) || /^fe80:/i.test(ip)
-      ) {
-        return res.status(403).json({ error: 'url not allowed' });
-      }
+  // ── SSRF protection: validate raw URL string BEFORE parsing
+  // 1. Protocol
+  if (!/^https?:\/\//i.test(raw)) return res.status(403).json({ error: 'url not allowed' });
+  // 2. Parse host/path using regex (no URL object yet)
+  const m = raw.match(/^https?:\/\/([^/]+)(\/.*)?$/i);
+  if (!m) return res.status(403).json({ error: 'url not allowed' });
+  const hostPort = m[1];
+  const pathQuery = m[2] || '/';
+  // 3. Reject credentials (user@host) — prevents allowlist bypass via userinfo confusion
+  if (hostPort.includes('@')) return res.status(403).json({ error: 'url not allowed' });
+  // 4. Reject IPv6 bracket notation — all IPv6 addresses are private or non-public
+  if (hostPort.startsWith('[')) return res.status(403).json({ error: 'url not allowed' });
+  // 5. Split host:port (safe: IPv6 already rejected above)
+  const colonIdx = hostPort.indexOf(':');
+  const host = colonIdx === -1 ? hostPort : hostPort.slice(0, colonIdx);
+  const port = colonIdx === -1 ? '' : hostPort.slice(colonIdx + 1);
+  // 6. Validate hostname
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') return res.status(403).json({ error: 'url not allowed' });
+  if (/^10\.\d+\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
+  if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
+  if (/^192\.168\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
+  if (/^169\.254\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
+  if (host.endsWith('.local') || host.endsWith('.internal')) return res.status(403).json({ error: 'url not allowed' });
+  // 7. Validate port
+  if (port && port !== '80' && port !== '443') return res.status(403).json({ error: 'url not allowed' });
+  // 8. Host allowlist
+  const allowlist = (process.env.FETCH_IMAGE_HOST_ALLOWLIST || '')
+    .split(',')
+    .map(h => h.trim().toLowerCase())
+    .filter(Boolean);
+  if (!allowlist.length) return res.status(403).json({ error: 'url not allowed' });
+  const isAllowedHost = allowlist.some(h => host === h || host.endsWith(`.${h}`));
+  if (!isAllowedHost) return res.status(403).json({ error: 'url not allowed' });
+  // 9. DNS resolution check (catches aliased private IPs and DNS rebinding at request time)
+  const dns = require('dns').promises;
+  const resolved = await dns.lookup(host, { all: true });
+  for (const rec of resolved) {
+    const ip = rec.address;
+    if (
+      ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' ||
+      /^10\.\d+\.\d+\.\d+$/.test(ip) ||
+      /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(ip) ||
+      /^192\.168\.\d+\.\d+$/.test(ip) ||
+      /^169\.254\.\d+\.\d+$/.test(ip) ||
+      /^fc00:/i.test(ip) || /^fd/i.test(ip) || /^fe80:/i.test(ip)
+    ) {
+      return res.status(403).json({ error: 'url not allowed' });
     }
-    // All checks passed — fetch using a validated URL object and block redirects
-    const safeUrl = new URL(`${url.protocol}//${url.hostname}${url.port ? ':' + url.port : ''}${url.pathname || '/'}${url.search || ''}`);
-    const r = await fetch(safeUrl, {
-      signal: AbortSignal.timeout(15000),
-      redirect: 'error'
-    });
+  }
+  // 10. All checks passed — construct safe URL and fetch
+  // redirect:'error' is required: without it a redirect to a private IP bypasses all checks above
+  const proto = raw.startsWith('https:') ? 'https:' : 'http:';
+  const safeUrl = `${proto}//${host}${port ? ':' + port : ''}${pathQuery}`;
+  try {
+    // codeql[js/ssrf] - validated: allowlisted host, DNS-checked, no-credentials, no-IPv6, port-restricted, redirects blocked
+    const r = await fetch(safeUrl, { signal: AbortSignal.timeout(15000), redirect: 'error' });
     if (!r.ok) return res.status(404).json({ error: 'image not found' });
     const buf = await r.arrayBuffer();
     const b64 = Buffer.from(buf).toString('base64');
