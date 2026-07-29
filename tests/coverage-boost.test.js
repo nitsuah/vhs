@@ -520,6 +520,14 @@ describe('GET /ca.crt', () => {
 
 describe('GET /api/fetch-image', () => {
   const origFetch = global.fetch;
+  // Set allowlist for tests
+  process.env.FETCH_IMAGE_HOST_ALLOWLIST = 'example.com,images.example.com';
+  // Mock DNS at the module level since server.js requires it inline
+  jest.mock('dns', () => ({
+    promises: {
+      lookup: jest.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
+    },
+  }));
   afterEach(() => { global.fetch = origFetch; });
 
   it('returns 400 when url missing', async () => {
@@ -533,20 +541,20 @@ describe('GET /api/fetch-image', () => {
       arrayBuffer: () => Promise.resolve(Buffer.from([0xff, 0xd8]).buffer),
       headers: { get: () => 'image/jpeg' },
     });
-    const res = await request(app).get('/api/fetch-image?url=http://x/img.jpg');
+    const res = await request(app).get('/api/fetch-image?url=http://example.com/img.jpg');
     expect(res.status).toBe(200);
     expect(res.body.dataUrl).toMatch(/^data:image\/jpeg;base64,/);
   });
 
   it('returns upstream status on non-ok', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 });
-    const res = await request(app).get('/api/fetch-image?url=http://x/missing.jpg');
+    const res = await request(app).get('/api/fetch-image?url=http://example.com/missing.jpg');
     expect(res.status).toBe(404);
   });
 
   it('returns 500 on fetch error', async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('timeout'));
-    const res = await request(app).get('/api/fetch-image?url=http://x/timeout.jpg');
+    const res = await request(app).get('/api/fetch-image?url=http://example.com/timeout.jpg');
     expect(res.status).toBe(500);
   });
 });

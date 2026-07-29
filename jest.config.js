@@ -1,11 +1,11 @@
 'use strict';
 module.exports = {
   testEnvironment: 'node',
-  testMatch: ['**/tests/**/*.test.js'],
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/', '/app/tests/playwright/', '/tests/playwright/'],
+  testMatch: ['**/tests/**/*.test.js', '**/tests/**/*.spec.js'],
+  testPathIgnorePatterns: ['/node_modules/', '/app/tests/playwright/', '/tests/playwright/'],
   collectCoverageFrom: ['src/server.js'],
   coverageProvider: 'v8',
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
       statements: 60,
       branches:   67,

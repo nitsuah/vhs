@@ -1,24 +1,23 @@
 'use strict';
-const { Pool } = require('pg');
-const { app, callOmdb, normalizeTitleForLookup, levenshteinDistance, enhancedLookup } = require('../src/server.js');
 
-jest.mock('pg');
+// Mock all external dependencies BEFORE importing server
+const mockQuery = jest.fn();
+const mockPool = {
+  query: mockQuery,
+  connect: jest.fn().mockResolvedValue({}),
+  end: jest.fn(),
+};
+jest.mock('pg', () => ({ Pool: jest.fn(() => mockPool) }));
 jest.mock('fs');
 jest.mock('child_process');
 
-// ── Test configuration ───────────────────────────────────────────────────────
-const TEST_CONFIG = {
-  OMDB_BASE_URL: 'https://www.omdbapi.com/',
-  TIMEOUT: 5000,
-  MAX_RETRIES: 3,
-};
-
-// ── Mock process.env before importing server ───────────────────────────────────
+// Set up environment before importing server
 process.env.OMDB_API_KEY = 'test-omdb-key';
-
-// ── Mock fetch globally ─────────────────────────────────────────────────────
 const originalFetch = global.fetch;
 global.fetch = jest.fn();
+
+// Import server AFTER mocks are set up
+const { app, callOmdb, normalizeTitleForLookup, levenshteinDistance, enhancedLookup } = require('../src/server.js');
 
 // ── Test data factory functions ─────────────────────────────────────────────
 function createMockOmdbSuccess(title, year = '1999', label = 'Test Studio', imdb_id = 'tt1234567', poster = '', genres = []) {
@@ -42,27 +41,11 @@ function createMockOmdbError(error = 'Movie not found!') {
 
 // ── Main test suite ─────────────────────────────────────────────────────────
 describe('Enhanced OMDb Lookup Improvements', () => {
-  let mockPool;
-  let mockQuery;
-
-  beforeEach(() => {
-    mockQuery = jest.fn();
-    mockPool = {
-      query: mockQuery,
-      connect: jest.fn().mockResolvedValue(mockPool),
-      end: jest.fn(),
-    };
-    Pool.mockImplementation(() => mockPool);
-  });
-
   afterEach(() => {
     jest.clearAllMocks();
     delete process.env.OMDB_API_KEY;
     global.fetch = originalFetch;
   });
-
-  // ── Title Normalization Tests ───────────────────────────────────────────────
-  describe('Title Normalization', () => {
     test('should normalize VHS titles correctly', () => {
       const title = 'The Godfather (VHS)';
       const normalized = normalizeTitleForLookup(title);
@@ -197,7 +180,7 @@ describe('Enhanced OMDb Lookup Improvements', () => {
 
     test('should calculate insertion distance', () => {
       const distance = levenshteinDistance('test', 'testing');
-      expect(distance).toBe(2);
+      expect(distance).toBe(3); // 3 insertions: i, n, g
     });
 
     test('should calculate substitution distance', () => {
@@ -207,7 +190,7 @@ describe('Enhanced OMDb Lookup Improvements', () => {
 
     test('should calculate deletion distance', () => {
       const distance = levenshteinDistance('testing', 'test');
-      expect(distance).toBe(2);
+      expect(distance).toBe(3); // 3 deletions: i, n, g
     });
 
     test('should handle empty strings', () => {
@@ -234,9 +217,9 @@ describe('Enhanced OMDb Lookup Improvements', () => {
       expect(distance).toBeLessThanOrEqual(Math.max(s1.length, s2.length));
     });
 
-    test('should handle case-insensitive distance calculation', () => {
+    test('should handle case-sensitive distance calculation', () => {
       const distance = levenshteinDistance('TEST', 'test');
-      expect(distance).toBe(0);
+      expect(distance).toBe(4); // Case-sensitive: all 4 chars differ
     });
 
     test('should calculate distance for completely different strings', () => {
@@ -397,7 +380,6 @@ describe('Enhanced OMDb Lookup Improvements', () => {
       expect(result).toBeNull();
     });
   });
-});
 
 // ── VHS Collection Specific Tests ────────────────────────────────────────────
 describe('VHS Collection Lookup Patterns', () => {

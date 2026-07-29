@@ -5,7 +5,7 @@ WORKDIR /app
 COPY --chown=node:node package*.json ./
 COPY --chown=node:node .eslintrc.json ./
 RUN npm ci
-COPY --chown=node:node src/server.js src/server.js
+COPY --chown=node:node src/ src/
 COPY --chown=node:node migrations/ ./migrations/
 COPY --chown=node:node tests/ ./tests/
 COPY --chown=node:node public/ ./public/
