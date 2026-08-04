@@ -1,9 +1,9 @@
 // ── WALL VIEW RENDER ──────────────────────────────────────────────────────────
-const { getInventory, getWallMode, getSelectedId, getSelectedIds, getIsNewTape } = require('./inventory-state');
-const { getFiltered } = require('./filtering');
-const { esc, _cropStyle, _eggAttrs, statusLabel, renderTagChips } = require('./render-helpers');
+import { getInventory, getWallMode, getSelectedId, getSelectedIds } from './inventory-state.js';
+import { getFiltered } from './filtering.js';
+import { esc, _cropStyle, _eggAttrs, statusLabel } from './render-helpers.js';
 
-function renderWall() {
+export function renderWall() {
   const items = getFiltered();
   const selectedId = getSelectedId();
   const selectedIds = getSelectedIds();
@@ -15,35 +15,40 @@ function renderWall() {
   if (mode === 1) { // Cover wall
     wall.className = 'inv-wall cover';
     wall.innerHTML = items.map(t => {
+      const sel = t.id === selectedId;
+      const bulk = selectedIds.has(t.id);
       const isSpine = !!t.photo_spine;
       const src = t.photo_spine || t.photo_face || t.photo_thumbnail;
       const cropRole = isSpine ? 'spine' : 'face';
       const inner = src
         ? `<img class="su-img${isSpine ? ' su-img-spine' : ''}" src="${src}" alt=""${_cropStyle(t, cropRole, isSpine)}>`
         : `<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
-      return `<div class="su-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
+      return `<div class="su-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
     }).join('');
   } else if (mode === 2) { // Spine landscape
     wall.className = 'inv-wall spine';
     wall.innerHTML = items.map(t => {
+      const sel = t.id === selectedId;
+      const bulk = selectedIds.has(t.id);
       const isSpine = !!t.photo_spine;
       const src = t.photo_spine || t.photo_thumbnail;
       const inner = src
         ? `<img class="spine-img" src="${src}" alt=""${_cropStyle(t, 'spine', true)}>`
         : `<div class="spine-ph"><span>${esc(t.title)}</span></div>`;
-      return `<div class="spine-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div></div>`;
+      return `<div class="spine-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div></div>`;
     }).join('');
   } else if (mode === 3) { // StackSup upright
     wall.className = 'inv-wall stacksup';
     wall.innerHTML = items.map(t => {
+      const sel = t.id === selectedId;
+      const bulk = selectedIds.has(t.id);
       const src = t.photo_face || t.photo_thumbnail;
       const inner = src
         ? `<img class="stack-img" src="${src}" alt=""${_cropStyle(t, 'face')}>`
         : `<div class="stack-ph"><span>${esc(t.title)}</span></div>`;
-      return `<div class="stack-card" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="stack-lbl">${esc(t.title)}</div></div>`;
+      return `<div class="stack-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="stack-lbl">${esc(t.title)}</div></div>`;
     }).join('');
   } else {
-    // List view (should not happen here)
     return;
   }
 
@@ -65,16 +70,13 @@ function renderWall() {
       updateBulkBar();
     });
     c.addEventListener('dblclick', () => {
-      if (typeof openDetail === 'function') openDetail(c.dataset.id);
-      else {
-        const ev = new CustomEvent('open-detail', { detail: c.dataset.id });
-        window.dispatchEvent(ev);
-      }
+      if (typeof window.openDetail === 'function') window.openDetail(c.dataset.id);
+      else window.dispatchEvent(new CustomEvent('open-detail', { detail: c.dataset.id }));
     });
   });
 }
 
-function updateBulkBar() {
+export function updateBulkBar() {
   const count = getSelectedIds().size;
   const bar = document.getElementById('bulk-bar');
   if (!bar) return;
@@ -85,5 +87,3 @@ function updateBulkBar() {
     bar.style.display = 'none';
   }
 }
-
-module.exports = { renderWall, updateBulkBar };

@@ -44,14 +44,18 @@ export let ollamaAvail = false;
 export let cards          = [];   // pending review: [{uid, data, thumb, expanded, source}]
 export let captureQueue   = [];   // staged captures: [{base64, thumb}]
 export let uidSeq         = 0;
-export let isCapturing    = false;
-export let barcodeMode    = false;
-export let barcodeRdr     = null;
-export let lastCode       = { val:'', t:0 };
+
+export function setCards(arr) { cards = arr; }
+export function setCaptureQueue(arr) { captureQueue = arr; }
+export function setUidSeq(n) { uidSeq = n; }
+export function nextUidSeq() { return ++uidSeq; }
+export function setApiKey(v) { apiKey = v; }
+export function setOllamaUrl(v) { ollamaUrl = v; }
+export function setOllamaModel(v) { ollamaModel = v; }
+export function setFastMode(v) { fastMode = v; }
+export function setOmdbKey(v) { omdbKey = v; }
+export function setOllamaAvail(v) { ollamaAvail = v; }
 export let cropFrac       = { x:.12, y:.08, w:.76, h:.84 };
-export let bcZoom         = 0.7;
-export let torchOn        = false;
-export let dragging       = false, resizing = false, dragOrig = {};
 export let editingId      = null;
 export const pendingEdits = new Map();
 

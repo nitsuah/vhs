@@ -1,39 +1,37 @@
 // ── BULK ACTIONS ──────────────────────────────────────────────────────────────
-const { getInventory, getSelectedIds } = require('./inventory-state');
-const { statusLabel } = require('./render-helpers');
+import { getInventory, getSelectedIds } from './inventory-state.js';
+import { statusLabel } from './render-helpers.js';
 
-async function applyBulkStatus(status) {
+export async function applyBulkStatus(status) {
   const ids = getSelectedIds();
   if (!ids.size) return;
   for (const id of ids) {
     const t = getInventory().find(x => x.id === id);
     if (!t) continue;
     t.status = status;
-    await dbPut(t);
+    await window.dbPut?.(t);
   }
-  toast(`Updated ${ids.size} tape${ids.size !== 1 ? 's' : ''} → ${statusLabel(status)}`, 'ok');
+  window.toast?.(`Updated ${ids.size} tape${ids.size !== 1 ? 's' : ''} → ${statusLabel(status)}`, 'ok');
   getSelectedIds().clear();
-  if (typeof renderInv === 'function') renderInv();
-  updateBulkBar();
+  window.renderInv?.();
+  window.updateBulkBar?.();
 }
 
-async function deleteBulk() {
+export async function deleteBulk() {
   const ids = getSelectedIds();
   if (!ids.size) return;
   if (!confirm(`Delete ${ids.size} tape${ids.size !== 1 ? 's' : ''}?`)) return;
   for (const id of ids) {
-    await dbDel(id);
+    await window.dbDel?.(id);
   }
   getSelectedIds().clear();
-  if (typeof renderInv === 'function') renderInv();
-  updateBulkBar();
-  toast(`Deleted ${ids.size} tape${ids.size !== 1 ? 's' : ''}`, 'ok');
+  window.renderInv?.();
+  window.updateBulkBar?.();
+  window.toast?.(`Deleted ${ids.size} tape${ids.size !== 1 ? 's' : ''}`, 'ok');
 }
 
-function clearBulk() {
+export function clearBulk() {
   getSelectedIds().clear();
-  if (typeof renderInv === 'function') renderInv();
-  updateBulkBar();
+  window.renderInv?.();
+  window.updateBulkBar?.();
 }
-
-module.exports = { applyBulkStatus, deleteBulk, clearBulk };

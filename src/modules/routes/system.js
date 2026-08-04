@@ -12,9 +12,6 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Apply rate limit to all routes
-app.use('/', limiter);
-
 const { pool } = require('../db');
 const { callOmdb } = require('../omdb');
 const { pingOllama } = require('../ollama');
@@ -58,11 +55,12 @@ async function caCertHandler(req, res) {
 }
 
 function registerStaticAndProxy(app) {
+  app.use('/', limiter);
+
   const publicDir = path.join(__dirname, '..', '..', '..', 'public');
   app.use(express.static(publicDir, { index: false }));
-  app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 
-  // Proxy for Ollama
+  // Proxy for Ollama — must be before the SPA catch-all
   app.use(
     '/api/ollama',
     createProxyMiddleware({
@@ -75,6 +73,8 @@ function registerStaticAndProxy(app) {
       on: { error: (err, _req, res) => res.status(502).json({ error: 'Ollama unavailable: ' + err.message }) },
     })
   );
+
+  app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 }
 
 module.exports = { healthHandler, caCertHandler, registerStaticAndProxy };

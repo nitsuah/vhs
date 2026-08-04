@@ -33,8 +33,9 @@ function normalizeTitleForLookup(title) {
   const tagsToRemove = ['vhs', 'dvd', 'bluray', 'blu-ray', 'digital', 'other', 'collection', 'special',
     'edition', "director's cut", 'extended', 'unrated', '3d', 'imax', 'collectible', 'sde',
     'movie', 'film', 'title', 'video', 'tape'];
-  // Keep 'movie' out of standalone stripping — it's a legitimate title word
-  const tagsStandalone = tagsToRemove.filter(t => t !== 'movie');
+  // Keep these out of standalone stripping — they're legitimate parts of real titles
+  const STANDALONE_EXCLUDE = ['movie', 'film', 'title', 'video', 'tape'];
+  const tagsStandalone = tagsToRemove.filter(t => !STANDALONE_EXCLUDE.includes(t));
 
   // Remove years and media tags in any order, more comprehensively
   let s = title
