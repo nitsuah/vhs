@@ -190,7 +190,8 @@ export function renderCards() {
       const retryId = card.srcJobId || card.jobId; if (!retryId) return;
       btn.disabled = true; btn.textContent = '…';
       try {
-        await fetch(`/api/jobs/${encodeURIComponent(retryId)}/retry`, { method: 'POST' });
+        const res = await fetch(`/api/jobs/${encodeURIComponent(retryId)}/retry`, { method: 'POST' });
+        if (!res.ok) throw new Error(`${res.status}`);
         _seenDel(retryId);
         card.processingState = 'processing'; card.failReason = '';
         renderCards();

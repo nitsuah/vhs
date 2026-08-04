@@ -1,5 +1,5 @@
 // ── UI MODULE ──────────────────────────────────────────────────────────────
-import { inventory, renderInv, getFiltered, updateBulkBar, updateCount } from './inventory.js';
+import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape } from './inventory.js';
 import { dbAdd, nextId } from './db.js';
 import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound } from './utils.js';
 import { revPanel, showRevPanel, hideRevPanel } from './review.js';
@@ -52,7 +52,7 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Escape') {
     if (document.getElementById('m-del-confirm').style.display !== 'none') { document.getElementById('m-del-confirm').style.display = 'none'; return; }
     if (document.getElementById('m-help').style.display !== 'none') { document.getElementById('m-help').style.display = 'none'; return; }
-    if (document.getElementById('m-detail').style.display !== 'none') { window.isNewTape = false; document.getElementById('d-delete').style.display = ''; document.getElementById('m-detail').style.display = 'none'; return; }
+    if (document.getElementById('m-detail').style.display !== 'none') { setIsNewTape(false); document.getElementById('d-delete').style.display = ''; document.getElementById('m-detail').style.display = 'none'; return; }
     if (document.getElementById('m-settings').style.display !== 'none') { document.getElementById('m-settings').style.display = 'none'; return; }
     if (document.getElementById('m-dup').style.display !== 'none') { document.getElementById('m-dup').style.display = 'none'; return; }
     if (document.getElementById('m-revalidate').style.display !== 'none') { document.getElementById('m-revalidate').style.display = 'none'; return; }
@@ -255,8 +255,10 @@ document.getElementById('import-input').addEventListener('change',async e=>{
         condition_notes:item.condition_notes||'',status:item.status||'in_collection',
         barcode:item.barcode||'',tags:item.tags||[],
         value_low:item.value_low||'',value_high:item.value_high||'',
+        imdb_id:item.imdb_id||'',
         photos:item.photos||[],photo_thumbnail:item.photo_thumbnail||'',
         photo_face:item.photo_face||null,photo_spine:item.photo_spine||null,
+        photo_crop:item.photo_crop||null,
         scanned_at:item.scanned_at||new Date().toISOString(),
       };
       await dbAdd(rec);inventory.push(rec);existingIds.add(rec.id);added++;
@@ -273,7 +275,15 @@ document.getElementById('import-input').addEventListener('change',async e=>{
 document.getElementById('btn-export').addEventListener('click',e=>{e.stopPropagation();document.getElementById('exp-dd').classList.toggle('on');});
 document.addEventListener('click',()=>document.getElementById('exp-dd').classList.remove('on'));
 document.getElementById('exp-json').addEventListener('click',()=>{
-  const data=inventory.map(({id,title,year,label,format,condition,condition_notes,barcode,tags,status,scanned_at})=>({id,title,year,label,format,condition,condition_notes,barcode:barcode||'',tags:tags||[],status,scanned_at}));
+  const data=inventory.map(t=>({
+    id:t.id,title:t.title,year:t.year||'',label:t.label||'',
+    format:t.format||'VHS',condition:t.condition||'',condition_notes:t.condition_notes||'',
+    barcode:t.barcode||'',tags:t.tags||[],status:t.status,scanned_at:t.scanned_at,
+    value_low:t.value_low||'',value_high:t.value_high||'',imdb_id:t.imdb_id||'',
+    photos:t.photos||[],photo_thumbnail:t.photo_thumbnail||'',
+    photo_face:t.photo_face||null,photo_spine:t.photo_spine||null,
+    photo_crop:t.photo_crop||null,
+  }));
   dl(JSON.stringify(data,null,2),'vhs-inventory.json','application/json');
   document.getElementById('exp-dd').classList.remove('on');
 });
@@ -301,7 +311,7 @@ document.getElementById('exp-tags')?.addEventListener('click',()=>{
   const items=inventory.filter(t=>t.status==='for_sale');
   if(!items.length){toast('No tapes marked For Sale','err');document.getElementById('exp-dd').classList.remove('on');return;}
   const tags=items.map(t=>{
-    const price=t.value_low&&t.value_high?`$${t.value_low}–$${t.value_high}`:t.value_low?`$${t.value_low}`:t.value_high?`$${t.value_high}`:'$________';
+    const price=t.value_low&&t.value_high?`$${esc(t.value_low)}–$${esc(t.value_high)}`:t.value_low?`$${esc(t.value_low)}`:t.value_high?`$${esc(t.value_high)}`:'$________';
     const meta=[t.year,t.label,t.condition].filter(Boolean).join(' · ');
     return `<div class="tag"><div class="t-title">${esc(t.title)}</div>${meta?`<div class="t-meta">${esc(meta)}</div>`:''}<div class="t-price">${price}</div><div class="t-id">${esc(t.id)}</div></div>`;
   }).join('');
@@ -319,14 +329,15 @@ button{margin-bottom:12px;padding:7px 18px;background:#222;color:#fff;border:non
 document.getElementById('exp-print').addEventListener('click',()=>{
   const items=getFiltered();
   const condBadge={great:'✅ Great',good:'👍 Good',fair:'⚠️ Fair',poor:'❌ Poor'};
+  const ep=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const rows=items.map((t,i)=>`<tr style="background:${i%2?'#f9f9f9':'#fff'}">
-    <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#666">${t.id}</td>
-    <td style="padding:6px 10px;font-weight:600">${t.title}</td>
-    <td style="padding:6px 10px;color:#555">${t.year||''}</td>
-    <td style="padding:6px 10px;color:#555">${t.label||''}</td>
-    <td style="padding:6px 10px">${condBadge[t.condition]||t.condition||''}</td>
-    <td style="padding:6px 10px;color:#2a7">${(t.value_low||t.value_high)?`$${t.value_low||'?'}–$${t.value_high||'?'}`:''}</td>
-    <td style="padding:6px 10px;font-size:11px;color:#777">${(t.tags||[]).join(', ')}</td>
+    <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#666">${ep(t.id)}</td>
+    <td style="padding:6px 10px;font-weight:600">${ep(t.title)}</td>
+    <td style="padding:6px 10px;color:#555">${ep(t.year)}</td>
+    <td style="padding:6px 10px;color:#555">${ep(t.label)}</td>
+    <td style="padding:6px 10px">${condBadge[t.condition]||ep(t.condition)}</td>
+    <td style="padding:6px 10px;color:#2a7">${(t.value_low||t.value_high)?`$${ep(t.value_low||'?')}–$${ep(t.value_high||'?')}`:''}</td>
+    <td style="padding:6px 10px;font-size:11px;color:#777">${ep((t.tags||[]).join(', '))}</td>
   </tr>`).join('');
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>VHS Inventory</title>
 <style>body{font-family:system-ui,sans-serif;margin:30px;color:#222}h1{margin-bottom:4px}p{color:#777;font-size:13px;margin-bottom:20px}

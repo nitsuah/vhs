@@ -16,7 +16,7 @@ const { pool } = require('../db');
 const { callOmdb } = require('../omdb');
 const { pingOllama } = require('../ollama');
 const { OMDB_API_KEY, CERT_DIR, OLLAMA, OLLAMA_MODEL } = require('../config');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
 
 async function healthHandler(req, res) {
   try {
@@ -70,11 +70,14 @@ function registerStaticAndProxy(app) {
       proxyTimeout: 300000,
       timeout: 300000,
       rejectUnauthorized: true,
-      on: { error: (err, _req, res) => res.status(502).json({ error: 'Ollama unavailable: ' + err.message }) },
+      on: {
+        proxyReq: fixRequestBody,
+        error: (err, _req, res) => res.status(502).json({ error: 'Ollama unavailable: ' + err.message }),
+      },
     })
   );
 
-  app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
+  app.get('*', limiter, (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 }
 
 module.exports = { healthHandler, caCertHandler, registerStaticAndProxy };

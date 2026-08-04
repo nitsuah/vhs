@@ -21,9 +21,9 @@ export function renderWall() {
       const src = t.photo_spine || t.photo_face || t.photo_thumbnail;
       const cropRole = isSpine ? 'spine' : 'face';
       const inner = src
-        ? `<img class="su-img${isSpine ? ' su-img-spine' : ''}" src="${src}" alt=""${_cropStyle(t, cropRole, isSpine)}>`
+        ? `<img class="su-img${isSpine ? ' su-img-spine' : ''}" src="${esc(src)}" alt=""${_cropStyle(t, cropRole, isSpine)}>`
         : `<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
-      return `<div class="su-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
+      return `<div class="su-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
     }).join('');
   } else if (mode === 2) { // Spine landscape
     wall.className = 'inv-wall spine';
@@ -33,9 +33,9 @@ export function renderWall() {
       const isSpine = !!t.photo_spine;
       const src = t.photo_spine || t.photo_thumbnail;
       const inner = src
-        ? `<img class="spine-img" src="${src}" alt=""${_cropStyle(t, 'spine', true)}>`
+        ? `<img class="spine-img" src="${esc(src)}" alt=""${_cropStyle(t, 'spine', true)}>`
         : `<div class="spine-ph"><span>${esc(t.title)}</span></div>`;
-      return `<div class="spine-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div></div>`;
+      return `<div class="spine-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div></div>`;
     }).join('');
   } else if (mode === 3) { // StackSup upright
     wall.className = 'inv-wall stacksup';
@@ -44,9 +44,9 @@ export function renderWall() {
       const bulk = selectedIds.has(t.id);
       const src = t.photo_face || t.photo_thumbnail;
       const inner = src
-        ? `<img class="stack-img" src="${src}" alt=""${_cropStyle(t, 'face')}>`
+        ? `<img class="stack-img" src="${esc(src)}" alt=""${_cropStyle(t, 'face')}>`
         : `<div class="stack-ph"><span>${esc(t.title)}</span></div>`;
-      return `<div class="stack-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${t.id}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="stack-lbl">${esc(t.title)}</div></div>`;
+      return `<div class="stack-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="stack-lbl">${esc(t.title)}</div></div>`;
     }).join('');
   } else {
     return;

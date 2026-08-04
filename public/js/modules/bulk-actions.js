@@ -21,13 +21,14 @@ export async function deleteBulk() {
   const ids = getSelectedIds();
   if (!ids.size) return;
   if (!confirm(`Delete ${ids.size} tape${ids.size !== 1 ? 's' : ''}?`)) return;
+  const count = ids.size;
   for (const id of ids) {
     await window.dbDel?.(id);
   }
   getSelectedIds().clear();
   window.renderInv?.();
   window.updateBulkBar?.();
-  window.toast?.(`Deleted ${ids.size} tape${ids.size !== 1 ? 's' : ''}`, 'ok');
+  window.toast?.(`Deleted ${count} tape${count !== 1 ? 's' : ''}`, 'ok');
 }
 
 export function clearBulk() {

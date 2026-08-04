@@ -21,7 +21,7 @@ function _lpStart(x, y, id) {
   _lpTimer = setTimeout(() => {
     _longPressActive = true;
     const t = getInventory().find(x => x.id === _lpId);
-    if (t) openCropOverlay('face');
+    if (t) { setSelectedId(_lpId); openCropOverlay('face'); }
   }, 500);
 }
 

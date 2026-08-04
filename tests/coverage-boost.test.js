@@ -577,3 +577,31 @@ describe('POST /api/analytics/outcome', () => {
     expect(res.body.ok).toBe(true);
   });
 });
+
+describe('normalizeTitleForLookup STANDALONE_EXCLUDE regression', () => {
+  const { normalizeTitleForLookup } = require('../src/modules/string-utils');
+  const STANDALONE_EXCLUDE = ['movie', 'film', 'title', 'video', 'tape'];
+
+  STANDALONE_EXCLUDE.forEach(term => {
+    it(`preserves standalone '${term}' in a real title context`, () => {
+      const result = normalizeTitleForLookup(`Star Wars ${term}`);
+      expect(result).toContain(term);
+    });
+
+    it(`strips parenthesized '(${term})' as a format tag`, () => {
+      const result = normalizeTitleForLookup(`Star Wars (${term})`);
+      expect(result).not.toContain(term);
+      expect(result.trim()).toBe('star wars');
+    });
+  });
+
+  it('normalizes a title that is only a standalone-exclude term', () => {
+    expect(normalizeTitleForLookup('movie')).toBe('movie');
+    expect(normalizeTitleForLookup('tape')).toBe('tape');
+  });
+
+  it('does not strip non-excluded tags when standalone', () => {
+    expect(normalizeTitleForLookup('Alien vhs')).not.toContain('vhs');
+    expect(normalizeTitleForLookup('Alien dvd')).not.toContain('dvd');
+  });
+});
