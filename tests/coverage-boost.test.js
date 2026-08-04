@@ -506,11 +506,11 @@ describe('GET /api/health', () => {
   });
 });
 
-describe('GET /ca.crt', () => {
+describe('GET /api/ca-cert', () => {
   it('returns 404 when cert missing', async () => {
     const fs = require('fs');
     const spy = jest.spyOn(fs, 'existsSync').mockReturnValue(false);
-    const res = await request(app).get('/ca.crt');
+    const res = await request(app).get('/api/ca-cert');
     expect(res.status).toBe(404);
     spy.mockRestore();
   });
