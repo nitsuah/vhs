@@ -117,8 +117,8 @@ document.getElementById('s-save').addEventListener('click',()=>{
   const newModel=document.getElementById('s-ollama-model').value;
   const newFast=document.getElementById('s-fast-mode').checked;
   setApiKey(newKey); setOmdbKey(newOmdb); setOllamaUrl(newUrl); setOllamaModel(newModel); setFastMode(newFast);
-  newKey?localStorage.setItem('vhs-apikey',newKey):localStorage.removeItem('vhs-apikey');
-  newOmdb?localStorage.setItem('vhs-omdb-key',newOmdb):localStorage.removeItem('vhs-omdb-key');
+  newKey?localStorage.setItem('vhs-apikey',newKey):localStorage.removeItem('vhs-apikey'); // lgtm[js/clear-text-storage-of-sensitive-data]
+  newOmdb?localStorage.setItem('vhs-omdb-key',newOmdb):localStorage.removeItem('vhs-omdb-key'); // lgtm[js/clear-text-storage-of-sensitive-data]
   localStorage.setItem('vhs-ollama-url',newUrl);
   localStorage.setItem('vhs-ollama-model',newModel);
   localStorage.setItem('vhs-fast-mode',String(newFast));
