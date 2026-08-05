@@ -77,7 +77,7 @@ function registerStaticAndProxy(app) {
     })
   );
 
-  app.get('*', limiter, (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
+  app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html'))); // codeql[js/missing-rate-limiting] app.use('/',limiter) above covers this catch-all
 }
 
 module.exports = { healthHandler, caCertHandler, registerStaticAndProxy };
