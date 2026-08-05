@@ -600,7 +600,7 @@ describe('normalizeTitleForLookup STANDALONE_EXCLUDE regression', () => {
     expect(normalizeTitleForLookup('tape')).toBe('tape');
   });
 
-  it('does not strip non-excluded tags when standalone', () => {
+  it('strips non-STANDALONE_EXCLUDE tags (vhs, dvd) as standalone words', () => {
     expect(normalizeTitleForLookup('Alien vhs')).not.toContain('vhs');
     expect(normalizeTitleForLookup('Alien dvd')).not.toContain('dvd');
   });

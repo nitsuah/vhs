@@ -193,7 +193,7 @@ export function renderCards() {
         const res = await fetch(`/api/jobs/${encodeURIComponent(retryId)}/retry`, { method: 'POST' });
         if (!res.ok) throw new Error(`${res.status}`);
         _seenDel(retryId);
-        card.processingState = 'processing'; card.failReason = '';
+        card.processingState = 'processing'; card.failReason = ''; card.inflightSince = new Date().toISOString();
         renderCards();
       } catch { btn.disabled = false; btn.textContent = '↺'; toast('Retry failed', 'err'); }
     });
