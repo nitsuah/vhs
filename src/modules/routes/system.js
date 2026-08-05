@@ -77,7 +77,7 @@ function registerStaticAndProxy(app) {
     })
   );
 
-  app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
+  app.get('*', limiter, (_req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 }
 
 module.exports = { healthHandler, caCertHandler, registerStaticAndProxy };
