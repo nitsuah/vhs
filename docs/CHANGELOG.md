@@ -10,8 +10,8 @@ All notable changes to this project are documented here.
 
 - **XSS in wall-view print exports** — all inventory-derived fields (`id`, `title`, `year`, `label`, `condition`, `value_low`, `value_high`, `tags`) are now HTML-escaped before interpolation into `document.write` print windows (`exp-print`, `exp-tags`)
 - **XSS in wall-view card rendering** — `data-id` and `src` attributes now pass through `esc()` before injection into `innerHTML` in all three wall modes (cover, spine, stack)
-- **Ollama proxy POST body** — added `fixRequestBody` to the proxy `onProxyReq` handler so POST bodies consumed by `express.json()` are correctly forwarded to Ollama
-- **SPA catch-all rate limit** — added `limiter` directly to the `app.get('*', ...)` handler to satisfy static-analysis and remove ambiguity about middleware ordering
+- **Ollama proxy POST body** — added `fixRequestBody` to the proxy `on.proxyReq` hook (http-proxy-middleware v2 API) so POST bodies consumed by `express.json()` are correctly forwarded to Ollama
+- **SPA catch-all rate limit** — registered `app.use('/', limiter)` before the static, proxy, and SPA catch-all routes so all handlers share a single rate-limit pass with no double-counting
 
 #### Data integrity
 

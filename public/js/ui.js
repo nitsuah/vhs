@@ -375,7 +375,7 @@ tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style>
     let _closeTimer=null;
     es.onmessage=e=>{try{appendEntry(JSON.parse(e.data));}catch{}};
     es.onopen=()=>{if(_closeTimer){clearTimeout(_closeTimer);_closeTimer=null;}};
-    es.onerror=()=>{_closeTimer=setTimeout(()=>{es.close();if(sse===es)sse=null;_closeTimer=null;},2000);};
+    es.onerror=()=>{if(_closeTimer){clearTimeout(_closeTimer);_closeTimer=null;}_closeTimer=setTimeout(()=>{es.close();if(sse===es)sse=null;_closeTimer=null;},2000);};
   }
   document.getElementById('btn-logs')?.addEventListener('click',openLogs);
 })();
