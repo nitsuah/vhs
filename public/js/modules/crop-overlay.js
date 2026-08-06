@@ -1,12 +1,12 @@
 // ── PHOTO CROP OVERLAY ────────────────────────────────────────────────────────
-const { getInventory, getSelectedId } = require('./inventory-state');
-const { _cropStyle } = require('./render-helpers');
+import { getInventory, getSelectedId } from './inventory-state.js';
+import { _cropStyle } from './render-helpers.js';
 
 let _cropRole = 'face';
 let _cropX = 50, _cropY = 50, _cropS = 1;
 let _cropPanning = false, _cropPx = 0, _cropPy = 0;
 
-function openCropOverlay(role) {
+export function openCropOverlay(role) {
   const t = getInventory().find(x => x.id === getSelectedId());
   if (!t) return;
   _cropRole = role;
@@ -24,7 +24,7 @@ function openCropOverlay(role) {
   updateCropPreview();
 }
 
-function closeCropOverlay() {
+export function closeCropOverlay() {
   document.getElementById('crop-overlay').style.display = 'none';
 }
 
@@ -50,7 +50,7 @@ function startDrag(x, y) {
 }
 
 function startResize(x, y) {
-  _cropPanning = true; // reuse same flag
+  _cropPanning = true;
   _cropPx = x; _cropPy = y;
 }
 
@@ -68,32 +68,32 @@ function onUp() {
   _cropPanning = false;
 }
 
-function applyCrop() {
+export function applyCrop() {
   const t = getInventory().find(x => x.id === getSelectedId());
   if (!t) return;
   t.photo_crop = t.photo_crop || {};
   t.photo_crop[_cropRole] = { x: _cropX, y: _cropY, s: _cropS };
   closeCropOverlay();
-  if (typeof renderInv === 'function') renderInv();
-  if (typeof dbPut === 'function') dbPut(t).catch(e => toast('Save failed: ' + e.message, 'err'));
+  if (typeof window.renderInv === 'function') window.renderInv();
+  if (typeof window.dbPut === 'function') window.dbPut(t).catch(e => window.toast?.('Save failed: ' + e.message, 'err'));
 }
 
-function resetCrop() {
+export function resetCrop() {
   _cropX = 50; _cropY = 50; _cropS = 1;
   updateCropPreview();
 }
 
-function zoomIn() {
+export function zoomIn() {
   _cropS = Math.min(4, _cropS * 1.2);
   updateCropPreview();
 }
 
-function zoomOut() {
+export function zoomOut() {
   _cropS = Math.max(1, _cropS / 1.2);
   updateCropPreview();
 }
 
-// Event listeners
+// Event listeners — registered at module load time (modules are deferred, DOM is ready)
 document.getElementById('crop-overlay')?.addEventListener('click', e => {
   if (e.target.id === 'crop-overlay') closeCropOverlay();
 });
@@ -107,5 +107,3 @@ document.getElementById('crop-img')?.addEventListener('touchstart', e => { if (e
 document.getElementById('crop-handle')?.addEventListener('touchstart', e => { const t = e.touches[0]; startResize(t.clientX, t.clientY); e.stopPropagation(); e.preventDefault(); }, { passive: false });
 document.addEventListener('touchmove', e => { if (_cropPanning) { const t = e.touches[0]; onMove(t.clientX, t.clientY); e.preventDefault(); } }, { passive: false });
 document.addEventListener('touchend', onUp);
-
-module.exports = { openCropOverlay, closeCropOverlay, applyCrop, resetCrop, zoomIn, zoomOut };

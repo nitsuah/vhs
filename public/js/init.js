@@ -2,8 +2,8 @@ import { inventory, setInventory } from './inventory.js';
 import { initCamera, updateCrop } from './camera.js';
 import { dbAll } from './db.js';
 import { _cacheGetAll } from './db.js';
-import { retryWithBackoff } from './utils.js';
-import { setDbDot, toast } from './utils.js';
+import { retryWithBackoff, toast } from './utils.js';
+import { setDbDot } from './db.js';
 import { updateAiBadge, checkOllama } from './ai.js';
 import { renderInv, updateCount } from './inventory.js';
 import { startJobPoller } from './capture.js';
@@ -33,4 +33,5 @@ async function init() {
   renderInv(); updateCount();
   startJobPoller();
 }
+window.init = init;
 init().catch(err => { console.error('init error:', err); });

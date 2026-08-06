@@ -1,7 +1,11 @@
+// ── AI MODULE ─────────────────────────────────────────────────────────────
+import { apiKey, ollamaUrl, ollamaModel, fastMode, omdbKey, ollamaAvail, setOllamaAvail, VISION_PROMPT_FAST, VISION_PROMPT_FULL } from './state.js';
+import { parseJson, parseJsonObj } from './utils.js';
+
 // ── AI BADGE ─────────────────────────────────────────────────────────────
 function setAiBadge(mode,label){const el=document.getElementById('ai-badge');el.className=mode;el.textContent=label;}
 
-async function checkOllama(silent=false){
+export async function checkOllama(silent=false){
   if(!silent){document.getElementById('ollama-dot').className='ai-dot spin2';document.getElementById('ollama-status-text').textContent='Checking…';}
   try{
     const res=await fetch(`${ollamaUrl}/api/tags`,{signal:AbortSignal.timeout(3000)});
@@ -9,18 +13,18 @@ async function checkOllama(silent=false){
     const data=await res.json();
     const models=(data.models||[]).map(m=>m.name);
     const has=models.some(m=>m.startsWith(ollamaModel.split(':')[0]));
-    ollamaAvail=true;
+    setOllamaAvail(true);
     if(!silent){
       document.getElementById('ollama-dot').className='ai-dot ok';
       document.getElementById('ollama-status-text').textContent=has?`Connected · ${ollamaModel} ready`:`Connected · model not yet pulled`;
     }
   }catch{
-    ollamaAvail=false;
+    setOllamaAvail(false);
     if(!silent){document.getElementById('ollama-dot').className='ai-dot off';document.getElementById('ollama-status-text').textContent='Ollama not reachable at '+ollamaUrl;}
   }
   updateAiBadge();
 }
-function updateAiBadge(){
+export function updateAiBadge(){
   if(apiKey)setAiBadge('claude','CLAUDE');
   else if(ollamaAvail)setAiBadge('ollama',ollamaModel);
   else setAiBadge('noai','NO AI');
@@ -64,24 +68,24 @@ async function verifyWithOmdb(results){
   }));
 }
 
-async function callAI(base64){
+export async function callAI(base64){
   const b64=base64?await preprocessForAI(base64):base64;
   let results=[];
   if(apiKey&&b64){
-    try{setRevMsg('Analyzing with Claude…');results=await callClaude(b64);}
+    try{window.setRevMsg?.('Analyzing with Claude…');results=await callClaude(b64);}
     catch(e){console.warn('Claude failed:',e.message);}
   }
   if(!results.length&&b64){
     const ok=await pingOllama();
     if(ok){
-      try{setRevMsg(`Analyzing with ${ollamaModel}…`);results=await callOllama(b64);}
+      try{window.setRevMsg?.(`Analyzing with ${ollamaModel}…`);results=await callOllama(b64);}
       catch(e){console.warn('Ollama failed:',e.message);}
     }
   }
-  if(!results.length){setRevMsg('No AI available');return[];}
+  if(!results.length){window.setRevMsg?.('No AI available');return[];}
   // Enrich results with OMDb verification when key is configured
   if(omdbKey&&results.length){
-    setRevMsg('Verifying titles…');
+    window.setRevMsg?.('Verifying titles…');
     results=await verifyWithOmdb(results);
   }
   return results;
@@ -99,7 +103,7 @@ async function callClaude(base64){
     if(res.status===429||res.status===529){
       const retry=parseInt(res.headers.get('retry-after')||'0',10)||Math.pow(2,attempt+1)*1000;
       console.warn(`Claude rate limit — retrying in ${retry}ms (attempt ${attempt+1})`);
-      setRevMsg(`Rate limited — waiting ${Math.round(retry/1000)}s…`);
+      window.setRevMsg?.(`Rate limited — waiting ${Math.round(retry/1000)}s…`);
       await new Promise(r=>setTimeout(r,retry));
       continue;
     }
@@ -117,12 +121,12 @@ async function callOllama(base64){
   const d=await res.json();return parseJson(d.response||'[]');
 }
 async function pingOllama(){
-  try{const r=await fetch(`${ollamaUrl}/api/tags`,{signal:AbortSignal.timeout(2000)});ollamaAvail=r.ok;updateAiBadge();return r.ok;}
-  catch{ollamaAvail=false;updateAiBadge();return false;}
+  try{const r=await fetch(`${ollamaUrl}/api/tags`,{signal:AbortSignal.timeout(2000)});setOllamaAvail(r.ok);updateAiBadge();return r.ok;}
+  catch{setOllamaAvail(false);updateAiBadge();return false;}
 }
 
 // ── METADATA LOOKUPS ─────────────────────────────────────────────────────
-async function lookupMetadata(title){
+export async function lookupMetadata(title){
   const prompt=`You are a movie/TV database and VHS collectibles expert. For the title: ${JSON.stringify(title)}
 Return ONLY a JSON object with these fields (omit any you are unsure about):
 {"year":"1984","label":"Orion Pictures","format":"VHS","value_low":"8","value_high":"25"}
@@ -163,7 +167,7 @@ Return {} if completely unknown.`;
   return Object.keys(merged).length?merged:null;
 }
 
-async function lookupBarcode(code){
+export async function lookupBarcode(code){
   try{
     const hdrs={};if(omdbKey)hdrs['x-omdb-key']=omdbKey;
     const res=await fetch(`/api/lookup/barcode/${encodeURIComponent(code)}`,{signal:AbortSignal.timeout(8000),headers:hdrs});

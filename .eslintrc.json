@@ -8,5 +8,11 @@
     "eqeqeq": ["error", "always"],
     "no-var": "error",
     "prefer-const": "warn"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["tests/**/*.js", "tests/**/*.spec.js"],
+      "env": { "jest": true }
+    }
+  ]
 }

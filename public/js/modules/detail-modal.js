@@ -1,8 +1,8 @@
 // ── DETAIL MODAL ──────────────────────────────────────────────────────────────
-const { getInventory, setSelectedId, getSelectedId, setIsNewTape, getIsNewTape } = require('./inventory-state');
-const { esc, renderTagChips } = require('./render-helpers');
+import { getInventory, setSelectedId, getSelectedId, setIsNewTape } from './inventory-state.js';
+import { esc, renderTagChips } from './render-helpers.js';
 
-function initTagChips(container, getTags, setTags) {
+export function initTagChips(container, getTags, setTags) {
   function bindInput() {
     const inp = container.querySelector('.tag-add-input');
     if (!inp) return;
@@ -32,7 +32,7 @@ function initTagChips(container, getTags, setTags) {
   bindInput();
 }
 
-function renderDetailPhotos(t) {
+export function renderDetailPhotos(t) {
   const wrap = document.getElementById('d-photos');
   if (!wrap) return;
   const photos = t.photos || [];
@@ -48,7 +48,7 @@ function renderDetailPhotos(t) {
   `).join('');
 }
 
-function openDetail(id) {
+export function openDetail(id) {
   const t = getInventory().find(x => x.id === id);
   if (!t) return;
   setSelectedId(id);
@@ -92,37 +92,8 @@ function openDetail(id) {
     mdl.classList.add('matrix-mode');
     [['d-heading', t.title, false], ['d-title', t.title, true], ['d-year', t.year || '', true], ['d-label', t.label || '', true]].forEach(([eid, val]) => {
       const el = document.getElementById(eid);
-      if (el) scrambleToReal(el, val, 2200);
+      if (el) window.scrambleToReal?.(el, val, 2200);
     });
     setTimeout(() => mdl.classList.remove('matrix-mode'), 2600);
   }
 }
-
-window.pinDetailPhoto = async function(idx, role) {
-  const t = getInventory().find(x => x.id === getSelectedId());
-  if (!t) return;
-  const src = t.photos[idx];
-  if (role === 'face') { t.photo_face = (t.photo_face === src ? null : src); }
-  else { t.photo_spine = (t.photo_spine === src ? null : src); }
-  renderDetailPhotos(t);
-  if (typeof renderInv === 'function') renderInv();
-  try { await dbPut(t); } catch (e) { toast('Save failed: ' + e.message, 'err'); }
-};
-
-window.removeDetailPhoto = async function(idx) {
-  const t = getInventory().find(x => x.id === getSelectedId());
-  if (!t) return;
-  const old = t.photos[idx];
-  t.photos = (t.photos || []).filter((_, i) => i !== idx);
-  if (t.photo_thumbnail === old) t.photo_thumbnail = t.photos[0] || '';
-  if (t.photo_face === old) t.photo_face = null;
-  if (t.photo_spine === old) t.photo_spine = null;
-  await dbPut(t);
-  if (typeof renderInv === 'function') renderInv();
-  renderDetailPhotos(t);
-  const th = document.getElementById('detail-thumb');
-  if (t.photo_thumbnail) { th.src = t.photo_thumbnail; th.style.display = 'block'; }
-  else th.style.display = 'none';
-};
-
-module.exports = { openDetail, renderDetailPhotos, initTagChips };

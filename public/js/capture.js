@@ -1,12 +1,13 @@
 // ── BATCH UPLOAD ─────────────────────────────────────────────────────────
-import { inventory, setInventory } from './inventory.js';
+import { inventory, renderInv, updateCount } from './inventory.js';
 import { dbAdd, nextId } from './db.js';
-import { findDup, _normTitle, _titleSim } from './utils.js';
-import { lookupBarcode } from './ai.js';
-import { captureQueue, renderQueue, addCard, showRevPanel, renderCards, setRevLoading, setRevMsg, showRevErr, cards } from './review.js';
+import { findDup } from './utils.js';
+import { lookupBarcode, callAI } from './ai.js';
+import { addCard, showRevPanel, renderCards, setRevLoading, setRevMsg, showRevErr, cards, _seenAdd, _seenDel, seenJobIds } from './review.js';
+import { captureQueue, setCaptureQueue, nextUidSeq } from './state.js';
+import { apiKey } from './state.js';
 import { fileToB64, fileToThumb } from './utils.js';
 import { isCapturing, barcodeMode, cropEl, vidWrap, btnCap, video, cropFrac } from './camera.js';
-import { esc } from './inventory.js';
 import { toast } from './utils.js';
 
 const fileInput = document.getElementById('file-input');
@@ -23,6 +24,30 @@ fileInput.addEventListener('change', async () => {
   }
   renderQueue();
 });
+
+// ── CAPTURE QUEUE RENDER ──────────────────────────────────────────────────
+const queueStrip = document.getElementById('queue-strip');
+queueStrip.addEventListener('click', e => e.stopPropagation());
+
+function renderQueue() {
+  if (!captureQueue.length) { queueStrip.classList.remove('on'); queueStrip.innerHTML = ''; return; }
+  queueStrip.classList.add('on');
+  const n = captureQueue.length;
+  const imgs = [...captureQueue].reverse().map((item, displayIdx) => {
+    const origIdx = n - 1 - displayIdx;
+    const preview = item.thumb
+      ? `<img src="${item.thumb}" alt="">`
+      : `<span style="font-size:20px;width:60px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:4px;border:1px solid var(--border2);background:var(--bg3);pointer-events:none;flex-shrink:0">📼</span>`;
+    return `<div class="q-item">${preview}<button class="q-rm" data-i="${origIdx}">×</button></div>`;
+  }).join('');
+  queueStrip.innerHTML =
+    `<div class="q-actions"><button id="btn-process-q">⬤ Analyze ${n}</button>${n > 1 ? `<button id="btn-clear-q">Clear</button>` : ''}<span class="q-count">Space=stage · Enter=analyze</span></div><div class="q-imgs">${imgs}</div>`;
+  queueStrip.querySelectorAll('.q-rm').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation(); captureQueue.splice(+btn.dataset.i, 1); renderQueue();
+  }));
+  document.getElementById('btn-process-q')?.addEventListener('click', e => { e.stopPropagation(); processQueue(); });
+  document.getElementById('btn-clear-q')?.addEventListener('click', e => { e.stopPropagation(); setCaptureQueue([]); renderQueue(); });
+}
 
 // ── CAPTURE → STAGE ───────────────────────────────────────────────────────
 function cropFrame() {
@@ -64,47 +89,25 @@ function capture() {
   renderQueue();
 }
 btnCap.addEventListener('click', capture);
+window.capture = capture;
 
-// ── CAPTURE QUEUE ─────────────────────────────────────────────────────────
-const queueStrip = document.getElementById('queue-strip');
-// Prevent any click inside the staging strip from bubbling up to vid-wrap (which would trigger capture)
-queueStrip.addEventListener('click', e => e.stopPropagation());
-
-// Called directly by camera.js when a barcode is detected — bypasses the staging queue
-// so barcode lookups never block or compete with Ollama image analysis jobs.
-// If the barcode resolves to a title via UPC/OMDb, auto-confirms straight to collection
-// (no review card, no Ollama call). If lookup fails, falls back to a review card.
+// ── BARCODE CARD ─────────────────────────────────────────────────────────
 async function addBarcodeCard(code) {
   const meta = await lookupBarcode(code).catch(() => null);
 
   if (meta && meta.title) {
-    // Duplicate guard (title-based)
-    const dup = findDup(meta.title);
+    const dup = findDup(meta.title, inventory);
     if (dup) { toast(`Already in collection: "${dup.title}"`, 'err', 5000); return; }
-    // Also check barcode-based dup
     const bcDup = inventory.find(t => t.barcode === code);
     if (bcDup) { toast(`Already in collection: "${bcDup.title || code}"`, 'err', 5000); return; }
 
     const useUpcId = code && /^\d{8,14}$/.test(code) && !inventory.find(t => t.id === code);
     const recId = useUpcId ? code : await nextId();
     const rec = {
-      id: recId,
-      title: meta.title,
-      year: meta.year || '',
-      label: meta.label || '',
-      format: 'VHS',
-      condition: 'good',
-      condition_notes: '',
-      status: 'in_collection',
-      barcode: code,
-      tags: [],
-      value_low: '',
-      value_high: '',
-      imdb_id: meta.imdb_id || '',
-      photos: [],
-      photo_thumbnail: '',
-      photo_spine: null,
-      photo_face: null,
+      id: recId, title: meta.title, year: meta.year || '', label: meta.label || '',
+      format: 'VHS', condition: 'good', condition_notes: '', status: 'in_collection',
+      barcode: code, tags: [], value_low: '', value_high: '', imdb_id: meta.imdb_id || '',
+      photos: [], photo_thumbnail: '', photo_spine: null, photo_face: null,
       scanned_at: new Date().toISOString(),
     };
     await dbAdd(rec);
@@ -113,8 +116,7 @@ async function addBarcodeCard(code) {
     toast(`Added: ${rec.title}`, 'ok', 3000);
     _flashInvRow(rec.id);
   } else {
-    // No match — show a review card so user can enter the title manually
-    const uid = ++uidSeq;
+    const uid = nextUidSeq();
     const card = { uid, data: { barcode: code, format: 'VHS', condition: 'good', status: 'in_collection', notes: '' }, source: 'barcode', thumb: null, expanded: true, jobId: null, processingState: 'ready', failReason: '' };
     cards.push(card);
     showRevPanel();
@@ -126,12 +128,11 @@ async function addBarcodeCard(code) {
 async function processQueue() {
   if (!captureQueue.length) return;
   const queue = [...captureQueue];
-  captureQueue = []; renderQueue();
+  setCaptureQueue([]); renderQueue();
 
   const barcodeItems = queue.filter(item => item.barcode);
   const imageItems = queue.filter(item => !item.barcode);
 
-  // Process barcode items: same auto-confirm logic as addBarcodeCard
   for (const item of barcodeItems) {
     await addBarcodeCard(item.barcode);
   }
@@ -161,7 +162,7 @@ async function processQueue() {
         body: JSON.stringify({ image: item.base64, thumb: item.thumb }) });
       if (r.ok) {
         const { id: uploadJobId } = await r.json();
-        const card = { uid: ++uidSeq, data: { format: 'VHS', condition: 'good', status: 'in_collection', notes: '' }, source: null, thumb: item.thumb, expanded: false, jobId: uploadJobId, srcJobId: uploadJobId, processingState: submitted === 0 && !barcodeItems.length ? 'processing' : 'queued', failReason: '', inflightSince: new Date().toISOString() };
+        const card = { uid: nextUidSeq(), data: { format: 'VHS', condition: 'good', status: 'in_collection', notes: '' }, source: null, thumb: item.thumb, expanded: false, jobId: uploadJobId, srcJobId: uploadJobId, processingState: submitted === 0 && !barcodeItems.length ? 'processing' : 'queued', failReason: '', inflightSince: new Date().toISOString() };
         cards.push(card);
         submitted++;
       }
@@ -173,13 +174,10 @@ async function processQueue() {
     toast(`${submitted} image${submitted > 1 ? 's' : ''} queued — Ollama is analyzing…`, 'ok', 4000);
   }
 }
+window.processQueue = processQueue;
 
 // ── JOB POLLING ──────────────────────────────────────────────────────────
 let jobPollTimer = null;
-// session-only set: prevents re-adding an item after confirm/discard within the same session
-let seenJobIds = new Set();
-function _seenAdd(id) { seenJobIds.add(id); }
-function _seenDel(id) { seenJobIds.delete(id); }
 
 async function pollReviewItems() {
   try {
@@ -187,21 +185,16 @@ async function pollReviewItems() {
     if (!Array.isArray(items)) return;
     let changed = 0;
     for (const item of items) {
-      // Skip if we've seen this review_item OR its parent upload_job (handles race where
-      // user confirmed a queued card but server already finished before the DELETE arrived)
       if (seenJobIds.has(item.id) || seenJobIds.has(item.job_id)) continue;
-      // Check if a processing card from the same upload_job already exists → transition it
       const existing = cards.find(c => c.srcJobId === item.job_id && c.processingState === 'processing');
-      if (!existing && cards.some(c => c.jobId === item.id)) continue; // already shown
+      if (!existing && cards.some(c => c.jobId === item.id)) continue;
       const data = { ...((typeof item.data === 'object' ? item.data : {}) || {}), condition: item.data?.condition || 'good', status: item.data?.status || 'in_collection' };
       if (existing) {
-        // Upgrade the processing card to this review_item; preserve any title the user typed
         const userTitle = (existing.data.title || '').trim();
-        existing.jobId = item.id; // now tracks review_item id for cleanup
+        existing.jobId = item.id;
         existing.data = userTitle ? { ...data, title: userTitle } : data;
         existing.processingState = item.status === 'failed' ? 'failed' : 'ready';
         existing.failReason = item.fail_reason || '';
-        // Promote the next queued card to processing now that the server has freed a slot
         const nextQueued = cards.find(c => c.processingState === 'queued');
         if (nextQueued) nextQueued.processingState = 'processing';
       } else {
@@ -223,9 +216,8 @@ async function resumeInflightJobs() {
     for (let i = 0; i < jobs.length; i++) {
       const job = jobs[i];
       if (seenJobIds.has(job.id) || cards.some(c => c.srcJobId === job.id || c.jobId === job.id)) continue;
-      // Pending jobs from server: first (or currently-processing) = 'processing', rest = 'queued'
       const state = job.status === 'processing' ? 'processing' : 'queued';
-      const card = { uid: ++uidSeq, data: { format: 'VHS', condition: 'good', status: 'in_collection', notes: '' }, source: null, thumb: job.thumb, expanded: false, jobId: job.id, srcJobId: job.id, processingState: state, failReason: '', inflightSince: job.created_at };
+      const card = { uid: nextUidSeq(), data: { format: 'VHS', condition: 'good', status: 'in_collection', notes: '' }, source: null, thumb: job.thumb, expanded: false, jobId: job.id, srcJobId: job.id, processingState: state, failReason: '', inflightSince: job.created_at };
       cards.push(card);
       added++;
     }
@@ -272,11 +264,10 @@ async function updateQueueStatus() {
     if (retrying) parts.push(`<span class="qs-badge qs-pending">↺ ${retrying} retrying</span>`);
     if (newReady) parts.push(`<span class="qs-badge" style="background:rgba(61,187,61,.15);color:var(--green);border:1px solid rgba(61,187,61,.3);cursor:pointer" title="Click to open review panel" id="qs-ready-btn">✓ ${newReady} ready</span>`);
     queueStatusEl.innerHTML = `<span style="font-size:10px;color:var(--text3)">Queue:</span>${parts.join('')}`;
-    document.getElementById('qs-ready-btn')?.addEventListener('click', () => { pollReviewItems(); showRevPanel(); setActiveTab('review'); });
+    document.getElementById('qs-ready-btn')?.addEventListener('click', () => { pollReviewItems(); showRevPanel(); window.setActiveTab?.('review'); });
   } catch { } finally { queueBusy = false; }
 }
 
-// Flash a row briefly when a tape is added/updated
 function _flashInvRow(id) {
   setTimeout(() => {
     const row = document.querySelector(`#inv-list [data-id="${id}"]`);
@@ -284,4 +275,4 @@ function _flashInvRow(id) {
   }, 60);
 }
 
-export { captureQueue, addBarcodeCard, processQueue, startJobPoller };
+export { captureQueue, addBarcodeCard, processQueue };

@@ -1,8 +1,10 @@
 // ── SOUND TOGGLE ─────────────────────────────────────────────────────────
 let soundEnabled=localStorage.getItem('vhs-sound')!=='false';
+export function getSoundEnabled() { return soundEnabled; }
+export function toggleSound() { soundEnabled = !soundEnabled; localStorage.setItem('vhs-sound', soundEnabled); return soundEnabled; }
 
 // ── TOAST ────────────────────────────────────────────────────────────────
-function toast(msg,type='',ms=3000){
+export function toast(msg,type='',ms=3000){
   const el=document.createElement('div');
   el.className='toast'+(type?' '+type:'');
   el.textContent=msg;
@@ -12,11 +14,11 @@ function toast(msg,type='',ms=3000){
 }
 
 // ── JSON PARSERS ─────────────────────────────────────────────────────────
-function parseJson(txt){const m=txt.trim().match(/\[[\s\S]*\]/);if(!m)return[];try{return JSON.parse(m[0]);}catch{return[];}}
-function parseJsonObj(txt){const m=txt.trim().match(/\{[\s\S]*\}/);if(!m)return null;try{return JSON.parse(m[0]);}catch{return null;}}
+export function parseJson(txt){const m=txt.trim().match(/\[[\s\S]*\]/);if(!m)return[];try{return JSON.parse(m[0]);}catch{return[];}}
+export function parseJsonObj(txt){const m=txt.trim().match(/\{[\s\S]*\}/);if(!m)return null;try{return JSON.parse(m[0]);}catch{return null;}}
 
 // ── RETRY ────────────────────────────────────────────────────────────────
-async function retryWithBackoff(fn,retries=3,delay=800){
+export async function retryWithBackoff(fn,retries=3,delay=800){
   for(let i=0;i<=retries;i++){
     try{return await fn();}
     catch(err){
@@ -34,9 +36,9 @@ function lev(a,b){
   return d[m][n];
 }
 const norm = t=>(t||'').toLowerCase().replace(/^(the |a |an )/i,'').trim();
-function findDup(title){
+export function findDup(title, inv) {
   const n=norm(title);
-  for(const t of inventory){const e=norm(t.title),L=Math.max(n.length,e.length);if(L&&1-lev(n,e)/L>=0.85)return t;}
+  for(const t of (inv||[])){const e=norm(t.title),L=Math.max(n.length,e.length);if(L&&1-lev(n,e)/L>=0.85)return t;}
   return null;
 }
 
@@ -118,7 +120,7 @@ function buzz(){
 
 // ── REWIND SOUND ─────────────────────────────────────────────────────────
 let _rewindCooldown=0;
-function playRewindSound(){
+export function playRewindSound(){
   if(!soundEnabled)return;
   const now=Date.now();
   if(now-_rewindCooldown<5000)return;
@@ -169,7 +171,7 @@ function stopJawsTheme(){
 }
 
 // ── TV STATIC ─────────────────────────────────────────────────────────────
-function startStaticAnim(canvas,ms){
+export function startStaticAnim(canvas,ms){
   canvas.style.display='block';
   const W=canvas.width=window.innerWidth,H=canvas.height=window.innerHeight;
   const ctx=canvas.getContext('2d');
@@ -192,7 +194,7 @@ function startStaticAnim(canvas,ms){
 
 // ── MATRIX SCRAMBLE ───────────────────────────────────────────────────────
 const _KAT='アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
-function scrambleToReal(el,finalVal,totalMs){
+export function scrambleToReal(el,finalVal,totalMs){
   const isInp=el.tagName==='INPUT'||el.tagName==='TEXTAREA';
   const set=v=>isInp?(el.value=v):(el.textContent=v);
   const len=Math.max(1,finalVal.length);
@@ -208,7 +210,7 @@ function scrambleToReal(el,finalVal,totalMs){
 }
 
 // ── IMAGE UTILITIES ───────────────────────────────────────────────────────
-function fileToB64(f){
+export function fileToB64(f){
   return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(',')[1]);fr.onerror=j;fr.readAsDataURL(f);});
 }
 function compressImage(dataUrl,maxSide=1200,quality=0.75){
@@ -225,7 +227,7 @@ function compressImage(dataUrl,maxSide=1200,quality=0.75){
     img.src=dataUrl;
   });
 }
-function fileToThumb(f){
+export function fileToThumb(f){
   return new Promise(r=>{
     const fr=new FileReader();
     fr.onload=()=>{
@@ -317,7 +319,7 @@ function stopRevSound(){
 }
 
 // ── TAPE INSERT ANIMATION ─────────────────────────────────────────────────
-function triggerTapeInsertAnim(srcRect){
+export function triggerTapeInsertAnim(srcRect){
   const badge=document.getElementById('count-badge');if(!badge)return;
   const dst=badge.getBoundingClientRect();
   const sx=(srcRect?.left||window.innerWidth/2)+(srcRect?.width||0)/2;
@@ -357,4 +359,21 @@ function checkMilestoneConfetti(n){
 }
 
 // ── DOWNLOAD ─────────────────────────────────────────────────────────────
-function dl(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
+export function dl(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
+
+export function rotateImage90CCW(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.height; c.height = img.width;
+      const ctx = c.getContext('2d');
+      ctx.translate(0, img.width);
+      ctx.rotate(-Math.PI / 2);
+      ctx.drawImage(img, 0, 0);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}

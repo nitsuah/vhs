@@ -30,6 +30,7 @@ const {
   tapesPutHandler,
   tapesDeleteHandler
 } = require('./modules/routes/tapes');
+const { registerStaticAndProxy } = require('./modules/routes/system');
 
 // ── App setup ──────────────────────────────────────────────────────────────────
 const app = express();
@@ -106,19 +107,6 @@ app.get('/api/ca-cert', defaultLimiter, (req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename="vhs-scanner-ca.crt"');
   res.sendFile(caCert);
 });
-
-// ── Ollama proxy ───────────────────────────────────────────────────────────────
-app.use(
-  '/api/ollama',
-  createProxyMiddleware({
-    target: OLLAMA,
-    changeOrigin: true,
-    pathRewrite: { '^/api/ollama': '' },
-    proxyTimeout: 300000,
-    timeout: 300000,
-    on: { error: (err, _req, res) => res.status(502).json({ error: 'Ollama unavailable: ' + err.message }) }
-  })
-);
 
 // ── Tapes CRUD ─────────────────────────────────────────────────────────────────
 app.get('/api/tapes', tapeLimiter, tapesGetHandler);
@@ -500,6 +488,9 @@ app.post('/api/analytics/outcome', defaultLimiter, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── Static files, Ollama proxy, SPA catch-all ──────────────────────────────────
+registerStaticAndProxy(app);
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 if (require.main === module) {

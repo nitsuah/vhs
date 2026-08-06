@@ -1,16 +1,46 @@
 // ── LIST VIEW RENDER ──────────────────────────────────────────────────────────
-const { getInventory, getSelectedId, getSelectedIds, getIsNewTape } = require('./inventory-state');
-const { getFiltered } = require('./filtering');
-const { esc, _cropStyle, _eggAttrs, statusLabel, renderTagChips } = require('./render-helpers');
+import { getInventory, getSelectedId, getSelectedIds, getIsNewTape, setSelectedId, setIsNewTape, getWallMode } from './inventory-state.js';
+import { getFiltered } from './filtering.js';
+import { esc, _cropStyle, _eggAttrs, statusLabel, renderTagChips } from './render-helpers.js';
+import { openCropOverlay } from './crop-overlay.js';
+import { openDetail as openDetailModal, renderDetailPhotos, initTagChips } from './detail-modal.js';
+import { renderWall } from './wall-view.js';
 
-let _resizeTh = null, _resizeX0 = 0, _resizeW0 = 0;
 let _longPressActive = false;
 
-function renderList() {
+// Global window listeners for long-press — registered once, not per row
+window.addEventListener('mousemove', e => _lpMove(e.clientX, e.clientY));
+window.addEventListener('touchmove', e => _lpMove(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+window.addEventListener('mouseup', _lpEnd);
+window.addEventListener('touchend', _lpEnd);
+
+let _lpTimer = null, _lpSx = 0, _lpSy = 0, _lpId = null;
+
+function _lpStart(x, y, id) {
+  _lpSx = x; _lpSy = y; _lpId = id;
+  _lpTimer = setTimeout(() => {
+    _longPressActive = true;
+    const t = getInventory().find(x => x.id === _lpId);
+    if (t) { setSelectedId(_lpId); openCropOverlay('face'); }
+  }, 500);
+}
+
+function _lpMove(x, y) {
+  if (_lpTimer && (Math.abs(x - _lpSx) > 10 || Math.abs(y - _lpSy) > 10)) {
+    clearTimeout(_lpTimer);
+    _lpTimer = null;
+  }
+}
+
+function _lpEnd() {
+  if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
+  _longPressActive = false;
+}
+
+export function renderList() {
   const items = getFiltered();
   const selectedId = getSelectedId();
   const selectedIds = getSelectedIds();
-  const isNewTape = getIsNewTape();
   const tbl = document.getElementById('inv-tbl');
   if (!tbl) return;
 
@@ -36,7 +66,7 @@ function renderList() {
   attachRowEvents(tbl);
 }
 
-function attachRowEvents(tbl) {
+export function attachRowEvents(tbl) {
   tbl.querySelectorAll('.tape-row').forEach(row => {
     row.addEventListener('click', e => {
       if (e.target.closest('input, select, button, .tag-chip')) return;
@@ -64,92 +94,17 @@ function attachRowEvents(tbl) {
     });
 
     row.addEventListener('dblclick', () => openDetail(row.dataset.id));
-    _initLongPress(row, row.dataset.id);
+
+    row.addEventListener('mousedown', e => _lpStart(e.clientX, e.clientY, row.dataset.id));
+    row.addEventListener('touchstart', e => _lpStart(e.touches[0].clientX, e.touches[0].clientY, row.dataset.id), { passive: true });
   });
 }
 
-function _initLongPress(row, id) {
-  let timer, sx, sy;
-  const start = (x, y) => {
-    sx = x; sy = y;
-    timer = setTimeout(() => {
-      _longPressActive = true;
-      const t = getInventory().find(x => x.id === id);
-      if (t) {
-        openCropOverlay('face', t);
-      }
-    }, 500);
-  };
-  const move = (x, y) => {
-    if (timer && (Math.abs(x - sx) > 10 || Math.abs(y - sy) > 10)) {
-      clearTimeout(timer);
-      timer = null;
-    }
-  };
-  const end = () => {
-    if (timer) { clearTimeout(timer); timer = null; }
-    _longPressActive = false;
-  };
-
-  row.addEventListener('mousedown', e => start(e.clientX, e.clientY));
-  row.addEventListener('touchstart', e => start(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
-  window.addEventListener('mousemove', e => move(e.clientX, e.clientY));
-  window.addEventListener('touchmove', e => move(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
-  window.addEventListener('mouseup', end);
-  window.addEventListener('touchend', end);
+export function openDetail(id) {
+  openDetailModal(id);
 }
 
-function openDetail(id) {
-  const t = getInventory().find(x => x.id === id);
-  if (!t) return;
-  setSelectedId(id);
-  setIsNewTape(false);
-
-  document.getElementById('d-title').value = t.title || '';
-  document.getElementById('d-year').value = t.year || '';
-  document.getElementById('d-label').value = t.label || '';
-  document.getElementById('d-format').value = t.format || 'VHS';
-  document.getElementById('d-barcode').value = t.barcode || '';
-  document.getElementById('d-value-low').value = t.value_low || '';
-  document.getElementById('d-value-high').value = t.value_high || '';
-  document.getElementById('d-cond').value = t.condition || 'good';
-  document.getElementById('d-status').value = t.status || 'in_collection';
-  document.getElementById('d-sold-price').value = t.sold_price || '';
-  document.getElementById('d-notes').value = t.condition_notes || '';
-  document.getElementById('d-id').value = t.id;
-  document.getElementById('d-scanned').value = new Date(t.scanned_at).toLocaleString();
-
-  const th = document.getElementById('detail-thumb');
-  if (t.photo_thumbnail) { th.src = t.photo_thumbnail; th.style.display = 'block'; }
-  else th.style.display = 'none';
-
-  renderDetailPhotos(t);
-
-  const tagWrap = document.getElementById('d-tag-chips');
-  const getTags = () => (getInventory().find(x => x.id === getSelectedId()) || {}).tags || [];
-  tagWrap.innerHTML = renderTagChips(t.tags || []);
-  initTagChips(tagWrap, getTags, tags => {
-    const rec = getInventory().find(x => x.id === getSelectedId());
-    if (rec) rec.tags = tags;
-  });
-
-  window._resetDetailTabs?.();
-
-  document.getElementById('m-detail').style.display = 'flex';
-  document.getElementById('d-delete').style.display = '';
-
-  if (/matrix/i.test(t.title)) {
-    const mdl = document.getElementById('m-detail');
-    mdl.classList.add('matrix-mode');
-    [['d-heading', t.title, false], ['d-title', t.title, true], ['d-year', t.year || '', true], ['d-label', t.label || '', true]].forEach(([eid, val]) => {
-      const el = document.getElementById(eid);
-      if (el) scrambleToReal(el, val, 2200);
-    });
-    setTimeout(() => mdl.classList.remove('matrix-mode'), 2600);
-  }
-}
-
-function updateBulkBar() {
+export function updateBulkBar() {
   const count = getSelectedIds().size;
   const bar = document.getElementById('bulk-bar');
   if (!bar) return;
@@ -161,16 +116,14 @@ function updateBulkBar() {
   }
 }
 
-function updateCount() {
+export function updateCount() {
   const el = document.getElementById('count');
   if (el) el.textContent = getInventory().length;
 }
 
-function renderInv() {
+export function renderInv() {
   if (document.body.dataset.tab === 'collect') {
     if (getWallMode() === 0) renderList();
     else renderWall();
   }
 }
-
-module.exports = { renderList, renderInv, openDetail, updateBulkBar, updateCount, attachRowEvents };

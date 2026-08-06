@@ -1,11 +1,11 @@
 // ── FILTERING & SORTING ───────────────────────────────────────────────────────
-const { getInventory, getColFilters, getFormatList } = require('./inventory-state');
+import { getInventory, getColFilters } from './inventory-state.js';
 
 function norm(t) {
   return (t || '').toLowerCase().replace(/^(the |a |an )/i, '').trim();
 }
 
-function getFiltered() {
+export function getFiltered() {
   const inv = getInventory();
   const filters = getColFilters();
   const sort = document.getElementById('sort-sel')?.value || 'scanned_desc';
@@ -45,5 +45,3 @@ function getFiltered() {
 
   return items;
 }
-
-module.exports = { getFiltered };

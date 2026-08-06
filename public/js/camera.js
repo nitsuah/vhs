@@ -1,4 +1,16 @@
 // ── CAMERA ───────────────────────────────────────────────────────────────
+import { cropFrac, CROP_PRESETS } from './state.js';
+
+// Camera / barcode state — exported so capture.js and ui.js can read live bindings
+export let barcodeMode = false;
+export let isCapturing = false;
+export let barcodeRdr = null;
+export let lastCode = { val: '', t: 0 };
+export let bcZoom = 0.7;
+export let torchOn = false;
+export let dragging = false, resizing = false;
+export let dragOrig = {};
+
 const video=document.getElementById('video');
 const camSel=document.getElementById('camera-select');
 const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -472,7 +484,7 @@ document.querySelectorAll('.preset-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
     const p=btn.dataset.preset;
     if(!CROP_PRESETS[p])return;
-    cropFrac={...CROP_PRESETS[p]};
+    Object.assign(cropFrac, CROP_PRESETS[p]);
     updateCrop();
     cropEl.dataset.preset=p;
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',b.dataset.preset===p));
@@ -490,3 +502,5 @@ vidWrapEl.addEventListener('click',e=>{
     document.getElementById('btn-cap').click();
   }
 });
+
+export { video, vidWrap, cropEl, btnCap, initCamera, updateCrop, cropFrac };

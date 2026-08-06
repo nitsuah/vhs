@@ -506,11 +506,11 @@ describe('GET /api/health', () => {
   });
 });
 
-describe('GET /ca.crt', () => {
+describe('GET /api/ca-cert', () => {
   it('returns 404 when cert missing', async () => {
     const fs = require('fs');
     const spy = jest.spyOn(fs, 'existsSync').mockReturnValue(false);
-    const res = await request(app).get('/ca.crt');
+    const res = await request(app).get('/api/ca-cert');
     expect(res.status).toBe(404);
     spy.mockRestore();
   });
@@ -575,5 +575,33 @@ describe('POST /api/analytics/outcome', () => {
     const res = await request(app).post('/api/analytics/outcome').send({ job_id: 'j1', action: 'accepted' });
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
+  });
+});
+
+describe('normalizeTitleForLookup STANDALONE_EXCLUDE regression', () => {
+  const { normalizeTitleForLookup } = require('../src/modules/string-utils');
+  const STANDALONE_EXCLUDE = ['movie', 'film', 'title', 'video', 'tape'];
+
+  STANDALONE_EXCLUDE.forEach(term => {
+    it(`preserves standalone '${term}' in a real title context`, () => {
+      const result = normalizeTitleForLookup(`Star Wars ${term}`);
+      expect(result).toContain(term);
+    });
+
+    it(`strips parenthesized '(${term})' as a format tag`, () => {
+      const result = normalizeTitleForLookup(`Star Wars (${term})`);
+      expect(result).not.toContain(term);
+      expect(result.trim()).toBe('star wars');
+    });
+  });
+
+  it('normalizes a title that is only a standalone-exclude term', () => {
+    expect(normalizeTitleForLookup('movie')).toBe('movie');
+    expect(normalizeTitleForLookup('tape')).toBe('tape');
+  });
+
+  it('strips non-STANDALONE_EXCLUDE tags (vhs, dvd) as standalone words', () => {
+    expect(normalizeTitleForLookup('Alien vhs')).not.toContain('vhs');
+    expect(normalizeTitleForLookup('Alien dvd')).not.toContain('dvd');
   });
 });

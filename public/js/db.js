@@ -1,13 +1,15 @@
 // ── DB DOT ───────────────────────────────────────────────────────────────
+import { toast } from './utils.js';
+
 const dbDot = document.getElementById('db-dot');
 const dbDotMob = document.getElementById('db-dot-mob');
-function setDbDot(state){
+export function setDbDot(state){
   const errTitle='Database error — tap retry';
   if(dbDot){dbDot.className=state;dbDot.title=state==='err'?errTitle:'';}
   if(dbDotMob){dbDotMob.className=state;dbDotMob.title=state==='err'?errTitle:'';}
 }
-dbDot?.addEventListener('click',()=>{if(dbDot.className==='err')init();});
-dbDotMob?.addEventListener('click',()=>{if(dbDotMob.className==='err')init();});
+dbDot?.addEventListener('click',()=>{if(dbDot.className==='err')window.init?.();});
+dbDotMob?.addEventListener('click',()=>{if(dbDotMob.className==='err')window.init?.();});
 
 // ── REST API ──────────────────────────────────────────────────────────────
 export async function apiReq(p,opts){

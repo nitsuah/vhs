@@ -414,17 +414,20 @@ describe('VHS Collection Lookup Patterns', () => {
   });
 
   test('should normalize different media types', () => {
+    // Parenthesized format tags are always stripped; the remaining standalone
+    // media-type word is preserved (STANDALONE_EXCLUDE) rather than being
+    // collapsed to the generic fallback 'movie'.
     const mediaTypes = [
-      'Movie (DVD)',
-      'Film (Blu-ray)',
-      'Title (Digital)',
-      'Video (VHS)',
-      'Tape (Other)',
+      ['Movie (DVD)', 'movie'],
+      ['Film (Blu-ray)', 'film'],
+      ['Title (Digital)', 'title'],
+      ['Video (VHS)', 'video'],
+      ['Tape (Other)', 'tape'],
     ];
 
-    mediaTypes.forEach(title => {
+    mediaTypes.forEach(([title, expected]) => {
       const normalized = normalizeTitleForLookup(title);
-      expect(normalized).toBe('movie');
+      expect(normalized).toBe(expected);
     });
   });
 

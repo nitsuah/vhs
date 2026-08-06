@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased] — tech-debt/coderabbit-pr36-fixes (PR #40)
+
+### Fixed
+
+#### Security
+
+- **XSS in wall-view print exports** — all inventory-derived fields (`id`, `title`, `year`, `label`, `condition`, `value_low`, `value_high`, `tags`) are now HTML-escaped before interpolation into `document.write` print windows (`exp-print`, `exp-tags`)
+- **XSS in wall-view card rendering** — `data-id` and `src` attributes now pass through `esc()` before injection into `innerHTML` in all three wall modes (cover, spine, stack)
+- **Ollama proxy POST body** — added `fixRequestBody` to the proxy `on.proxyReq` hook (http-proxy-middleware v2 API) so POST bodies consumed by `express.json()` are correctly forwarded to Ollama
+- **SPA catch-all rate limit** — registered `app.use('/', limiter)` before the static, proxy, and SPA catch-all routes so all handlers share a single rate-limit pass with no double-counting
+
+#### Data integrity
+
+- **Bulk-delete count** — saved `ids.size` before `getSelectedIds().clear()` so the toast reports the actual number deleted instead of always 0
+- **Long-press crop target** — `_lpStart` now calls `setSelectedId(_lpId)` before `openCropOverlay('face')` so the crop is applied to the long-pressed row
+- **`isNewTape` state bypass** — Escape-key detail-close handler now calls `setIsNewTape(false)` (module setter) instead of writing `window.isNewTape = false` directly
+- **Retry handler HTTP status** — retry button now checks `response.ok` before advancing card to `'processing'`; non-2xx responses fall through to the existing catch/toast path
+- **JSON export/import round-trip** — JSON export now includes `value_low`, `value_high`, `imdb_id`, `photos`, `photo_thumbnail`, `photo_face`, `photo_spine`, `photo_crop`; import rec now preserves `imdb_id` and `photo_crop`
+
+#### Tests
+
+- **`normalizeTitleForLookup` regression suite** — added 14 tests covering every `STANDALONE_EXCLUDE` term (`movie`, `film`, `title`, `video`, `tape`) for both standalone-preserve and parenthesized-strip behavior
+
+---
+
 ## [Unreleased] — feat/vhs-scanner-v2
 
 ### Added

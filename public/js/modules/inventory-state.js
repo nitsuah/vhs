@@ -4,25 +4,15 @@ let selectedId = null;
 let isNewTape = false;
 let selectedIds = new Set();
 let wallMode = 0;
+export const colFilters = { title: '', label: '', format: '', condition: '', status: '', tags: '', yrFrom: '', yrTo: '' };
 
-function getInventory() { return inventory; }
-function setInventory(arr) { inventory = arr; }
-function getSelectedId() { return selectedId; }
-function setSelectedId(id) { selectedId = id; }
-function getIsNewTape() { return isNewTape; }
-function setIsNewTape(val) { isNewTape = val; }
-function getSelectedIds() { return selectedIds; }
-function getWallMode() { return wallMode; }
-function setWallMode(mode) { wallMode = mode; }
-
-module.exports = {
-  getInventory,
-  setInventory,
-  getSelectedId,
-  setSelectedId,
-  getIsNewTape,
-  setIsNewTape,
-  getSelectedIds,
-  getWallMode,
-  setWallMode
-};
+export function getInventory() { return inventory; }
+export function setInventory(arr) { inventory = arr; }
+export function getSelectedId() { return selectedId; }
+export function setSelectedId(id) { selectedId = id; }
+export function getIsNewTape() { return isNewTape; }
+export function setIsNewTape(val) { isNewTape = val; }
+export function getSelectedIds() { return selectedIds; }
+export function getWallMode() { return wallMode; }
+export function setWallMode(mode) { wallMode = mode; }
+export function getColFilters() { return colFilters; }
