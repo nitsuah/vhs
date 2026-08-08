@@ -26,6 +26,11 @@ Rules: SPINE = mentally rotate 90° to read vertical text. COVER = largest/most 
 Do NOT hallucinate titles — only output text you can actually see in the image.
 A "low" confidence entry is better than omitting it. Return [] only if truly unreadable.`;
 
+const GOOGLE_CLIENT_ID     = (process.env.GOOGLE_CLIENT_ID     || '').trim();
+const GOOGLE_CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || '').trim();
+const JWT_SECRET           = (process.env.JWT_SECRET           || 'dev-secret-change-in-production').trim();
+const APP_BASE_URL         = (process.env.APP_BASE_URL         || 'http://localhost:8080').replace(/\/$/, '');
+
 module.exports = {
   LOG_LIMIT,
   MAX_RETRIES,
@@ -37,4 +42,8 @@ module.exports = {
   CERT_DIR,
   OMDB_API_KEY,
   SCAN_PROMPT,
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
+  JWT_SECRET,
+  APP_BASE_URL,
 };

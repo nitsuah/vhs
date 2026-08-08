@@ -2,6 +2,7 @@
 'use strict';
 
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
@@ -13,6 +14,12 @@ const rateLimit = require('express-rate-limit');
 
 // Local modules
 const { PORT, HTTPS_PORT, OLLAMA, OMDB_API_KEY } = require('./modules/config');
+const {
+  ENABLED: AUTH_ENABLED,
+  getAuthUrl, exchangeCode, mintJWT,
+  setAuthCookie, clearAuthCookie,
+  optionalAuth, requireAuth,
+} = require('./modules/auth');
 const { pool, runMigrations } = require('./modules/db');
 const { ensureCerts } = require('./modules/certs');
 const { logActivity, getActivityLog, getLogClients } = require('./modules/activity-log');
@@ -35,6 +42,8 @@ const { registerStaticAndProxy } = require('./modules/routes/system');
 // ── App setup ──────────────────────────────────────────────────────────────────
 const app = express();
 app.use(express.json({ limit: '50mb' }));
+app.use(cookieParser());
+app.use(optionalAuth); // sets req.user from JWT cookie when auth is enabled
 
 // ── Activity log SSE endpoint ──────────────────────────────────────────────────
 app.get('/api/logs', (req, res) => {
@@ -108,11 +117,105 @@ app.get('/api/ca-cert', defaultLimiter, (req, res) => {
   res.sendFile(caCert);
 });
 
+// ── Auth ───────────────────────────────────────────────────────────────────────
+app.get('/auth/me', defaultLimiter, (req, res) => {
+  res.json({ enabled: AUTH_ENABLED, user: req.user || null });
+});
+
+app.get('/auth/google', defaultLimiter, (_req, res) => {
+  if (!AUTH_ENABLED) return res.status(503).json({ error: 'auth not configured' });
+  res.redirect(getAuthUrl());
+});
+
+app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
+  if (!AUTH_ENABLED) return res.status(503).json({ error: 'auth not configured' });
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect('/?auth=error');
+  try {
+    const payload = await exchangeCode(String(code));
+    // Upsert user into DB
+    await pool.query(`
+      INSERT INTO users(id, email, display_name, avatar_url)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (id) DO UPDATE
+        SET email = EXCLUDED.email,
+            display_name = EXCLUDED.display_name,
+            avatar_url = EXCLUDED.avatar_url
+    `, [payload.sub, payload.email, payload.name || null, payload.picture || null]);
+    setAuthCookie(res, mintJWT(payload));
+    res.redirect('/');
+  } catch (err) {
+    console.error('OAuth callback error:', err.message);
+    res.redirect('/?auth=error');
+  }
+});
+
+app.post('/auth/logout', defaultLimiter, (req, res) => {
+  clearAuthCookie(res);
+  res.json({ ok: true });
+});
+
+// Update sharing settings: toggle collection_public, get/generate share_slug
+app.put('/api/auth/share', defaultLimiter, requireAuth, async (req, res) => {
+  const { collection_public } = req.body;
+  const sub = req.user.sub;
+  try {
+    // Generate slug on first share if needed
+    const { rows } = await pool.query('SELECT share_slug FROM users WHERE id=$1', [sub]);
+    let slug = rows[0]?.share_slug;
+    if (!slug && collection_public) {
+      slug = require('crypto').randomUUID();
+      await pool.query(
+        'UPDATE users SET share_slug=$1, collection_public=$2 WHERE id=$3',
+        [slug, collection_public, sub]
+      );
+    } else {
+      await pool.query('UPDATE users SET collection_public=$1 WHERE id=$2', [collection_public, sub]);
+    }
+    res.json({ collection_public, share_slug: slug || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get current user's share settings
+app.get('/api/auth/share', defaultLimiter, requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT collection_public, share_slug FROM users WHERE id=$1',
+      [req.user.sub]
+    );
+    const row = rows[0] || { collection_public: false, share_slug: null };
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Public share endpoint ───────────────────────────────────────────────────────
+app.get('/api/share/:slug', defaultLimiter, async (req, res) => {
+  try {
+    const { rows: users } = await pool.query(
+      'SELECT id, display_name, avatar_url FROM users WHERE share_slug=$1 AND collection_public=true',
+      [req.params.slug]
+    );
+    if (!users.length) return res.status(404).json({ error: 'collection not found or private' });
+    const owner = users[0];
+    const { rows: tapes } = await pool.query(
+      'SELECT data FROM tapes WHERE owner_id=$1 ORDER BY scanned_at DESC',
+      [owner.id]
+    );
+    res.json({ owner, tapes: tapes.map(r => r.data) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Tapes CRUD ─────────────────────────────────────────────────────────────────
 app.get('/api/tapes', tapeLimiter, tapesGetHandler);
-app.post('/api/tapes', tapeLimiter, tapesPostHandler);
-app.put('/api/tapes/:id', tapeWriteLimiter, tapesPutHandler);
-app.delete('/api/tapes/:id', tapeWriteLimiter, tapesDeleteHandler);
+app.post('/api/tapes', tapeLimiter, requireAuth, tapesPostHandler);
+app.put('/api/tapes/:id', tapeWriteLimiter, requireAuth, tapesPutHandler);
+app.delete('/api/tapes/:id', tapeWriteLimiter, requireAuth, tapesDeleteHandler);
 
 // ── Lookup endpoints ───────────────────────────────────────────────────────────
 app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {

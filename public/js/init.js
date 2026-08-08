@@ -7,8 +7,22 @@ import { setDbDot } from './db.js';
 import { updateAiBadge, checkOllama } from './ai.js';
 import { renderInv, updateCount } from './inventory.js';
 import { startJobPoller } from './capture.js';
+import { initAuth, loadPublicCollection } from './auth.js';
+
+// ── Public share route: /c/:slug ───────────────────────────────────────────────
+const shareMatch = location.pathname.match(/^\/c\/([^/]+)\/?$/);
+if (shareMatch) {
+  // Minimal init for the share view — skip camera, job poller, etc.
+  initAuth();
+  loadPublicCollection(shareMatch[1]);
+} else {
+  init();
+}
 
 async function init() {
+  // Auth state first so the chip renders before tapes load
+  await initAuth();
+
   setDbDot('');
   updateAiBadge();
   const _aiFallback = setTimeout(updateAiBadge, 6000);
@@ -34,4 +48,3 @@ async function init() {
   startJobPoller();
 }
 window.init = init;
-init().catch(err => { console.error('init error:', err); });

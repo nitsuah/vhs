@@ -19,6 +19,7 @@
   <select id="camera-select" style="display:none"></select>
   <div class="hdr-right" id="hdr-right-desktop">
     <span id="count-badge">0 tapes</span><span id="db-dot" title="Neon connection"></span>
+    <div id="auth-slot"></div>
     <button class="hbtn" id="btn-settings">⚙ Settings</button>
     <button class="hbtn" id="btn-help" title="Keyboard shortcuts (?)">?</button>
   </div>
@@ -44,10 +45,11 @@
     <span class="hbr-label">Display</span>
     <button class="hbtn" id="btn-crt">📺 CRT Scanlines</button>
   </div>
-  <div class="hbr-section hbr-section-last">
+  <div class="hbr-section">
     <span class="hbr-label">Audio</span>
     <button class="hbtn" id="btn-sound">🔊 Sounds</button>
   </div>
+  <div class="hbr-section hbr-section-last" id="auth-slot-mob"></div>
 </div>
 <div id="crt-overlay"></div>
 <canvas id="static-canvas"></canvas>
