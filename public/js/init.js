@@ -13,11 +13,10 @@ import { setActiveTab } from './ui.js';
 // ── Public share route: /c/:slug ───────────────────────────────────────────────
 const shareMatch = location.pathname.match(/^\/c\/([^/]+)\/?$/);
 if (shareMatch) {
-  // Minimal init for the share view — skip camera, job poller, etc.
-  initAuth();
+  // Minimal init for the share view — auth state not needed here
   loadPublicCollection(shareMatch[1]);
 } else {
-  init();
+  init().catch(err => console.error('App init failed:', err));
 }
 
 async function init() {

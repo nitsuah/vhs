@@ -8,7 +8,7 @@ import { captureQueue, setCaptureQueue, nextUidSeq } from './state.js';
 import { apiKey } from './state.js';
 import { fileToB64, fileToThumb } from './utils.js';
 import { isCapturing, barcodeMode, cropEl, vidWrap, btnCap, video, cropFrac } from './camera.js';
-import { toast } from './utils.js';
+import { toast, flashInvRow } from './utils.js';
 
 const fileInput = document.getElementById('file-input');
 
@@ -27,7 +27,7 @@ fileInput.addEventListener('change', async () => {
 
 // ── CAPTURE QUEUE RENDER ──────────────────────────────────────────────────
 const queueStrip = document.getElementById('queue-strip');
-queueStrip.addEventListener('click', e => e.stopPropagation());
+queueStrip?.addEventListener('click', e => e.stopPropagation());
 
 function renderQueue() {
   if (!captureQueue.length) { queueStrip.classList.remove('on'); queueStrip.innerHTML = ''; return; }
@@ -114,7 +114,7 @@ async function addBarcodeCard(code) {
     inventory.push(rec);
     renderInv(); updateCount();
     toast(`Added: ${rec.title}`, 'ok', 3000);
-    _flashInvRow(rec.id);
+    flashInvRow(rec.id);
   } else {
     const uid = nextUidSeq();
     const card = { uid, data: { barcode: code, format: 'VHS', condition: 'good', status: 'in_collection', notes: '' }, source: 'barcode', thumb: null, expanded: true, jobId: null, processingState: 'ready', failReason: '' };
@@ -266,13 +266,6 @@ async function updateQueueStatus() {
     queueStatusEl.innerHTML = `<span style="font-size:10px;color:var(--text3)">Queue:</span>${parts.join('')}`;
     document.getElementById('qs-ready-btn')?.addEventListener('click', () => { pollReviewItems(); showRevPanel(); window.setActiveTab?.('review'); });
   } catch { } finally { queueBusy = false; }
-}
-
-function _flashInvRow(id) {
-  setTimeout(() => {
-    const row = document.querySelector(`#inv-list [data-id="${id}"]`);
-    if (row) { row.classList.add('just-added'); row.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
-  }, 60);
 }
 
 export { captureQueue, addBarcodeCard, processQueue };

@@ -1,5 +1,5 @@
 // ── UI MODULE ──────────────────────────────────────────────────────────────
-import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getIsNewTape, getWallMode, setWallMode, clearBulk, applyBulkStatus, deleteBulk, getSelectedId, getInventory, renderTagChips } from './inventory.js';
+import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getIsNewTape, getWallMode, setWallMode, clearBulk, applyBulkStatus, deleteBulk, getSelectedId, getInventory, renderTagChips, esc } from './inventory.js';
 import { dbAdd, dbPut, dbDel, nextId } from './db.js';
 import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound } from './utils.js';
 import { revPanel, showRevPanel, hideRevPanel } from './review.js';
@@ -7,6 +7,11 @@ import { apiKey, omdbKey, ollamaUrl, ollamaModel, fastMode, cards, captureQueue,
 import { barcodeMode } from './camera.js';
 import { checkOllama, updateAiBadge, callAI, lookupMetadata } from './ai.js';
 import { setDbDot } from './db.js';
+
+function csvCell(v) {
+  const s = String(v ?? '');
+  return `"${(/^[=+\-@]/.test(s) ? '\t' + s : s).replace(/"/g, '""')}"`;
+}
 
 // ── TAB NAV ──────────────────────────────────────────────────────────────
 export function setActiveTab(tab) {
@@ -406,7 +411,7 @@ document.getElementById('exp-json').addEventListener('click',()=>{
 });
 document.getElementById('exp-csv').addEventListener('click',()=>{
   const cols=['id','title','year','label','format','condition','condition_notes','barcode','value_low','value_high','status','scanned_at'];
-  const csv=[cols.join(','),...inventory.map(t=>cols.map(c=>`"${String(t[c]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+  const csv=[cols.join(','),...inventory.map(t=>cols.map(c=>csvCell(t[c])).join(','))].join('\n');
   dl(csv,'vhs-inventory.csv','text/csv');
   document.getElementById('exp-dd').classList.remove('on');
 });
@@ -419,12 +424,11 @@ document.getElementById('exp-sell').addEventListener('click',()=>{
     t.title,t.year||'',t.label||'',t.format||'VHS',t.condition||'',
     t.condition_notes||'',t.barcode||'',t.value_low||'',t.value_high||'',
     condMap[t.condition]||''
-  ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  ].map(csvCell).join(','));
   dl([cols.map(c=>`"${c}"`).join(','),...rows].join('\n'),'vhs-for-sale.csv','text/csv');
   document.getElementById('exp-dd').classList.remove('on');
 });
 document.getElementById('exp-tags')?.addEventListener('click',()=>{
-  const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const items=inventory.filter(t=>t.status==='for_sale');
   if(!items.length){toast('No tapes marked For Sale','err');document.getElementById('exp-dd').classList.remove('on');return;}
   const tags=items.map(t=>{
@@ -446,15 +450,14 @@ button{margin-bottom:12px;padding:7px 18px;background:#222;color:#fff;border:non
 document.getElementById('exp-print').addEventListener('click',()=>{
   const items=getFiltered();
   const condBadge={great:'✅ Great',good:'👍 Good',fair:'⚠️ Fair',poor:'❌ Poor'};
-  const ep=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const rows=items.map((t,i)=>`<tr style="background:${i%2?'#f9f9f9':'#fff'}">
-    <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#666">${ep(t.id)}</td>
-    <td style="padding:6px 10px;font-weight:600">${ep(t.title)}</td>
-    <td style="padding:6px 10px;color:#555">${ep(t.year)}</td>
-    <td style="padding:6px 10px;color:#555">${ep(t.label)}</td>
-    <td style="padding:6px 10px">${condBadge[t.condition]||ep(t.condition)}</td>
-    <td style="padding:6px 10px;color:#2a7">${(t.value_low||t.value_high)?`$${ep(t.value_low||'?')}–$${ep(t.value_high||'?')}`:''}</td>
-    <td style="padding:6px 10px;font-size:11px;color:#777">${ep((t.tags||[]).join(', '))}</td>
+    <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#666">${esc(t.id)}</td>
+    <td style="padding:6px 10px;font-weight:600">${esc(t.title)}</td>
+    <td style="padding:6px 10px;color:#555">${esc(t.year)}</td>
+    <td style="padding:6px 10px;color:#555">${esc(t.label)}</td>
+    <td style="padding:6px 10px">${condBadge[t.condition]||esc(t.condition)}</td>
+    <td style="padding:6px 10px;color:#2a7">${(t.value_low||t.value_high)?`$${esc(t.value_low||'?')}–$${esc(t.value_high||'?')}`:''}</td>
+    <td style="padding:6px 10px;font-size:11px;color:#777">${esc((t.tags||[]).join(', '))}</td>
   </tr>`).join('');
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>VHS Inventory</title>
 <style>body{font-family:system-ui,sans-serif;margin:30px;color:#222}h1{margin-bottom:4px}p{color:#777;font-size:13px;margin-bottom:20px}
@@ -475,9 +478,9 @@ tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style>
   const LEVEL_COLOR={'info':'#888','warn':'#c8a040','error':'#e84040'};
   let sse=null;
   function appendEntry(e){
-    const ts=e.ts?e.ts.slice(11,19):'';
+    const ts=e.ts?esc(e.ts.slice(11,19)):'';
     const color=LEVEL_COLOR[e.level]||'#888';
-    const msgEsc=String(e.msg||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const msgEsc=esc(e.msg||'');
     const row=document.createElement('div');
     row.innerHTML=`<span style="color:#444">${ts}</span> <span style="color:${color}">${msgEsc}</span>`;
     logOutput.appendChild(row);
@@ -495,6 +498,7 @@ tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style>
     es.onerror=()=>{if(_closeTimer){clearTimeout(_closeTimer);_closeTimer=null;}_closeTimer=setTimeout(()=>{es.close();if(sse===es)sse=null;_closeTimer=null;},2000);};
   }
   document.getElementById('btn-logs')?.addEventListener('click',openLogs);
+  document.getElementById('log-close')?.addEventListener('click',()=>{if(sse){sse.close();sse=null;}});
 })();
 
 // ── VHS EASTER EGGS ──────────────────────────────────────────────────────

@@ -61,14 +61,16 @@ async function tapesPutHandler(req, res) {
 
 async function tapesDeleteHandler(req, res) {
   try {
+    let rowCount;
     if (ENABLED && req.user) {
-      await pool.query(
+      ({ rowCount } = await pool.query(
         'DELETE FROM tapes WHERE id=$1 AND (owner_id=$2 OR owner_id IS NULL)',
         [req.params.id, req.user.sub]
-      );
+      ));
     } else {
-      await pool.query('DELETE FROM tapes WHERE id=$1', [req.params.id]);
+      ({ rowCount } = await pool.query('DELETE FROM tapes WHERE id=$1', [req.params.id]));
     }
+    if (rowCount === 0) return res.status(404).json({ error: 'not found' });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

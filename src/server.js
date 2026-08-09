@@ -9,6 +9,7 @@ const path = require('path');
 const https = require('https');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
+const { randomUUID } = require('crypto');
 
 // ── SSRF protection moved inline to /api/fetch-image route (CodeQL sanitizer boundary)
 
@@ -124,13 +125,18 @@ app.get('/auth/me', defaultLimiter, (req, res) => {
 
 app.get('/auth/google', defaultLimiter, (_req, res) => {
   if (!AUTH_ENABLED) return res.status(503).json({ error: 'auth not configured' });
-  res.redirect(getAuthUrl());
+  const state = randomUUID();
+  res.cookie('oauth_state', state, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 10 * 60 * 1000 });
+  res.redirect(getAuthUrl(state));
 });
 
 app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
   if (!AUTH_ENABLED) return res.status(503).json({ error: 'auth not configured' });
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
   if (error || !code) return res.redirect('/?auth=error');
+  const cookieState = req.cookies?.oauth_state;
+  res.clearCookie('oauth_state', { path: '/' });
+  if (!state || !cookieState || state !== cookieState) return res.redirect('/?auth=error');
   try {
     const payload = await exchangeCode(String(code));
     // Upsert user into DB
@@ -169,13 +175,16 @@ app.post('/auth/logout', defaultLimiter, (req, res) => {
 // Update sharing settings: toggle collection_public, get/generate share_slug
 app.put('/api/auth/share', defaultLimiter, requireAuth, async (req, res) => {
   const { collection_public } = req.body;
+  if (typeof collection_public !== 'boolean') {
+    return res.status(400).json({ error: 'collection_public must be a boolean' });
+  }
   const sub = req.user.sub;
   try {
     // Generate slug on first share if needed
     const { rows } = await pool.query('SELECT share_slug FROM users WHERE id=$1', [sub]);
     let slug = rows[0]?.share_slug;
     if (!slug && collection_public) {
-      slug = require('crypto').randomUUID();
+      slug = randomUUID();
       await pool.query(
         'UPDATE users SET share_slug=$1, collection_public=$2 WHERE id=$3',
         [slug, collection_public, sub]

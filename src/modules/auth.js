@@ -3,24 +3,26 @@
 
 const { OAuth2Client } = require('google-auth-library');
 const jwt = require('jsonwebtoken');
-
-const CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || '';
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
-const JWT_SECRET    = process.env.JWT_SECRET           || 'dev-secret-change-in-production';
-const APP_BASE_URL  = (process.env.APP_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+const { GOOGLE_CLIENT_ID: CLIENT_ID, GOOGLE_CLIENT_SECRET: CLIENT_SECRET, JWT_SECRET, APP_BASE_URL } = require('./config');
 const REDIRECT_URI  = `${APP_BASE_URL}/auth/google/callback`;
 
 const ENABLED = !!(CLIENT_ID && CLIENT_SECRET);
+
+if (ENABLED && !JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET must be set when auth is enabled');
+  process.exit(1);
+}
 
 function makeClient() {
   return new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
 }
 
-function getAuthUrl() {
+function getAuthUrl(state) {
   return makeClient().generateAuthUrl({
     access_type: 'offline',
     scope: ['openid', 'email', 'profile'],
     prompt: 'select_account',
+    state,
   });
 }
 
@@ -53,7 +55,7 @@ const COOKIE_OPTS = {
 
 function setAuthCookie(res, token) {
   const secure = APP_BASE_URL.startsWith('https://');
-  res.cookie('vhs_token', token, { ...COOKIE_OPTS, secure });
+  res.cookie('vhs_token', token, { ...COOKIE_OPTS, secure }); // codeql[js/clear-text-storage-of-sensitive-data] JWT stored in HttpOnly cookie — not plain-text storage
 }
 
 function clearAuthCookie(res) {

@@ -1,5 +1,1 @@
-query-filters:
-  - exclude:
-      id: js/clear-text-storage-of-sensitive-data
-  - exclude:
-      id: js/missing-rate-limiting
+

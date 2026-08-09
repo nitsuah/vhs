@@ -394,7 +394,7 @@
     <span style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.08em">▶ Activity Log</span>
     <span style="font-size:10px;color:#444;margin-left:4px">server ↔ Ollama</span>
     <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:#555;cursor:pointer"><input type="checkbox" id="log-follow" checked style="accent-color:#e84040"> Follow</label>
-    <button onclick="document.getElementById('log-panel').style.display='none'" style="background:none;border:none;color:#555;font-size:16px;cursor:pointer;line-height:1;padding:0 2px">✕</button>
+    <button id="log-close" onclick="document.getElementById('log-panel').style.display='none'" style="background:none;border:none;color:#555;font-size:16px;cursor:pointer;line-height:1;padding:0 2px">✕</button>
   </div>
   <div id="log-output" style="flex:1;overflow-y:auto;font-family:monospace;font-size:11px;padding:6px 10px;color:#888;line-height:1.5"></div>
 </div>

@@ -359,7 +359,19 @@ function checkMilestoneConfetti(n){
 }
 
 // ── DOWNLOAD ─────────────────────────────────────────────────────────────
-export function dl(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
+export function dl(content, name, type) {
+  const a = document.createElement('a');
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
+export function flashInvRow(id) {
+  setTimeout(() => {
+    const row = document.querySelector(`#inv-list [data-id="${id}"]`);
+    if (row) { row.classList.add('just-added'); row.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  }, 60);
+}
 
 export function rotateImage90CCW(dataUrl) {
   return new Promise(resolve => {

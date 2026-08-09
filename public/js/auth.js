@@ -123,6 +123,10 @@ async function openSharePanel() {
         body: JSON.stringify({ collection_public: isPublic }),
       });
       const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Server error');
+      isPublic = data.collection_public;
+      track.setAttribute('aria-checked', String(isPublic));
+      track.classList.toggle('on', isPublic);
       slug = data.share_slug || slug;
       const url = slug ? `${location.origin}/c/${slug}` : '';
       linkInput.value = url;
@@ -207,7 +211,7 @@ function renderSimpleGrid(tapes) {
     ? `<div style="text-align:center;padding:60px;color:var(--text2);font-size:14px">This collection is empty.</div>`
     : tapes.map(t => `
         <div style="display:flex;gap:10px;padding:10px;border-bottom:1px solid var(--border);align-items:center">
-          ${t.photos?.[0] ? `<img src="${t.photos[0]}" style="width:48px;height:34px;object-fit:cover;border-radius:4px;flex-shrink:0">` : '<div style="width:48px;height:34px;background:var(--bg4);border-radius:4px;flex-shrink:0"></div>'}
+          ${t.photos?.[0] ? `<img src="${escHtml(t.photos[0])}" style="width:48px;height:34px;object-fit:cover;border-radius:4px;flex-shrink:0">` : '<div style="width:48px;height:34px;background:var(--bg4);border-radius:4px;flex-shrink:0"></div>'}
           <div>
             <div style="font-size:14px;font-weight:600">${escHtml(t.title || 'Untitled')}</div>
             <div style="font-size:12px;color:var(--text2)">${escHtml([t.year, t.label, t.condition].filter(Boolean).join(' · '))}</div>
@@ -224,5 +228,6 @@ function escHtml(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

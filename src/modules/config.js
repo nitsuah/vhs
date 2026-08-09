@@ -28,7 +28,7 @@ A "low" confidence entry is better than omitting it. Return [] only if truly unr
 
 const GOOGLE_CLIENT_ID     = (process.env.GOOGLE_CLIENT_ID     || '').trim();
 const GOOGLE_CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || '').trim();
-const JWT_SECRET           = (process.env.JWT_SECRET           || 'dev-secret-change-in-production').trim();
+const JWT_SECRET           = (process.env.JWT_SECRET           || '').trim();
 const APP_BASE_URL         = (process.env.APP_BASE_URL         || 'http://localhost:8080').replace(/\/$/, '');
 
 module.exports = {
