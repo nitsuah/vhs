@@ -142,6 +142,17 @@ app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
             display_name = EXCLUDED.display_name,
             avatar_url = EXCLUDED.avatar_url
     `, [payload.sub, payload.email, payload.name || null, payload.picture || null]);
+
+    // One-time: claim all null-owner tapes for the designated legacy owner email.
+    const legacyEmail = (process.env.LEGACY_OWNER_EMAIL || '').trim().toLowerCase();
+    if (legacyEmail && payload.email.toLowerCase() === legacyEmail) {
+      const { rowCount } = await pool.query(
+        'UPDATE tapes SET owner_id = $1 WHERE owner_id IS NULL',
+        [payload.sub]
+      );
+      if (rowCount > 0) console.log(`✓ Claimed ${rowCount} legacy tapes → ${payload.email}`);
+    }
+
     setAuthCookie(res, mintJWT(payload));
     res.redirect('/');
   } catch (err) {
