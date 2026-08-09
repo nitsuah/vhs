@@ -8,6 +8,7 @@ import { updateAiBadge, checkOllama } from './ai.js';
 import { renderInv, updateCount } from './inventory.js';
 import { startJobPoller } from './capture.js';
 import { initAuth, loadPublicCollection } from './auth.js';
+import { setActiveTab } from './ui.js';
 
 // ── Public share route: /c/:slug ───────────────────────────────────────────────
 const shareMatch = location.pathname.match(/^\/c\/([^/]+)\/?$/);
@@ -22,6 +23,13 @@ if (shareMatch) {
 async function init() {
   // Auth state first so the chip renders before tapes load
   await initAuth();
+
+  // Honor ?tab=collect from OAuth redirect (or any deep-link)
+  const tabParam = new URLSearchParams(location.search).get('tab');
+  if (tabParam === 'collect' || tabParam === 'review' || tabParam === 'capture') {
+    setActiveTab(tabParam);
+    history.replaceState(null, '', location.pathname);
+  }
 
   setDbDot('');
   updateAiBadge();

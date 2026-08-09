@@ -154,7 +154,7 @@ app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
     }
 
     setAuthCookie(res, mintJWT(payload));
-    res.redirect('/');
+    res.redirect('/?tab=collect');
   } catch (err) {
     console.error('OAuth callback error:', err.message);
     res.redirect('/?auth=error');
