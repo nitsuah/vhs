@@ -1,11 +1,11 @@
 // ── UI MODULE ──────────────────────────────────────────────────────────────
-import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getWallMode, setWallMode, clearBulk, applyBulkStatus, deleteBulk } from './inventory.js';
-import { dbAdd, nextId } from './db.js';
+import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getIsNewTape, getWallMode, setWallMode, clearBulk, applyBulkStatus, deleteBulk, getSelectedId, getInventory, renderTagChips } from './inventory.js';
+import { dbAdd, dbPut, dbDel, nextId } from './db.js';
 import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound } from './utils.js';
 import { revPanel, showRevPanel, hideRevPanel } from './review.js';
 import { apiKey, omdbKey, ollamaUrl, ollamaModel, fastMode, cards, captureQueue, setApiKey, setOmdbKey, setOllamaUrl, setOllamaModel, setFastMode } from './state.js';
 import { barcodeMode } from './camera.js';
-import { checkOllama, updateAiBadge, callAI } from './ai.js';
+import { checkOllama, updateAiBadge, callAI, lookupMetadata } from './ai.js';
 import { setDbDot } from './db.js';
 
 // ── TAB NAV ──────────────────────────────────────────────────────────────
@@ -168,6 +168,123 @@ document.getElementById('btn-health')?.addEventListener('click',()=>{
 });
 document.getElementById('health-retry')?.addEventListener('click',runHealthCheck);
 document.getElementById('health-close')?.addEventListener('click',()=>document.getElementById('m-health').style.display='none');
+
+// ── ADD TAPE MANUALLY ────────────────────────────────────────────────────
+async function openNewTapeModal() {
+  const newId = await nextId();
+  setIsNewTape(true);
+  ['d-title','d-year','d-label','d-barcode','d-value-low','d-value-high','d-sold-price','d-notes'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('d-format').value = 'VHS';
+  document.getElementById('d-cond').value = 'good';
+  document.getElementById('d-status').value = 'in_collection';
+  document.getElementById('d-id').value = newId;
+  document.getElementById('d-scanned').value = new Date().toLocaleString();
+  const th = document.getElementById('detail-thumb');
+  if (th) { th.src = ''; th.style.display = 'none'; }
+  const tagWrap = document.getElementById('d-tag-chips');
+  if (tagWrap) tagWrap.innerHTML = renderTagChips([]);
+  window._resetDetailTabs?.();
+  document.getElementById('d-delete').style.display = 'none';
+  document.getElementById('m-detail').style.display = 'flex';
+}
+window.openNewTapeModal = openNewTapeModal;
+document.getElementById('btn-add-tape')?.addEventListener('click', () => openNewTapeModal());
+
+// ── DETAIL MODAL SAVE / CANCEL / DELETE / LOOKUP ─────────────────────────
+document.getElementById('d-cancel')?.addEventListener('click', () => {
+  setIsNewTape(false);
+  document.getElementById('m-detail').style.display = 'none';
+});
+
+document.getElementById('d-save')?.addEventListener('click', async () => {
+  const id = document.getElementById('d-id').value;
+  const isNew = getIsNewTape();
+  const inv = getInventory();
+  const existing = inv.find(t => t.id === id) || {};
+  const tags = existing.tags || [];
+  const rec = {
+    ...existing,
+    id,
+    title: document.getElementById('d-title').value.trim(),
+    year: document.getElementById('d-year').value.trim(),
+    label: document.getElementById('d-label').value.trim(),
+    format: document.getElementById('d-format').value,
+    barcode: document.getElementById('d-barcode').value.trim(),
+    value_low: document.getElementById('d-value-low').value.trim(),
+    value_high: document.getElementById('d-value-high').value.trim(),
+    condition: document.getElementById('d-cond').value,
+    status: document.getElementById('d-status').value,
+    sold_price: document.getElementById('d-sold-price').value.trim(),
+    condition_notes: document.getElementById('d-notes').value.trim(),
+    tags,
+    scanned_at: existing.scanned_at || new Date().toISOString(),
+  };
+  try {
+    if (isNew) {
+      await dbAdd(rec);
+      inventory.push(rec);
+    } else {
+      await dbPut(rec);
+      const idx = inventory.findIndex(t => t.id === id);
+      if (idx >= 0) inventory[idx] = rec;
+    }
+    setIsNewTape(false);
+    renderInv(); updateCount();
+    document.getElementById('m-detail').style.display = 'none';
+  } catch (e) {
+    toast('Save failed: ' + e.message, 'err');
+  }
+});
+
+document.getElementById('d-delete')?.addEventListener('click', () => {
+  const title = document.getElementById('d-title').value || 'this tape';
+  document.getElementById('del-text').textContent = `Delete "${title}"? This cannot be undone.`;
+  document.getElementById('m-del-confirm').style.display = 'flex';
+});
+
+document.getElementById('del-cancel')?.addEventListener('click', () => {
+  document.getElementById('m-del-confirm').style.display = 'none';
+});
+
+document.getElementById('del-ok')?.addEventListener('click', async () => {
+  const id = getSelectedId();
+  try {
+    await dbDel(id);
+    const idx = inventory.findIndex(t => t.id === id);
+    if (idx >= 0) inventory.splice(idx, 1);
+    renderInv(); updateCount();
+    document.getElementById('m-del-confirm').style.display = 'none';
+    document.getElementById('m-detail').style.display = 'none';
+  } catch (e) {
+    toast('Delete failed: ' + e.message, 'err');
+  }
+});
+
+document.getElementById('d-lookup')?.addEventListener('click', async () => {
+  const title = document.getElementById('d-title').value.trim();
+  if (!title) return;
+  const btn = document.getElementById('d-lookup');
+  const orig = btn.textContent;
+  btn.textContent = '…';
+  try {
+    const result = await lookupMetadata(title);
+    if (result) {
+      if (result.year) document.getElementById('d-year').value = result.year;
+      if (result.label) document.getElementById('d-label').value = result.label;
+      if (result.format) document.getElementById('d-format').value = result.format;
+      if (result.value_low) document.getElementById('d-value-low').value = result.value_low;
+      if (result.value_high) document.getElementById('d-value-high').value = result.value_high;
+    } else {
+      toast('No metadata found for this title', 'warn');
+    }
+  } catch (e) {
+    toast('Lookup failed: ' + e.message, 'err');
+  } finally {
+    btn.textContent = orig;
+  }
+});
 
 // ── DETAIL MODAL TABS ────────────────────────────────────────────────────
 (function(){

@@ -2,7 +2,7 @@
 const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
-  testDir: './tests/ui',
+  testDir: './tests_playwright',
   use: {
     baseURL: 'http://localhost:8082',
     headless: true,
