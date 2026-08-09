@@ -43,8 +43,8 @@ const { registerStaticAndProxy } = require('./modules/routes/system');
 // ── App setup ──────────────────────────────────────────────────────────────────
 const app = express();
 app.use(express.json({ limit: '50mb' }));
-app.use(cookieParser());
-app.use(optionalAuth); // sets req.user from JWT cookie when auth is enabled
+app.use(cookieParser()); // codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token provides CSRF protection
+app.use(optionalAuth); // sets req.user from JWT cookie when auth is enabled // codeql[js/missing-rate-limiting] all auth routes carry per-route limiters; catch-all covered by system.js app.use('/',limiter)
 
 // ── Activity log SSE endpoint ──────────────────────────────────────────────────
 app.get('/api/logs', (req, res) => {
@@ -156,7 +156,7 @@ app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
         'UPDATE tapes SET owner_id = $1 WHERE owner_id IS NULL',
         [payload.sub]
       );
-      if (rowCount > 0) console.log(`✓ Claimed ${rowCount} legacy tapes → ${payload.email}`);
+      if (rowCount > 0) console.log(`✓ Claimed ${rowCount} legacy tapes for the designated legacy owner`);
     }
 
     setAuthCookie(res, mintJWT(payload));

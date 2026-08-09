@@ -27,7 +27,10 @@ async function init() {
   const tabParam = new URLSearchParams(location.search).get('tab');
   if (tabParam === 'collect' || tabParam === 'review' || tabParam === 'capture') {
     setActiveTab(tabParam);
-    history.replaceState(null, '', location.pathname);
+    const remaining = new URLSearchParams(location.search);
+    remaining.delete('tab');
+    const qs = remaining.toString();
+    history.replaceState(history.state, '', location.pathname + (qs ? '?' + qs : ''));
   }
 
   setDbDot('');
