@@ -1,5 +1,5 @@
 // ── UI MODULE ──────────────────────────────────────────────────────────────
-import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getWallMode, setWallMode } from './inventory.js';
+import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getWallMode, setWallMode, clearBulk, applyBulkStatus, deleteBulk } from './inventory.js';
 import { dbAdd, nextId } from './db.js';
 import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound } from './utils.js';
 import { revPanel, showRevPanel, hideRevPanel } from './review.js';
@@ -428,6 +428,30 @@ btnFilterTray?.addEventListener('click',()=>{
     document.getElementById('filter-backdrop')?.remove();
   }
 });
+
+// ── COLLECT TAB: SEARCH / SORT / ZOOM / BULK ─────────────────────────────────
+document.getElementById('search')?.addEventListener('input', () => renderInv());
+document.getElementById('btn-search')?.addEventListener('click', () => { document.getElementById('search')?.focus(); renderInv(); });
+document.getElementById('sort-sel')?.addEventListener('change', () => renderInv());
+
+(function initZoom() {
+  const slider = document.getElementById('zoom-slider');
+  if (!slider) return;
+  const saved = localStorage.getItem('vhs-zoom') || '1';
+  document.documentElement.style.setProperty('--inv-zoom', saved);
+  slider.value = saved;
+  slider.addEventListener('input', () => {
+    localStorage.setItem('vhs-zoom', slider.value);
+    document.documentElement.style.setProperty('--inv-zoom', slider.value);
+  });
+})();
+
+document.getElementById('bulk-clear')?.addEventListener('click', () => clearBulk());
+document.getElementById('bulk-apply')?.addEventListener('click', async () => {
+  const status = document.getElementById('bulk-status-sel')?.value;
+  if (status) await applyBulkStatus(status);
+});
+document.getElementById('bulk-del')?.addEventListener('click', async () => { await deleteBulk(); });
 
 // ── WALL MODE TOGGLE ─────────────────────────────────────────────────────────
 (function(){

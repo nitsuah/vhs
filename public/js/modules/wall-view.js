@@ -42,11 +42,13 @@ export function renderWall() {
     wall.innerHTML = items.map(t => {
       const sel = t.id === selectedId;
       const bulk = selectedIds.has(t.id);
-      const src = t.photo_face || t.photo_thumbnail;
+      const isSpine = !!t.photo_spine;
+      const src = t.photo_spine || t.photo_face || t.photo_thumbnail;
+      const cropRole = isSpine ? 'spine' : 'face';
       const inner = src
-        ? `<img class="stack-img" src="${esc(src)}" alt=""${_cropStyle(t, 'face')}>`
-        : `<div class="stack-ph"><span>${esc(t.title)}</span></div>`;
-      return `<div class="stack-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="stack-lbl">${esc(t.title)}</div></div>`;
+        ? `<img class="su-img${isSpine ? ' su-img-spine' : ''}" src="${esc(src)}" alt=""${_cropStyle(t, cropRole, isSpine)}>`
+        : `<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
+      return `<div class="su-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
     }).join('');
   } else {
     return;
