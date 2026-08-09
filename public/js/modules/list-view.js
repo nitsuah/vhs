@@ -42,7 +42,15 @@ export function renderList() {
   const selectedId = getSelectedId();
   const selectedIds = getSelectedIds();
   const tbl = document.getElementById('inv-tbl');
+  const empty = document.getElementById('empty-state');
   if (!tbl) return;
+
+  if (!items.length) {
+    tbl.innerHTML = '';
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
 
   const rows = items.map(t => {
     const sel = t.id === selectedId;
@@ -123,7 +131,15 @@ export function updateCount() {
 
 export function renderInv() {
   if (document.body.dataset.tab === 'collect') {
-    if (getWallMode() === 0) renderList();
-    else renderWall();
+    const list = document.getElementById('inv-list');
+    const wall = document.getElementById('wall-view');
+    if (getWallMode() === 0) {
+      if (wall) wall.className = '';
+      if (list) list.style.display = '';
+      renderList();
+    } else {
+      if (list) list.style.display = 'none';
+      renderWall();
+    }
   }
 }

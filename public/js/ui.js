@@ -1,5 +1,5 @@
 // ── UI MODULE ──────────────────────────────────────────────────────────────
-import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape } from './inventory.js';
+import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getWallMode, setWallMode } from './inventory.js';
 import { dbAdd, nextId } from './db.js';
 import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound } from './utils.js';
 import { revPanel, showRevPanel, hideRevPanel } from './review.js';
@@ -428,6 +428,19 @@ btnFilterTray?.addEventListener('click',()=>{
     document.getElementById('filter-backdrop')?.remove();
   }
 });
+
+// ── WALL MODE TOGGLE ─────────────────────────────────────────────────────────
+(function(){
+  const btn = document.getElementById('btn-wall');
+  const labels = ['⊞ Wall', '⊟ Covers', '⊠ Spines', '📚 Stacks'];
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    setWallMode((getWallMode() + 1) % 4);
+    btn.textContent = labels[getWallMode()];
+    btn.classList.toggle('active', getWallMode() > 0);
+    renderInv();
+  });
+})();
 
 // Expose for external callers
 window.setActiveTab = setActiveTab;
