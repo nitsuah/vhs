@@ -43,7 +43,7 @@ async function tapesPutHandler(req, res) {
     let rowCount;
     if (ENABLED && req.user) {
       ({ rowCount } = await pool.query(
-        'UPDATE tapes SET data=$1, scanned_at=COALESCE($2, scanned_at) WHERE id=$3 AND (owner_id=$4 OR owner_id IS NULL)',
+        'UPDATE tapes SET data=$1, scanned_at=COALESCE($2, scanned_at) WHERE id=$3 AND owner_id=$4',
         [tape, tape.scanned_at ?? null, req.params.id, req.user.sub]
       ));
     } else {
@@ -64,7 +64,7 @@ async function tapesDeleteHandler(req, res) {
     let rowCount;
     if (ENABLED && req.user) {
       ({ rowCount } = await pool.query(
-        'DELETE FROM tapes WHERE id=$1 AND (owner_id=$2 OR owner_id IS NULL)',
+        'DELETE FROM tapes WHERE id=$1 AND owner_id=$2',
         [req.params.id, req.user.sub]
       ));
     } else {

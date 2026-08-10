@@ -55,6 +55,7 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space' && !inp && !barcodeMode && onCapture) { e.preventDefault(); window.capture?.(); }
   if (e.code === 'Enter' && !inp && !barcodeMode && captureQueue.length && onCapture) { e.preventDefault(); window.processQueue?.(); }
   if (e.code === 'Escape') {
+    if (document.getElementById('hbr-drawer')?.classList.contains('open')) { closeDrawer(); return; }
     if (document.getElementById('m-del-confirm').style.display !== 'none') { document.getElementById('m-del-confirm').style.display = 'none'; return; }
     if (document.getElementById('m-help').style.display !== 'none') { document.getElementById('m-help').style.display = 'none'; return; }
     if (document.getElementById('m-detail').style.display !== 'none') { setIsNewTape(false); document.getElementById('d-delete').style.display = ''; document.getElementById('m-detail').style.display = 'none'; return; }
@@ -590,3 +591,4 @@ document.getElementById('bulk-del')?.addEventListener('click', async () => { awa
 // Expose for external callers
 window.setActiveTab = setActiveTab;
 window.updateTabBadge = updateTabBadge;
+window.closeDrawer = closeDrawer;

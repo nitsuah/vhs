@@ -227,11 +227,11 @@ export async function confirmCard(uid) {
     const idx = cards.findIndex(c => c.uid === uid);
     setCards(cards.filter(c => c.uid !== uid));
     renderInv(); updateCount();
-    if (!cards.length) { hideRevPanel(); _flashInvRow(tapeId); return; }
+    if (!cards.length) { hideRevPanel(); flashInvRow(tapeId); return; }
     const nextCard = cards[idx] || cards[idx - 1];
     if (nextCard) nextCard.expanded = true;
     renderCards();
-    _flashInvRow(tapeId);
+    flashInvRow(tapeId);
     return;
   }
 
@@ -272,7 +272,7 @@ export async function confirmCard(uid) {
   toast(`Saved: ${rec.title}`, 'ok');
   const confirmedIdx = cards.findIndex(c => c.uid === uid);
   setCards(cards.filter(c => c.uid !== uid));
-  if (!cards.length) { hideRevPanel(); _flashInvRow(rec.id); return; }
+  if (!cards.length) { hideRevPanel(); flashInvRow(rec.id); return; }
   const nextCard = cards[confirmedIdx] || cards[confirmedIdx - 1];
   if (nextCard) nextCard.expanded = true;
   renderCards();

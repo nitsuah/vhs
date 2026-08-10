@@ -46,6 +46,12 @@ function renderAuthChip() {
   document.querySelectorAll('.btn-share-open').forEach(el => el.addEventListener('click', openSharePanel));
   document.querySelectorAll('.btn-signout').forEach(el => el.addEventListener('click', signOut));
 
+  const canWrite = !_authEnabled || !!_user;
+  ['btn-add-tape', 'btn-import'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = canWrite ? '' : 'none';
+  });
+
   // Show auth error from OAuth redirect if present
   if (new URLSearchParams(location.search).get('auth') === 'error') {
     import('./utils.js').then(({ toast }) => toast('Google sign-in failed. Please try again.', 'err', 5000));

@@ -14,7 +14,7 @@ const { randomUUID } = require('crypto');
 // ── SSRF protection moved inline to /api/fetch-image route (CodeQL sanitizer boundary)
 
 // Local modules
-const { PORT, HTTPS_PORT, OLLAMA, OMDB_API_KEY } = require('./modules/config');
+const { PORT, HTTPS_PORT, OLLAMA, OMDB_API_KEY, APP_BASE_URL } = require('./modules/config');
 const {
   ENABLED: AUTH_ENABLED,
   getAuthUrl, exchangeCode, mintJWT,
@@ -126,7 +126,8 @@ app.get('/auth/me', defaultLimiter, (req, res) => {
 app.get('/auth/google', defaultLimiter, (_req, res) => {
   if (!AUTH_ENABLED) return res.status(503).json({ error: 'auth not configured' });
   const state = randomUUID();
-  res.cookie('oauth_state', state, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 10 * 60 * 1000 });
+  const secure = APP_BASE_URL.startsWith('https://');
+  res.cookie('oauth_state', state, { httpOnly: true, sameSite: 'lax', secure, path: '/', maxAge: 10 * 60 * 1000 });
   res.redirect(getAuthUrl(state));
 });
 
