@@ -2,6 +2,7 @@
 
 All notable changes to this project are documented here.
 
+<<<<<<< HEAD
 ## [Unreleased] — security-and-auth-hardening (PR #41)
 
 ### Added
@@ -33,6 +34,8 @@ All notable changes to this project are documented here.
 
 ---
 
+=======
+>>>>>>> origin/main
 ## [Unreleased] — tech-debt/coderabbit-pr36-fixes (PR #40)
 
 ### Fixed
@@ -54,7 +57,11 @@ All notable changes to this project are documented here.
 
 #### Tests
 
+<<<<<<< HEAD
 - **`normalizeTitleForLookup` regression suite** — added 12 test cases covering every `STANDALONE_EXCLUDE` term (`movie`, `film`, `title`, `video`, `tape`) for both standalone-preserve and parenthesized-strip behavior
+=======
+- **`normalizeTitleForLookup` regression suite** — added 14 tests covering every `STANDALONE_EXCLUDE` term (`movie`, `film`, `title`, `video`, `tape`) for both standalone-preserve and parenthesized-strip behavior
+>>>>>>> origin/main
 
 ---
 

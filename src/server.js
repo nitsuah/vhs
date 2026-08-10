@@ -118,6 +118,7 @@ app.get('/api/ca-cert', defaultLimiter, (req, res) => {
   res.sendFile(caCert);
 });
 
+<<<<<<< HEAD
 // ── Auth ───────────────────────────────────────────────────────────────────────
 app.get('/auth/me', defaultLimiter, (req, res) => {
   res.json({ enabled: AUTH_ENABLED, user: req.user || null });
@@ -232,6 +233,8 @@ app.get('/api/share/:slug', defaultLimiter, async (req, res) => {
   }
 });
 
+=======
+>>>>>>> origin/main
 // ── Tapes CRUD ─────────────────────────────────────────────────────────────────
 app.get('/api/tapes', tapeLimiter, tapesGetHandler);
 app.post('/api/tapes', tapeLimiter, requireAuth, tapesPostHandler);

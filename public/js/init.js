@@ -57,4 +57,9 @@ async function init() {
   renderInv(); updateCount();
   startJobPoller();
 }
+<<<<<<< HEAD
 window.init = init;
+=======
+window.init = init;
+init().catch(err => { console.error('init error:', err); });
+>>>>>>> origin/main

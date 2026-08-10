@@ -2,8 +2,14 @@
 import { inventory, setInventory, renderInv, updateCount } from './inventory.js';
 import { dbAdd, dbPut, nextId } from './db.js';
 import { lookupMetadata, callAI } from './ai.js';
+<<<<<<< HEAD
 import { findDup, toast, rotateImage90CCW, triggerTapeInsertAnim, flashInvRow } from './utils.js';
 import { esc, renderTagChips, initTagChips } from './inventory.js';
+=======
+import { findDup } from './utils.js';
+import { esc, renderTagChips, initTagChips } from './inventory.js';
+import { toast, rotateImage90CCW, triggerTapeInsertAnim } from './utils.js';
+>>>>>>> origin/main
 import { cards, setCards, uidSeq, setUidSeq, nextUidSeq } from './state.js';
 
 const revPanel = document.getElementById('review');
@@ -90,7 +96,11 @@ export function renderCards() {
     const stuck = proc && card.jobId && card.inflightSince && (Date.now() - new Date(card.inflightSince).getTime() > 10 * 60 * 1000);
     const spinnerHTML = '<span class="spin" style="width:12px;height:12px;border-width:2px;display:inline-block"></span>';
     const thumb = card.thumb
+<<<<<<< HEAD
       ? `<div class="rev-thumb-wrap"><img class="rev-thumb" src="${esc(card.thumb)}"></div>`
+=======
+      ? `<div class="rev-thumb-wrap"><img class="rev-thumb" src="${card.thumb}"></div>`
+>>>>>>> origin/main
       : `<div class="card-hdr-ph">${proc ? spinnerHTML : queued ? '⏳' : '📼'}</div>`;
     const rowClass = `rev-card${proc ? (stuck ? ' card-failed' : ' card-processing') : fail ? ' card-failed' : queued ? ' card-queued' : ''}`;
     const isUpdate = card.source === 'fill' || card.source === 'revalidate';
@@ -272,7 +282,11 @@ export async function confirmCard(uid) {
   toast(`Saved: ${rec.title}`, 'ok');
   const confirmedIdx = cards.findIndex(c => c.uid === uid);
   setCards(cards.filter(c => c.uid !== uid));
+<<<<<<< HEAD
   if (!cards.length) { hideRevPanel(); flashInvRow(rec.id); return; }
+=======
+  if (!cards.length) { hideRevPanel(); _flashInvRow(rec.id); return; }
+>>>>>>> origin/main
   const nextCard = cards[confirmedIdx] || cards[confirmedIdx - 1];
   if (nextCard) nextCard.expanded = true;
   renderCards();
@@ -281,6 +295,16 @@ export async function confirmCard(uid) {
   flashInvRow(rec.id);
 }
 
+<<<<<<< HEAD
+=======
+function _flashInvRow(id) {
+  setTimeout(() => {
+    const row = document.querySelector(`#inv-list [data-id="${id}"]`);
+    if (row) { row.classList.add('just-added'); row.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  }, 60);
+}
+
+>>>>>>> origin/main
 export function discardCard(uid) {
   const card = cards.find(c => c.uid === uid);
   if (card && card.source === 'scan') _reportOutcome(card, 'discarded');

@@ -8,7 +8,11 @@ import { captureQueue, setCaptureQueue, nextUidSeq } from './state.js';
 import { apiKey } from './state.js';
 import { fileToB64, fileToThumb } from './utils.js';
 import { isCapturing, barcodeMode, cropEl, vidWrap, btnCap, video, cropFrac } from './camera.js';
+<<<<<<< HEAD
 import { toast, flashInvRow } from './utils.js';
+=======
+import { toast } from './utils.js';
+>>>>>>> origin/main
 
 const fileInput = document.getElementById('file-input');
 
@@ -27,7 +31,11 @@ fileInput.addEventListener('change', async () => {
 
 // ── CAPTURE QUEUE RENDER ──────────────────────────────────────────────────
 const queueStrip = document.getElementById('queue-strip');
+<<<<<<< HEAD
 queueStrip?.addEventListener('click', e => e.stopPropagation());
+=======
+queueStrip.addEventListener('click', e => e.stopPropagation());
+>>>>>>> origin/main
 
 function renderQueue() {
   if (!captureQueue.length) { queueStrip.classList.remove('on'); queueStrip.innerHTML = ''; return; }
@@ -268,4 +276,14 @@ async function updateQueueStatus() {
   } catch { } finally { queueBusy = false; }
 }
 
+<<<<<<< HEAD
+=======
+function _flashInvRow(id) {
+  setTimeout(() => {
+    const row = document.querySelector(`#inv-list [data-id="${id}"]`);
+    if (row) { row.classList.add('just-added'); row.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  }, 60);
+}
+
+>>>>>>> origin/main
 export { captureQueue, addBarcodeCard, processQueue };
