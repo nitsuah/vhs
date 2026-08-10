@@ -1,20 +1,11 @@
 // ── UI MODULE ──────────────────────────────────────────────────────────────
-<<<<<<< HEAD
 import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getIsNewTape, getWallMode, setWallMode, clearBulk, applyBulkStatus, deleteBulk, getSelectedId, getInventory, renderTagChips, esc } from './inventory.js';
 import { dbAdd, dbPut, dbDel, nextId } from './db.js';
-=======
-import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape } from './inventory.js';
-import { dbAdd, nextId } from './db.js';
->>>>>>> origin/main
 import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound } from './utils.js';
 import { revPanel, showRevPanel, hideRevPanel } from './review.js';
 import { apiKey, omdbKey, ollamaUrl, ollamaModel, fastMode, cards, captureQueue, setApiKey, setOmdbKey, setOllamaUrl, setOllamaModel, setFastMode } from './state.js';
 import { barcodeMode } from './camera.js';
-<<<<<<< HEAD
 import { checkOllama, updateAiBadge, callAI, lookupMetadata } from './ai.js';
-=======
-import { checkOllama, updateAiBadge, callAI } from './ai.js';
->>>>>>> origin/main
 import { setDbDot } from './db.js';
 
 function csvCell(v) {
@@ -64,10 +55,7 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space' && !inp && !barcodeMode && onCapture) { e.preventDefault(); window.capture?.(); }
   if (e.code === 'Enter' && !inp && !barcodeMode && captureQueue.length && onCapture) { e.preventDefault(); window.processQueue?.(); }
   if (e.code === 'Escape') {
-<<<<<<< HEAD
     if (document.getElementById('hbr-drawer')?.classList.contains('open')) { closeDrawer(); return; }
-=======
->>>>>>> origin/main
     if (document.getElementById('m-del-confirm').style.display !== 'none') { document.getElementById('m-del-confirm').style.display = 'none'; return; }
     if (document.getElementById('m-help').style.display !== 'none') { document.getElementById('m-help').style.display = 'none'; return; }
     if (document.getElementById('m-detail').style.display !== 'none') { setIsNewTape(false); document.getElementById('d-delete').style.display = ''; document.getElementById('m-detail').style.display = 'none'; return; }
@@ -187,7 +175,6 @@ document.getElementById('btn-health')?.addEventListener('click',()=>{
 document.getElementById('health-retry')?.addEventListener('click',runHealthCheck);
 document.getElementById('health-close')?.addEventListener('click',()=>document.getElementById('m-health').style.display='none');
 
-<<<<<<< HEAD
 // ── ADD TAPE MANUALLY ────────────────────────────────────────────────────
 async function openNewTapeModal() {
   const newId = await nextId();
@@ -305,8 +292,6 @@ document.getElementById('d-lookup')?.addEventListener('click', async () => {
   }
 });
 
-=======
->>>>>>> origin/main
 // ── DETAIL MODAL TABS ────────────────────────────────────────────────────
 (function(){
   function switchDetailTab(tab){
@@ -427,11 +412,7 @@ document.getElementById('exp-json').addEventListener('click',()=>{
 });
 document.getElementById('exp-csv').addEventListener('click',()=>{
   const cols=['id','title','year','label','format','condition','condition_notes','barcode','value_low','value_high','status','scanned_at'];
-<<<<<<< HEAD
   const csv=[cols.join(','),...inventory.map(t=>cols.map(c=>csvCell(t[c])).join(','))].join('\n');
-=======
-  const csv=[cols.join(','),...inventory.map(t=>cols.map(c=>`"${String(t[c]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
->>>>>>> origin/main
   dl(csv,'vhs-inventory.csv','text/csv');
   document.getElementById('exp-dd').classList.remove('on');
 });
@@ -444,19 +425,12 @@ document.getElementById('exp-sell').addEventListener('click',()=>{
     t.title,t.year||'',t.label||'',t.format||'VHS',t.condition||'',
     t.condition_notes||'',t.barcode||'',t.value_low||'',t.value_high||'',
     condMap[t.condition]||''
-<<<<<<< HEAD
   ].map(csvCell).join(','));
-=======
-  ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
->>>>>>> origin/main
   dl([cols.map(c=>`"${c}"`).join(','),...rows].join('\n'),'vhs-for-sale.csv','text/csv');
   document.getElementById('exp-dd').classList.remove('on');
 });
 document.getElementById('exp-tags')?.addEventListener('click',()=>{
-<<<<<<< HEAD
-=======
-  const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
->>>>>>> origin/main
+
   const items=inventory.filter(t=>t.status==='for_sale');
   if(!items.length){toast('No tapes marked For Sale','err');document.getElementById('exp-dd').classList.remove('on');return;}
   const tags=items.map(t=>{
@@ -478,7 +452,6 @@ button{margin-bottom:12px;padding:7px 18px;background:#222;color:#fff;border:non
 document.getElementById('exp-print').addEventListener('click',()=>{
   const items=getFiltered();
   const condBadge={great:'✅ Great',good:'👍 Good',fair:'⚠️ Fair',poor:'❌ Poor'};
-<<<<<<< HEAD
   const rows=items.map((t,i)=>`<tr style="background:${i%2?'#f9f9f9':'#fff'}">
     <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#666">${esc(t.id)}</td>
     <td style="padding:6px 10px;font-weight:600">${esc(t.title)}</td>
@@ -487,17 +460,6 @@ document.getElementById('exp-print').addEventListener('click',()=>{
     <td style="padding:6px 10px">${condBadge[t.condition]||esc(t.condition)}</td>
     <td style="padding:6px 10px;color:#2a7">${(t.value_low||t.value_high)?`$${esc(t.value_low||'?')}–$${esc(t.value_high||'?')}`:''}</td>
     <td style="padding:6px 10px;font-size:11px;color:#777">${esc((t.tags||[]).join(', '))}</td>
-=======
-  const ep=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const rows=items.map((t,i)=>`<tr style="background:${i%2?'#f9f9f9':'#fff'}">
-    <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#666">${ep(t.id)}</td>
-    <td style="padding:6px 10px;font-weight:600">${ep(t.title)}</td>
-    <td style="padding:6px 10px;color:#555">${ep(t.year)}</td>
-    <td style="padding:6px 10px;color:#555">${ep(t.label)}</td>
-    <td style="padding:6px 10px">${condBadge[t.condition]||ep(t.condition)}</td>
-    <td style="padding:6px 10px;color:#2a7">${(t.value_low||t.value_high)?`$${ep(t.value_low||'?')}–$${ep(t.value_high||'?')}`:''}</td>
-    <td style="padding:6px 10px;font-size:11px;color:#777">${ep((t.tags||[]).join(', '))}</td>
->>>>>>> origin/main
   </tr>`).join('');
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>VHS Inventory</title>
 <style>body{font-family:system-ui,sans-serif;margin:30px;color:#222}h1{margin-bottom:4px}p{color:#777;font-size:13px;margin-bottom:20px}
@@ -518,15 +480,9 @@ tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style>
   const LEVEL_COLOR={'info':'#888','warn':'#c8a040','error':'#e84040'};
   let sse=null;
   function appendEntry(e){
-<<<<<<< HEAD
     const ts=e.ts?esc(e.ts.slice(11,19)):'';
     const color=LEVEL_COLOR[e.level]||'#888';
     const msgEsc=esc(e.msg||'');
-=======
-    const ts=e.ts?e.ts.slice(11,19):'';
-    const color=LEVEL_COLOR[e.level]||'#888';
-    const msgEsc=String(e.msg||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
->>>>>>> origin/main
     const row=document.createElement('div');
     row.innerHTML=`<span style="color:#444">${ts}</span> <span style="color:${color}">${msgEsc}</span>`;
     logOutput.appendChild(row);
@@ -544,10 +500,7 @@ tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style>
     es.onerror=()=>{if(_closeTimer){clearTimeout(_closeTimer);_closeTimer=null;}_closeTimer=setTimeout(()=>{es.close();if(sse===es)sse=null;_closeTimer=null;},2000);};
   }
   document.getElementById('btn-logs')?.addEventListener('click',openLogs);
-<<<<<<< HEAD
   document.getElementById('log-close')?.addEventListener('click',()=>{if(sse){sse.close();sse=null;}});
-=======
->>>>>>> origin/main
 })();
 
 // ── VHS EASTER EGGS ──────────────────────────────────────────────────────
@@ -599,7 +552,6 @@ btnFilterTray?.addEventListener('click',()=>{
   }
 });
 
-<<<<<<< HEAD
 // ── COLLECT TAB: SEARCH / SORT / ZOOM / BULK ─────────────────────────────────
 document.getElementById('search')?.addEventListener('input', () => renderInv());
 document.getElementById('btn-search')?.addEventListener('click', () => { document.getElementById('search')?.focus(); renderInv(); });
@@ -641,8 +593,4 @@ document.getElementById('bulk-del')?.addEventListener('click', async () => { awa
 window.setActiveTab = setActiveTab;
 window.updateTabBadge = updateTabBadge;
 window.closeDrawer = closeDrawer;
-=======
-// Expose for external callers
-window.setActiveTab = setActiveTab;
-window.updateTabBadge = updateTabBadge;
->>>>>>> origin/main
+

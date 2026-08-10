@@ -359,7 +359,6 @@ function checkMilestoneConfetti(n){
 }
 
 // ── DOWNLOAD ─────────────────────────────────────────────────────────────
-<<<<<<< HEAD
 export function dl(content, name, type) {
   const a = document.createElement('a');
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -373,9 +372,7 @@ export function flashInvRow(id) {
     if (row) { row.classList.add('just-added'); row.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
   }, 60);
 }
-=======
-export function dl(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();}
->>>>>>> origin/main
+
 
 export function rotateImage90CCW(dataUrl) {
   return new Promise(resolve => {
