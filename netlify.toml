@@ -1,0 +1,4 @@
+# Without this, Netlify publishes the repository root, so index.html is served
+# at /public/index.html and "/" 404s. The static front-end lives in public/.
+[build]
+  publish = "public"
