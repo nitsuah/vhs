@@ -30,6 +30,7 @@ const queueStrip = document.getElementById('queue-strip');
 queueStrip?.addEventListener('click', e => e.stopPropagation());
 
 function renderQueue() {
+  if (!queueStrip) return;
   if (!captureQueue.length) { queueStrip.classList.remove('on'); queueStrip.innerHTML = ''; return; }
   queueStrip.classList.add('on');
   const n = captureQueue.length;

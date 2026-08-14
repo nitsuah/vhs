@@ -58,4 +58,3 @@ async function init() {
   startJobPoller();
 }
 window.init = init;
-init().catch(err => { console.error('init error:', err); });

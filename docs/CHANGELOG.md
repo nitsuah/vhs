@@ -54,7 +54,7 @@ All notable changes to this project are documented here.
 
 #### Tests
 
-- **`normalizeTitleForLookup` regression suite** — added 14 tests covering every `STANDALONE_EXCLUDE` term (`movie`, `film`, `title`, `video`, `tape`) for both standalone-preserve and parenthesized-strip behavior
+- **`normalizeTitleForLookup` regression suite** — added 12 Jest test cases (14 assertions) covering every `STANDALONE_EXCLUDE` term (`movie`, `film`, `title`, `video`, `tape`) for both standalone-preserve and parenthesized-strip behavior
 
 ---
 

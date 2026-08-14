@@ -1,7 +1,3 @@
-query-filters:
-  - exclude:
-      id: js/clear-text-storage-of-sensitive-data
-  - exclude:
-      id: js/missing-rate-limiting
-  - exclude:
-      id: js/missing-csrf-middleware
+# No global query-filter exclusions.
+# Intentional false positives are suppressed inline with
+# // codeql[js/<rule-id>] comments at the affected sites.
