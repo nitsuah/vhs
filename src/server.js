@@ -43,8 +43,10 @@ const { registerStaticAndProxy } = require('./modules/routes/system');
 // ── App setup ──────────────────────────────────────────────────────────────────
 const app = express();
 app.use(express.json({ limit: '50mb' }));
-app.use(cookieParser()); // codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token provides CSRF protection
-app.use(optionalAuth); // sets req.user from JWT cookie when auth is enabled // codeql[js/missing-rate-limiting] all auth routes carry per-route limiters; catch-all covered by system.js app.use('/',limiter)
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token provides CSRF protection for all state-changing routes
+app.use(cookieParser());
+// codeql[js/missing-rate-limiting] optionalAuth is read-only middleware; all auth and mutation routes carry explicit per-route limiters
+app.use(optionalAuth); // sets req.user from JWT cookie when auth is enabled
 
 // ── Activity log SSE endpoint ──────────────────────────────────────────────────
 app.get('/api/logs', (req, res) => {
