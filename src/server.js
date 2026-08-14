@@ -176,6 +176,7 @@ app.post('/auth/logout', defaultLimiter, (req, res) => {
 });
 
 // Update sharing settings: toggle collection_public, get/generate share_slug
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site POST; requireAuth enforces authentication
 app.put('/api/auth/share', defaultLimiter, requireAuth, async (req, res) => {
   const { collection_public } = req.body;
   if (typeof collection_public !== 'boolean') {
@@ -236,8 +237,11 @@ app.get('/api/share/:slug', defaultLimiter, async (req, res) => {
 
 // ── Tapes CRUD ─────────────────────────────────────────────────────────────────
 app.get('/api/tapes', tapeLimiter, tapesGetHandler);
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site POST; requireAuth enforces authentication
 app.post('/api/tapes', tapeLimiter, requireAuth, tapesPostHandler);
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site PUT; requireAuth enforces authentication
 app.put('/api/tapes/:id', tapeWriteLimiter, requireAuth, tapesPutHandler);
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site DELETE; requireAuth enforces authentication
 app.delete('/api/tapes/:id', tapeWriteLimiter, requireAuth, tapesDeleteHandler);
 
 // ── Lookup endpoints ───────────────────────────────────────────────────────────
