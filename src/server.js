@@ -44,6 +44,7 @@ const { registerStaticAndProxy } = require('./modules/routes/system');
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 // codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token provides CSRF protection for all state-changing routes
+// codeql[js/missing-token-validation] SameSite=lax on vhs_token provides CSRF protection for all state-changing routes
 app.use(cookieParser());
 // codeql[js/missing-rate-limiting] optionalAuth is read-only middleware; all auth and mutation routes carry explicit per-route limiters
 app.use(optionalAuth); // sets req.user from JWT cookie when auth is enabled

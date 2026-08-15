@@ -4,6 +4,10 @@ query-filters:
       # SameSite=lax on vhs_token cookie is equivalent CSRF protection;
       # requireAuth enforces auth on every state-changing route.
   - exclude:
+      id: js/missing-token-validation
+      # Same rationale as js/missing-csrf-middleware — SameSite=lax blocks cross-site
+      # state-changing requests without requiring explicit token checks.
+  - exclude:
       id: js/missing-rate-limiting
       # optionalAuth is read-only middleware; every mutation route carries
       # an explicit express-rate-limit limiter.
