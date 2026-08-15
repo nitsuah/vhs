@@ -1,9 +1,8 @@
 // ── REVIEW PANEL ─────────────────────────────────────────────────────────
-import { inventory, setInventory, renderInv, updateCount } from './inventory.js';
+import { inventory, setInventory, renderInv, updateCount, esc, renderTagChips, initTagChips } from './inventory.js';
 import { dbAdd, dbPut, nextId } from './db.js';
 import { lookupMetadata, callAI } from './ai.js';
 import { findDup, toast, rotateImage90CCW, triggerTapeInsertAnim, flashInvRow } from './utils.js';
-import { esc, renderTagChips, initTagChips } from './inventory.js';
 import { cards, setCards, uidSeq, setUidSeq, nextUidSeq } from './state.js';
 
 const revPanel = document.getElementById('review');

@@ -4,14 +4,14 @@
 const { pool } = require('../db');
 const { ENABLED } = require('../auth');
 
-// When auth is enabled: scope reads to this user's tapes + legacy null-owner tapes.
+// When auth is enabled: scope reads to this user's tapes only.
 // When auth is disabled: return everything (existing behaviour).
 async function tapesGetHandler(req, res) {
   try {
     let rows;
     if (ENABLED && req.user) {
       ({ rows } = await pool.query(
-        'SELECT data FROM tapes WHERE owner_id = $1 OR owner_id IS NULL ORDER BY scanned_at DESC',
+        'SELECT data FROM tapes WHERE owner_id = $1 ORDER BY scanned_at DESC',
         [req.user.sub]
       ));
     } else {

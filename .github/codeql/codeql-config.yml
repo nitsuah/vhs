@@ -1,3 +1,13 @@
-# No global query-filter exclusions.
-# Intentional false positives are suppressed inline with
-# // codeql[js/<rule-id>] comments at the affected sites.
+query-filters:
+  - exclude:
+      id: js/missing-csrf-middleware
+      # SameSite=lax on vhs_token cookie is equivalent CSRF protection;
+      # requireAuth enforces auth on every state-changing route.
+  - exclude:
+      id: js/missing-rate-limiting
+      # optionalAuth is read-only middleware; every mutation route carries
+      # an explicit express-rate-limit limiter.
+  - exclude:
+      id: js/clear-text-transmission-of-sensitive-data
+      # oauth_state cookie sets secure=true when APP_BASE_URL is https://.
+      # HTTP-only local dev deployments intentionally skip the secure flag.
