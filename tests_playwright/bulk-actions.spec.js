@@ -98,10 +98,7 @@ test('bulk apply status sends PUT for each selected tape', async ({ page }) => {
 
   await page.selectOption('#bulk-status-sel', 'for_sale');
   await page.click('#bulk-apply');
-
-  // Wait for PUT calls
-  await page.waitForTimeout(500);
-  expect(putIds.length).toBe(2);
+  await expect.poll(() => putIds.length, { timeout: 2000 }).toBe(2);
 });
 
 // ── BULK DELETE ───────────────────────────────────────────────────────────────

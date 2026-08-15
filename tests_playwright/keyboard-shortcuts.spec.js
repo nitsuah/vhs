@@ -112,5 +112,5 @@ test('N inside a text input does not open the add tape modal', async ({ page }) 
   await page.keyboard.press('n');
 
   // Modal should NOT open when focused in an input
-  await expect(page.locator('#m-detail')).toBeHidden({ timeout: 500 }).catch(() => {});
+  await expect(page.locator('#m-detail')).toBeHidden({ timeout: 500 });
 });

@@ -40,8 +40,43 @@ export {
   // Bulk actions
   applyBulkStatus, deleteBulk, clearBulk,
   // Helpers
-  esc, _cropStyle, _eggAttrs, statusLabel, renderTagChips
+  esc, _cropStyle, _eggAttrs, statusLabel, renderTagChips,
+  // Public share view
+  renderPublicCollection,
 };
+
+// Read-only renderer for public collection share pages (/c/:slug).
+// Targets #inv-tbl so the existing table CSS applies without edit controls.
+function renderPublicCollection(tapes) {
+  const tbl = document.getElementById('inv-tbl');
+  if (!tbl) return;
+  // Re-show the main layout (loadPublicCollection hides it) and activate the
+  // collect tab so the CSS rule `body[data-tab="collect"] #right{display:flex}`
+  // makes #right visible.
+  const main = document.getElementById('main');
+  if (main) main.style.display = '';
+  document.body.dataset.tab = 'collect';
+  // Hide editing controls that don't belong in a read-only view.
+  ['collect-subhdr', 'bulk-bar'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  // Render rows using the same column structure as renderList(), but with no
+  // click handlers so the view remains read-only.
+  tbl.innerHTML = tapes.length
+    ? tapes.map(t => `<tr class="tape-row" data-id="${esc(t.id || '')}">
+        <td><img class="row-thumb" src="${esc(t.photo_thumbnail || '')}" alt=""></td>
+        <td class="cell-title">${esc(t.title || '')}</td>
+        <td class="cell-year">${esc(t.year || '')}</td>
+        <td class="cell-label">${esc(t.label || '')}</td>
+        <td class="cell-format">${esc(t.format || 'VHS')}</td>
+        <td class="cell-cond"><span class="cond-${t.condition || 'good'}">${esc(t.condition || 'good')}</span></td>
+        <td class="cell-status">${esc(statusLabel(t.status))}</td>
+        <td class="cell-val">${esc(t.value_low || t.value_high ? `$${t.value_low || '?'}–$${t.value_high || '?'}` : '')}</td>
+        <td class="cell-tags">${(t.tags || []).map(g => `<span class="tag-chip small">${esc(g)}</span>`).join('')}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text2)">This collection is empty.</td></tr>`;
+}
 
 // Global functions for inline event handlers in HTML
 window.openDetail = openDetailModal;
