@@ -19,6 +19,7 @@
   <select id="camera-select" style="display:none"></select>
   <div class="hdr-right" id="hdr-right-desktop">
     <span id="count-badge">0 tapes</span><span id="db-dot" title="Neon connection"></span>
+    <div id="auth-slot"></div>
     <button class="hbtn" id="btn-settings">⚙ Settings</button>
     <button class="hbtn" id="btn-help" title="Keyboard shortcuts (?)">?</button>
   </div>
@@ -44,10 +45,11 @@
     <span class="hbr-label">Display</span>
     <button class="hbtn" id="btn-crt">📺 CRT Scanlines</button>
   </div>
-  <div class="hbr-section hbr-section-last">
+  <div class="hbr-section">
     <span class="hbr-label">Audio</span>
     <button class="hbtn" id="btn-sound">🔊 Sounds</button>
   </div>
+  <div class="hbr-section hbr-section-last" id="auth-slot-mob"></div>
 </div>
 <div id="crt-overlay"></div>
 <canvas id="static-canvas"></canvas>
@@ -222,7 +224,7 @@
         <button class="ctrl-btn bulk-del-btn" id="bulk-del" style="color:var(--red);border-color:rgba(232,64,64,.3)"><span class="bulk-del-txt">Delete</span><span class="bulk-del-ico" style="display:none">🗑</span></button>
         <button class="ctrl-btn" id="bulk-clear" style="margin-left:auto" title="Deselect all">↩</button>
       </div>
-      <div id="inv-list"></div>
+      <div id="inv-list"><table class="tape-table"><tbody id="inv-tbl"></tbody></table></div>
       <div id="zoom-bar">
         <span style="color:var(--text3);font-size:13px;cursor:default;user-select:none" title="Zoom out">⊖</span>
         <input type="range" id="zoom-slider" min="0.5" max="2.5" step="0.1" value="1" title="Collection zoom">
@@ -392,7 +394,7 @@
     <span style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.08em">▶ Activity Log</span>
     <span style="font-size:10px;color:#444;margin-left:4px">server ↔ Ollama</span>
     <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:#555;cursor:pointer"><input type="checkbox" id="log-follow" checked style="accent-color:#e84040"> Follow</label>
-    <button onclick="document.getElementById('log-panel').style.display='none'" style="background:none;border:none;color:#555;font-size:16px;cursor:pointer;line-height:1;padding:0 2px">✕</button>
+    <button id="log-close" onclick="document.getElementById('log-panel').style.display='none'" style="background:none;border:none;color:#555;font-size:16px;cursor:pointer;line-height:1;padding:0 2px">✕</button>
   </div>
   <div id="log-output" style="flex:1;overflow-y:auto;font-family:monospace;font-size:11px;padding:6px 10px;color:#888;line-height:1.5"></div>
 </div>

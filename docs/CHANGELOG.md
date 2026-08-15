@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased] — security-and-auth-hardening (PR #41)
+
+### Added
+
+- **Google OAuth CSRF state validation** — `randomUUID()` state cookie generated on `/auth/google`, verified in callback; mismatches redirect to `/?auth=error`
+- **JWT_SECRET startup guard** — server refuses to start when auth is enabled but `JWT_SECRET` is empty
+- **Migration 006** — drops the `UNIQUE` constraint on `users.email`; prevents login failure when two Google accounts share the same email address
+- **Shared `flashInvRow`** — moved from duplicate per-module copies into `utils.js`
+- **SSE connection close** — log panel ✕ button now closes the EventSource connection to prevent a resource leak
+- **Object URL cleanup** — `dl()` in `utils.js` revokes the blob URL after 100 ms via `setTimeout`
+- **Write-gate UI** — Add and Import buttons are hidden when auth is enabled but the user is not logged in; restored on sign-in
+- **Drawer: backdrop click + Escape** — hamburger drawer now closes on backdrop click (exposed `closeDrawer` on `window`) and via the Escape key
+
+### Fixed
+
+- **`nextId()` overflow** — old regex `/^VHS-\d{4}$/` excluded IDs ≥ VHS-10000, causing `Math.max(...[])` = `-Infinity`; fixed with `/^VHS-(\d+)$/` and `ids.length ? Math.max(...ids) : 0` fallback
+- **`toggle()` non-OK response** — share toggle now checks `r.ok` and reverts the optimistic UI update on server error
+- **CSV formula injection** — `csvCell()` helper prefixes values starting with `=`, `+`, `-`, `@` with a tab character
+- **`escHtml` single quotes** — added `&#39;` replacement so attribute injection via `'` is blocked
+- **`tapesDeleteHandler` 404** — returns 404 instead of 200 when `rowCount === 0` (tape not found)
+- **OAuth redirect validation** — `PUT /api/auth/share` now rejects non-boolean `collection_public` with 400
+- **ESLint false positives** — added `tests_playwright/**` override with `browser: true` env and explicit globals
+
+### Security (CodeQL)
+
+- Added inline `// codeql[js/clear-text-storage-of-sensitive-data]` suppression on `setAuthCookie` — JWT is in an HttpOnly cookie, not plaintext
+- Added inline `// codeql[js/missing-csrf-middleware]` — SameSite=lax on `vhs_token` provides CSRF protection
+- Added inline `// codeql[js/missing-rate-limiting]` — all routes carry per-route limiters
+
+---
+
 ## [Unreleased] — tech-debt/coderabbit-pr36-fixes (PR #40)
 
 ### Fixed
@@ -23,7 +54,7 @@ All notable changes to this project are documented here.
 
 #### Tests
 
-- **`normalizeTitleForLookup` regression suite** — added 14 tests covering every `STANDALONE_EXCLUDE` term (`movie`, `film`, `title`, `video`, `tape`) for both standalone-preserve and parenthesized-strip behavior
+- **`normalizeTitleForLookup` regression suite** — added 12 Jest test cases (14 assertions) covering every `STANDALONE_EXCLUDE` term (`movie`, `film`, `title`, `video`, `tape`) for both standalone-preserve and parenthesized-strip behavior
 
 ---
 

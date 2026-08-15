@@ -70,10 +70,8 @@ function registerStaticAndProxy(app) {
       proxyTimeout: 300000,
       timeout: 300000,
       rejectUnauthorized: true,
-      on: {
-        proxyReq: fixRequestBody,
-        error: (err, _req, res) => res.status(502).json({ error: 'Ollama unavailable: ' + err.message }),
-      },
+      onProxyReq: fixRequestBody,
+      onError: (err, _req, res) => res.status(502).json({ error: 'Ollama unavailable: ' + err.message }),
     })
   );
 

@@ -4,33 +4,59 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 
 ## Browser App
 
-- `[shipped]` **VHS Shelf Scanner** — web UI served via Docker/Nginx (`src/app.js`, `public/`)
-- `[shipped]` **Mobile UI** — mobile-first layout with queue visualization and retry controls
-- `[shipped]` **HTTPS/Mobile Support** — self-signed cert for LAN HTTPS (camera access on mobile)
+- `[shipped]` **VHS Shelf Scanner** — web UI served via Docker/Express (`src/server.js`, `public/`)
+- `[shipped]` **Mobile UI** — responsive layout, rear-camera preference, touch crop support
+- `[shipped]` **HTTPS / Mobile Support** — auto-generated self-signed TLS cert for LAN camera access
 - `[shipped]` **Zoom Slider** — adjustable zoom for photo capture
+- `[shipped]` **Hamburger Drawer** — collapsible mobile menu; closes on backdrop click or Escape
+
+## Auth & Sharing
+
+- `[shipped]` **Google OAuth** — optional sign-in; leave `GOOGLE_CLIENT_ID` blank for single-user mode
+- `[shipped]` **Public Collection Sharing** — toggle a shareable `/c/<uuid>` URL per user
+- `[shipped]` **Write-gate UI** — Add/Import buttons hidden when auth is on and user is not logged in
+- `[shipped]` **Legacy tape migration** — `LEGACY_OWNER_EMAIL` claims un-owned tapes on first login
 
 ## Scanning
 
 - `[shipped]` **Barcode Scanning** — webcam-based barcode scanning with auto-confirm and staging flow
-- `[shipped]` **AI Photo Scanning** — batch photo upload, AI title recognition, accuracy checking
+- `[shipped]` **AI Photo Scanning** — batch photo upload, Ollama/Claude vision title recognition
+- `[shipped]` **Capture Queue** — Space stages frames; Enter sends all to AI at once
+- `[shipped]` **UPC Lookup** — UPCitemdb.com auto-fills title on barcode scan
 
 ## Data & Registry
 
-- `[shipped]` **Tape Registry** — append-only `data/tapes.json` with immutable `VHS-XXXX` IDs
-- `[shipped]` **Status Tracking** — `in_collection`, `for_sale`, `sold`, `donated`, `missing`
+- `[shipped]` **Tape Registry** — PostgreSQL backend with immutable `VHS-XXXX` IDs
+- `[shipped]` **Status Tracking** — `in_collection`, `for_sale`, `sold`, `donated`, `missing`, `wanted`
 - `[shipped]` **Condition Tracking** — `great`, `good`, `fair`, `poor` with free-text notes
-- `[planned]` **Valuation** — eBay sold-listings lookup via `scripts/valuate.py`
+- `[shipped]` **Sold Price Tracking** — actual sale price alongside estimate
+- `[shipped]` **Tags / Genres** — preset genre chips (Horror, SOV, Anime, etc.) plus custom tags
 
 ## UI & Editing
 
-- `[shipped]` **Tabbed Edit Form** — expanded tape editing with tabbed UI
-- `[shipped]` **Review Queue** — queue visualization and management for pending tapes
+- `[shipped]` **Tabbed Edit Form** — multi-tab detail editor (main, photos, notes)
+- `[shipped]` **Bulk Selection** — checkbox multi-select, bulk status change, bulk delete
+- `[shipped]` **Wall View** — masonry grid of tape thumbnails; clicking opens detail
+- `[shipped]` **Full-text Search** — title, label, barcode, notes, tags simultaneously
+- `[shipped]` **Filter Bar** — by status, condition, label, tag, year range
+- `[shipped]` **Sort** — by date, title, value, condition, ID; persists via localStorage
+- `[shipped]` **Clickable Stats Bar** — status/condition chips filter inventory on click
 
 ## Enrichment & Verification
 
 - `[shipped]` **StacksUp Integration** — spine rotation enrichment
-- `[shipped]` **OMDb Verification** — movie database verification of AI scan results
+- `[shipped]` **OMDb Verification** — AI scan results cross-checked against movie database
+- `[shipped]` **Batch AI Metadata Fill** — ⚡ Fill button auto-fills year, label, value for incomplete tapes
 - `[shipped]` **Analytics** — basic collection analytics
+
+## Exports & Imports
+
+- `[shipped]` **CSV Export** — full collection with all fields; formula-injection safe
+- `[shipped]` **For-Sale CSV** — filtered export with eBay condition labels
+- `[shipped]` **JSON Export / Import** — full round-trip backup including photos
+- `[shipped]` **CSV Import** — accepts app export format or manual spreadsheets
+- `[shipped]` **Print Price Tags** — printable 2.4" dashed-border tags for `for_sale` tapes
+- `[shipped]` **Printable HTML List** — clean table sorted by ID with Print button
 
 ## Fun
 
@@ -38,14 +64,12 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 
 ## Quality
 
-- `[shipped]` **Test Suite** — automated test coverage
+- `[shipped]` **Jest Unit Tests** — server-side logic; ≥ 75% line coverage
+- `[shipped]` **Playwright E2E Tests** — full coverage of all major features and modals
+- `[shipped]` **CI** — Hadolint, Shellcheck, HTMLHint, Docker build smoke test
 
-## Scripts
+## Planned
 
-- `[planned]` **Valuate** — `scripts/valuate.py` — eBay sold-listings lookup for price estimates
-- `[planned]` **Export** — `scripts/export.py` — CSV, HTML, or printable list from registry
-
-## Export & Sharing
-
-- `[planned]` **CSV Export** — machine-readable export for spreadsheets
-- `[planned]` **HTML Export** — human-readable collection page
+- `[planned]` **eBay Valuation Script** — `valuate.py` eBay sold-listings lookup (or in-app eBay search already works manually)
+- `[planned]` **Multi-tape detection** — detect and crop individual tapes from batch photos (OpenCV)
+- `[planned]` **Tape wall gallery** — scrollable masonry grid (wall view is shipped; auto-crop thumbnails are the remaining piece)

@@ -6,22 +6,24 @@
 | --------------- | ---------- | --------------------------------------- |
 | Code Coverage   | 75.74%     | Docker-validated Jest coverage run      |
 | Test Files      | 4          | server.test.js, coverage-boost.test.js, debug-jobs.test.js, basic.test.js |
-| Test Cases      | 113        | All passing                             |
-| Last Updated    | 2026-06-25 | Docker coverage validation              |
+| Unit Test Cases | 113        | All passing                             |
+| E2E Test Files  | 14         | Playwright specs in tests_playwright/   |
+| Last Updated    | 2026-08-09 |                                         |
 
 ## Collection Stats
 
 | Metric          | Value | Notes                              |
 | --------------- | ----- | ---------------------------------- |
-| Tapes Indexed   | 0     | Records in data/tapes.json         |
-| Scripts Written | 0     | Scan, valuate, export not yet built |
-| Data Files      | 1     | tapes.json                         |
+| Tapes Indexed   | —     | Records in PostgreSQL `tapes` table |
+| Data Backend    | PostgreSQL (Neon) | Migrated from flat tapes.json |
 
 ## Progress
 
 - [ ] First tape scanned and committed
-- [ ] Valuation script working
-- [ ] Export to CSV working
+- [x] Export to CSV working (built into web UI)
+- [x] Export to JSON working (built into web UI)
+- [x] Print price tags working
+- [ ] Valuation script (eBay sold-listings lookup)
 
 ## Test Breakdown
 
@@ -31,13 +33,16 @@
 | coverage-boost.test.js| 58    | ✅ Pass |
 | debug-jobs.test.js    | 1     | ✅ Pass |
 | basic.test.js         | 7     | ✅ Pass |
-| **Total**             | **113** | **✅ All Pass** |
+| **Total (unit)**      | **113** | **✅ All Pass** |
+| tests_playwright/ (14 specs) | — | E2E; run separately |
 
 ## Docker Testing
 
 ```bash
-# Run coverage
-docker compose -f docker-compose.yml build
+# Build
+docker compose -f config/docker-compose.yml build
+
+# Unit tests + coverage
 docker run --rm vhs-web npx jest --runInBand --coverage
 ```
 
@@ -47,4 +52,4 @@ docker run --rm vhs-web npx jest --runInBand --coverage
 - Functions: 72.58%
 - Lines: 75.74% ✅
 
-**Coverage Target: ≥75% Lines** - **ACHIEVED**
+**Coverage Target: ≥75% Lines** — **ACHIEVED**

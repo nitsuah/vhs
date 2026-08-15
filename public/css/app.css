@@ -716,3 +716,36 @@ body.crt-on #crt-overlay{display:block}
 [data-genres~="biography"]:hover .cover-wrap{filter:brightness(1.08) saturate(.85)}
 [data-genres~="biography"] .cover-wrap::after{content:'🏆';position:absolute;top:-24px;right:6px;font-size:15px;transition:top .3s ease;pointer-events:none;z-index:3}
 [data-genres~="biography"]:hover .cover-wrap::after{top:4px}
+
+/* ── AUTH ────────────────────────────────────────────────────────────── */
+#auth-slot{display:flex;align-items:center}
+
+.auth-chip{display:flex;align-items:center;gap:6px}
+.auth-avatar{width:26px;height:26px;border-radius:50%;object-fit:cover;border:1px solid var(--border2);flex-shrink:0}
+.auth-name{font-size:12px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.auth-share-btn{color:var(--blue);border-color:rgba(68,136,255,.3)}
+.auth-share-btn:hover{border-color:var(--blue);background:rgba(68,136,255,.08)}
+.auth-out-btn{font-size:14px;padding:10px 10px}
+.auth-signin-btn{color:var(--blue);border-color:rgba(68,136,255,.3);text-decoration:none}
+.auth-signin-btn:hover{border-color:var(--blue);background:rgba(68,136,255,.08);color:var(--text)}
+
+/* share panel */
+.share-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;user-select:none}
+.share-toggle-label{font-size:13px;color:var(--text)}
+.share-toggle-track{width:40px;height:22px;border-radius:11px;background:var(--bg4);border:1px solid var(--border2);position:relative;flex-shrink:0;transition:background .2s,border-color .2s;outline:none}
+.share-toggle-track.on{background:var(--green);border-color:var(--green)}
+.share-toggle-track.saving{opacity:.6}
+.share-toggle-track:focus-visible{box-shadow:0 0 0 2px var(--blue)}
+.share-toggle-thumb{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;pointer-events:none}
+.share-toggle-track.on .share-toggle-thumb{left:20px}
+.share-link-block{display:flex;gap:8px;align-items:center}
+.share-link-input{flex:1;background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:8px 10px;border-radius:6px;font-size:12px;font-family:monospace;min-width:0;cursor:text}
+.share-link-input:focus{outline:none;border-color:var(--blue)}
+
+/* mobile auth section */
+#auth-slot-mob{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+#auth-slot-mob .auth-chip{flex-direction:column;align-items:flex-start;gap:4px;padding:0 2px}
+#auth-slot-mob .auth-name{max-width:none;font-size:13px}
+#auth-slot-mob .auth-avatar{width:32px;height:32px}
+#auth-slot-mob .hbtn{width:100%;text-align:left}
+#auth-slot-mob .auth-signin-btn{width:100%;text-align:center;display:flex;justify-content:center}

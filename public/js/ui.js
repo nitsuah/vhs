@@ -1,12 +1,17 @@
 // ── UI MODULE ──────────────────────────────────────────────────────────────
-import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape } from './inventory.js';
-import { dbAdd, nextId } from './db.js';
+import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getIsNewTape, getWallMode, setWallMode, clearBulk, applyBulkStatus, deleteBulk, getSelectedId, getInventory, renderTagChips, esc } from './inventory.js';
+import { dbAdd, dbPut, dbDel, nextId } from './db.js';
 import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound } from './utils.js';
 import { revPanel, showRevPanel, hideRevPanel } from './review.js';
 import { apiKey, omdbKey, ollamaUrl, ollamaModel, fastMode, cards, captureQueue, setApiKey, setOmdbKey, setOllamaUrl, setOllamaModel, setFastMode } from './state.js';
 import { barcodeMode } from './camera.js';
-import { checkOllama, updateAiBadge, callAI } from './ai.js';
+import { checkOllama, updateAiBadge, callAI, lookupMetadata } from './ai.js';
 import { setDbDot } from './db.js';
+
+function csvCell(v) {
+  const s = String(v ?? '');
+  return `"${(/^[=+\-@]/.test(s) ? '\t' + s : s).replace(/"/g, '""')}"`;
+}
 
 // ── TAB NAV ──────────────────────────────────────────────────────────────
 export function setActiveTab(tab) {
@@ -50,6 +55,7 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space' && !inp && !barcodeMode && onCapture) { e.preventDefault(); window.capture?.(); }
   if (e.code === 'Enter' && !inp && !barcodeMode && captureQueue.length && onCapture) { e.preventDefault(); window.processQueue?.(); }
   if (e.code === 'Escape') {
+    if (document.getElementById('hbr-drawer')?.classList.contains('open')) { closeDrawer(); return; }
     if (document.getElementById('m-del-confirm').style.display !== 'none') { document.getElementById('m-del-confirm').style.display = 'none'; return; }
     if (document.getElementById('m-help').style.display !== 'none') { document.getElementById('m-help').style.display = 'none'; return; }
     if (document.getElementById('m-detail').style.display !== 'none') { setIsNewTape(false); document.getElementById('d-delete').style.display = ''; document.getElementById('m-detail').style.display = 'none'; return; }
@@ -168,6 +174,123 @@ document.getElementById('btn-health')?.addEventListener('click',()=>{
 });
 document.getElementById('health-retry')?.addEventListener('click',runHealthCheck);
 document.getElementById('health-close')?.addEventListener('click',()=>document.getElementById('m-health').style.display='none');
+
+// ── ADD TAPE MANUALLY ────────────────────────────────────────────────────
+async function openNewTapeModal() {
+  const newId = await nextId();
+  setIsNewTape(true);
+  ['d-title','d-year','d-label','d-barcode','d-value-low','d-value-high','d-sold-price','d-notes'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('d-format').value = 'VHS';
+  document.getElementById('d-cond').value = 'good';
+  document.getElementById('d-status').value = 'in_collection';
+  document.getElementById('d-id').value = newId;
+  document.getElementById('d-scanned').value = new Date().toLocaleString();
+  const th = document.getElementById('detail-thumb');
+  if (th) { th.src = ''; th.style.display = 'none'; }
+  const tagWrap = document.getElementById('d-tag-chips');
+  if (tagWrap) tagWrap.innerHTML = renderTagChips([]);
+  window._resetDetailTabs?.();
+  document.getElementById('d-delete').style.display = 'none';
+  document.getElementById('m-detail').style.display = 'flex';
+}
+window.openNewTapeModal = openNewTapeModal;
+document.getElementById('btn-add-tape')?.addEventListener('click', () => openNewTapeModal());
+
+// ── DETAIL MODAL SAVE / CANCEL / DELETE / LOOKUP ─────────────────────────
+document.getElementById('d-cancel')?.addEventListener('click', () => {
+  setIsNewTape(false);
+  document.getElementById('m-detail').style.display = 'none';
+});
+
+document.getElementById('d-save')?.addEventListener('click', async () => {
+  const id = document.getElementById('d-id').value;
+  const isNew = getIsNewTape();
+  const inv = getInventory();
+  const existing = inv.find(t => t.id === id) || {};
+  const tags = existing.tags || [];
+  const rec = {
+    ...existing,
+    id,
+    title: document.getElementById('d-title').value.trim(),
+    year: document.getElementById('d-year').value.trim(),
+    label: document.getElementById('d-label').value.trim(),
+    format: document.getElementById('d-format').value,
+    barcode: document.getElementById('d-barcode').value.trim(),
+    value_low: document.getElementById('d-value-low').value.trim(),
+    value_high: document.getElementById('d-value-high').value.trim(),
+    condition: document.getElementById('d-cond').value,
+    status: document.getElementById('d-status').value,
+    sold_price: document.getElementById('d-sold-price').value.trim(),
+    condition_notes: document.getElementById('d-notes').value.trim(),
+    tags,
+    scanned_at: existing.scanned_at || new Date().toISOString(),
+  };
+  try {
+    if (isNew) {
+      await dbAdd(rec);
+      inventory.push(rec);
+    } else {
+      await dbPut(rec);
+      const idx = inventory.findIndex(t => t.id === id);
+      if (idx >= 0) inventory[idx] = rec;
+    }
+    setIsNewTape(false);
+    renderInv(); updateCount();
+    document.getElementById('m-detail').style.display = 'none';
+  } catch (e) {
+    toast('Save failed: ' + e.message, 'err');
+  }
+});
+
+document.getElementById('d-delete')?.addEventListener('click', () => {
+  const title = document.getElementById('d-title').value || 'this tape';
+  document.getElementById('del-text').textContent = `Delete "${title}"? This cannot be undone.`;
+  document.getElementById('m-del-confirm').style.display = 'flex';
+});
+
+document.getElementById('del-cancel')?.addEventListener('click', () => {
+  document.getElementById('m-del-confirm').style.display = 'none';
+});
+
+document.getElementById('del-ok')?.addEventListener('click', async () => {
+  const id = getSelectedId();
+  try {
+    await dbDel(id);
+    const idx = inventory.findIndex(t => t.id === id);
+    if (idx >= 0) inventory.splice(idx, 1);
+    renderInv(); updateCount();
+    document.getElementById('m-del-confirm').style.display = 'none';
+    document.getElementById('m-detail').style.display = 'none';
+  } catch (e) {
+    toast('Delete failed: ' + e.message, 'err');
+  }
+});
+
+document.getElementById('d-lookup')?.addEventListener('click', async () => {
+  const title = document.getElementById('d-title').value.trim();
+  if (!title) return;
+  const btn = document.getElementById('d-lookup');
+  const orig = btn.textContent;
+  btn.textContent = '…';
+  try {
+    const result = await lookupMetadata(title);
+    if (result) {
+      if (result.year) document.getElementById('d-year').value = result.year;
+      if (result.label) document.getElementById('d-label').value = result.label;
+      if (result.format) document.getElementById('d-format').value = result.format;
+      if (result.value_low) document.getElementById('d-value-low').value = result.value_low;
+      if (result.value_high) document.getElementById('d-value-high').value = result.value_high;
+    } else {
+      toast('No metadata found for this title', 'warn');
+    }
+  } catch (e) {
+    toast('Lookup failed: ' + e.message, 'err');
+  } finally {
+    btn.textContent = orig;
+  }
+});
 
 // ── DETAIL MODAL TABS ────────────────────────────────────────────────────
 (function(){
@@ -289,7 +412,7 @@ document.getElementById('exp-json').addEventListener('click',()=>{
 });
 document.getElementById('exp-csv').addEventListener('click',()=>{
   const cols=['id','title','year','label','format','condition','condition_notes','barcode','value_low','value_high','status','scanned_at'];
-  const csv=[cols.join(','),...inventory.map(t=>cols.map(c=>`"${String(t[c]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+  const csv=[cols.join(','),...inventory.map(t=>cols.map(c=>csvCell(t[c])).join(','))].join('\n');
   dl(csv,'vhs-inventory.csv','text/csv');
   document.getElementById('exp-dd').classList.remove('on');
 });
@@ -302,12 +425,12 @@ document.getElementById('exp-sell').addEventListener('click',()=>{
     t.title,t.year||'',t.label||'',t.format||'VHS',t.condition||'',
     t.condition_notes||'',t.barcode||'',t.value_low||'',t.value_high||'',
     condMap[t.condition]||''
-  ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  ].map(csvCell).join(','));
   dl([cols.map(c=>`"${c}"`).join(','),...rows].join('\n'),'vhs-for-sale.csv','text/csv');
   document.getElementById('exp-dd').classList.remove('on');
 });
 document.getElementById('exp-tags')?.addEventListener('click',()=>{
-  const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
   const items=inventory.filter(t=>t.status==='for_sale');
   if(!items.length){toast('No tapes marked For Sale','err');document.getElementById('exp-dd').classList.remove('on');return;}
   const tags=items.map(t=>{
@@ -329,15 +452,14 @@ button{margin-bottom:12px;padding:7px 18px;background:#222;color:#fff;border:non
 document.getElementById('exp-print').addEventListener('click',()=>{
   const items=getFiltered();
   const condBadge={great:'✅ Great',good:'👍 Good',fair:'⚠️ Fair',poor:'❌ Poor'};
-  const ep=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const rows=items.map((t,i)=>`<tr style="background:${i%2?'#f9f9f9':'#fff'}">
-    <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#666">${ep(t.id)}</td>
-    <td style="padding:6px 10px;font-weight:600">${ep(t.title)}</td>
-    <td style="padding:6px 10px;color:#555">${ep(t.year)}</td>
-    <td style="padding:6px 10px;color:#555">${ep(t.label)}</td>
-    <td style="padding:6px 10px">${condBadge[t.condition]||ep(t.condition)}</td>
-    <td style="padding:6px 10px;color:#2a7">${(t.value_low||t.value_high)?`$${ep(t.value_low||'?')}–$${ep(t.value_high||'?')}`:''}</td>
-    <td style="padding:6px 10px;font-size:11px;color:#777">${ep((t.tags||[]).join(', '))}</td>
+    <td style="padding:6px 10px;font-family:monospace;font-size:11px;color:#666">${esc(t.id)}</td>
+    <td style="padding:6px 10px;font-weight:600">${esc(t.title)}</td>
+    <td style="padding:6px 10px;color:#555">${esc(t.year)}</td>
+    <td style="padding:6px 10px;color:#555">${esc(t.label)}</td>
+    <td style="padding:6px 10px">${condBadge[t.condition]||esc(t.condition)}</td>
+    <td style="padding:6px 10px;color:#2a7">${(t.value_low||t.value_high)?`$${esc(t.value_low||'?')}–$${esc(t.value_high||'?')}`:''}</td>
+    <td style="padding:6px 10px;font-size:11px;color:#777">${esc((t.tags||[]).join(', '))}</td>
   </tr>`).join('');
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>VHS Inventory</title>
 <style>body{font-family:system-ui,sans-serif;margin:30px;color:#222}h1{margin-bottom:4px}p{color:#777;font-size:13px;margin-bottom:20px}
@@ -358,9 +480,9 @@ tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style>
   const LEVEL_COLOR={'info':'#888','warn':'#c8a040','error':'#e84040'};
   let sse=null;
   function appendEntry(e){
-    const ts=e.ts?e.ts.slice(11,19):'';
+    const ts=e.ts?esc(e.ts.slice(11,19)):'';
     const color=LEVEL_COLOR[e.level]||'#888';
-    const msgEsc=String(e.msg||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const msgEsc=esc(e.msg||'');
     const row=document.createElement('div');
     row.innerHTML=`<span style="color:#444">${ts}</span> <span style="color:${color}">${msgEsc}</span>`;
     logOutput.appendChild(row);
@@ -378,6 +500,7 @@ tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style>
     es.onerror=()=>{if(_closeTimer){clearTimeout(_closeTimer);_closeTimer=null;}_closeTimer=setTimeout(()=>{es.close();if(sse===es)sse=null;_closeTimer=null;},2000);};
   }
   document.getElementById('btn-logs')?.addEventListener('click',openLogs);
+  document.getElementById('log-close')?.addEventListener('click',()=>{if(sse){sse.close();sse=null;}});
 })();
 
 // ── VHS EASTER EGGS ──────────────────────────────────────────────────────
@@ -429,6 +552,45 @@ btnFilterTray?.addEventListener('click',()=>{
   }
 });
 
+// ── COLLECT TAB: SEARCH / SORT / ZOOM / BULK ─────────────────────────────────
+document.getElementById('search')?.addEventListener('input', () => renderInv());
+document.getElementById('btn-search')?.addEventListener('click', () => { document.getElementById('search')?.focus(); renderInv(); });
+document.getElementById('sort-sel')?.addEventListener('change', () => renderInv());
+
+(function initZoom() {
+  const slider = document.getElementById('zoom-slider');
+  if (!slider) return;
+  const saved = localStorage.getItem('vhs-zoom') || '1';
+  document.documentElement.style.setProperty('--inv-zoom', saved);
+  slider.value = saved;
+  slider.addEventListener('input', () => {
+    localStorage.setItem('vhs-zoom', slider.value);
+    document.documentElement.style.setProperty('--inv-zoom', slider.value);
+  });
+})();
+
+document.getElementById('bulk-clear')?.addEventListener('click', () => clearBulk());
+document.getElementById('bulk-apply')?.addEventListener('click', async () => {
+  const status = document.getElementById('bulk-status-sel')?.value;
+  if (status) await applyBulkStatus(status);
+});
+document.getElementById('bulk-del')?.addEventListener('click', async () => { await deleteBulk(); });
+
+// ── WALL MODE TOGGLE ─────────────────────────────────────────────────────────
+(function(){
+  const btn = document.getElementById('btn-wall');
+  const labels = ['⊞ Wall', '⊟ Covers', '⊠ Spines', '📚 Stacks'];
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    setWallMode((getWallMode() + 1) % 4);
+    btn.textContent = labels[getWallMode()];
+    btn.classList.toggle('active', getWallMode() > 0);
+    renderInv();
+  });
+})();
+
 // Expose for external callers
 window.setActiveTab = setActiveTab;
 window.updateTabBadge = updateTabBadge;
+window.closeDrawer = closeDrawer;
+

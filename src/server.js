@@ -2,17 +2,25 @@
 'use strict';
 
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const { Pool } = require('pg');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
 const https = require('https');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
+const { randomUUID } = require('crypto');
 
 // ── SSRF protection moved inline to /api/fetch-image route (CodeQL sanitizer boundary)
 
 // Local modules
-const { PORT, HTTPS_PORT, OLLAMA, OMDB_API_KEY } = require('./modules/config');
+const { PORT, HTTPS_PORT, OLLAMA, OMDB_API_KEY, APP_BASE_URL } = require('./modules/config');
+const {
+  ENABLED: AUTH_ENABLED,
+  getAuthUrl, exchangeCode, mintJWT,
+  setAuthCookie, clearAuthCookie,
+  optionalAuth, requireAuth,
+} = require('./modules/auth');
 const { pool, runMigrations } = require('./modules/db');
 const { ensureCerts } = require('./modules/certs');
 const { logActivity, getActivityLog, getLogClients } = require('./modules/activity-log');
@@ -35,6 +43,11 @@ const { registerStaticAndProxy } = require('./modules/routes/system');
 // ── App setup ──────────────────────────────────────────────────────────────────
 const app = express();
 app.use(express.json({ limit: '50mb' }));
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token provides CSRF protection for all state-changing routes
+// codeql[js/missing-token-validation] SameSite=lax on vhs_token provides CSRF protection for all state-changing routes
+app.use(cookieParser());
+// codeql[js/missing-rate-limiting] optionalAuth is read-only middleware; all auth and mutation routes carry explicit per-route limiters
+app.use(optionalAuth); // sets req.user from JWT cookie when auth is enabled
 
 // ── Activity log SSE endpoint ──────────────────────────────────────────────────
 app.get('/api/logs', (req, res) => {
@@ -108,11 +121,131 @@ app.get('/api/ca-cert', defaultLimiter, (req, res) => {
   res.sendFile(caCert);
 });
 
+// ── Auth ───────────────────────────────────────────────────────────────────────
+app.get('/auth/me', defaultLimiter, (req, res) => {
+  res.json({ enabled: AUTH_ENABLED, user: req.user || null });
+});
+
+app.get('/auth/google', defaultLimiter, (_req, res) => {
+  if (!AUTH_ENABLED) return res.status(503).json({ error: 'auth not configured' });
+  const state = randomUUID();
+  const secure = APP_BASE_URL.startsWith('https://');
+  res.cookie('oauth_state', state, { httpOnly: true, sameSite: 'lax', secure, path: '/', maxAge: 10 * 60 * 1000 });
+  res.redirect(getAuthUrl(state));
+});
+
+app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
+  if (!AUTH_ENABLED) return res.status(503).json({ error: 'auth not configured' });
+  const { code, error, state } = req.query;
+  if (error || !code) return res.redirect('/?auth=error');
+  const cookieState = req.cookies?.oauth_state;
+  res.clearCookie('oauth_state', { path: '/' });
+  if (!state || !cookieState || state !== cookieState) return res.redirect('/?auth=error');
+  try {
+    const payload = await exchangeCode(String(code));
+    // Upsert user into DB
+    await pool.query(`
+      INSERT INTO users(id, email, display_name, avatar_url)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (id) DO UPDATE
+        SET email = EXCLUDED.email,
+            display_name = EXCLUDED.display_name,
+            avatar_url = EXCLUDED.avatar_url
+    `, [payload.sub, payload.email, payload.name || null, payload.picture || null]);
+
+    // Claim any null-owner (pre-auth) tapes for the designated legacy owner.
+    // Idempotent: new tapes always get owner_id from the auth layer, so after the
+    // first login only 0 rows match and subsequent runs are no-ops.
+    const legacyEmail = (process.env.LEGACY_OWNER_EMAIL || '').trim().toLowerCase();
+    if (legacyEmail && payload.email.toLowerCase() === legacyEmail) {
+      const { rowCount } = await pool.query(
+        'UPDATE tapes SET owner_id = $1 WHERE owner_id IS NULL',
+        [payload.sub]
+      );
+      if (rowCount > 0) console.log(`✓ Claimed ${rowCount} legacy tapes for the designated legacy owner`);
+    }
+
+    setAuthCookie(res, mintJWT(payload));
+    res.redirect('/?tab=collect');
+  } catch (err) {
+    console.error('OAuth callback error:', err.message);
+    res.redirect('/?auth=error');
+  }
+});
+
+app.post('/auth/logout', defaultLimiter, (req, res) => {
+  clearAuthCookie(res);
+  res.json({ ok: true });
+});
+
+// Update sharing settings: toggle collection_public, get/generate share_slug
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site POST; requireAuth enforces authentication
+app.put('/api/auth/share', defaultLimiter, requireAuth, async (req, res) => {
+  const { collection_public } = req.body;
+  if (typeof collection_public !== 'boolean') {
+    return res.status(400).json({ error: 'collection_public must be a boolean' });
+  }
+  const sub = req.user.sub;
+  try {
+    // Generate slug on first share if needed
+    const { rows } = await pool.query('SELECT share_slug FROM users WHERE id=$1', [sub]);
+    let slug = rows[0]?.share_slug;
+    if (!slug && collection_public) {
+      slug = randomUUID();
+      await pool.query(
+        'UPDATE users SET share_slug=$1, collection_public=$2 WHERE id=$3',
+        [slug, collection_public, sub]
+      );
+    } else {
+      await pool.query('UPDATE users SET collection_public=$1 WHERE id=$2', [collection_public, sub]);
+    }
+    res.json({ collection_public, share_slug: slug || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get current user's share settings
+app.get('/api/auth/share', defaultLimiter, requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT collection_public, share_slug FROM users WHERE id=$1',
+      [req.user.sub]
+    );
+    const row = rows[0] || { collection_public: false, share_slug: null };
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Public share endpoint ───────────────────────────────────────────────────────
+app.get('/api/share/:slug', defaultLimiter, async (req, res) => {
+  try {
+    const { rows: users } = await pool.query(
+      'SELECT id, display_name, avatar_url FROM users WHERE share_slug=$1 AND collection_public=true',
+      [req.params.slug]
+    );
+    if (!users.length) return res.status(404).json({ error: 'collection not found or private' });
+    const owner = users[0];
+    const { rows: tapes } = await pool.query(
+      'SELECT data FROM tapes WHERE owner_id=$1 ORDER BY scanned_at DESC',
+      [owner.id]
+    );
+    res.json({ owner, tapes: tapes.map(r => r.data) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Tapes CRUD ─────────────────────────────────────────────────────────────────
 app.get('/api/tapes', tapeLimiter, tapesGetHandler);
-app.post('/api/tapes', tapeLimiter, tapesPostHandler);
-app.put('/api/tapes/:id', tapeWriteLimiter, tapesPutHandler);
-app.delete('/api/tapes/:id', tapeWriteLimiter, tapesDeleteHandler);
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site POST; requireAuth enforces authentication
+app.post('/api/tapes', tapeLimiter, requireAuth, tapesPostHandler);
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site PUT; requireAuth enforces authentication
+app.put('/api/tapes/:id', tapeWriteLimiter, requireAuth, tapesPutHandler);
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site DELETE; requireAuth enforces authentication
+app.delete('/api/tapes/:id', tapeWriteLimiter, requireAuth, tapesDeleteHandler);
 
 // ── Lookup endpoints ───────────────────────────────────────────────────────────
 app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {

@@ -2,18 +2,18 @@
 
 ## Phase 1 — Capture [COMPLETE]
 
-**Goal:** get every tape into `tapes.json` with a consistent ID and a title.
+**Goal:** get every tape into the database with a consistent ID and a title.
 
 All Phase 1 goals shipped:
 
-- VHS Shelf Scanner browser app (Docker/Nginx, port 8080/8443)
+- PostgreSQL-backed tape registry with immutable `VHS-XXXX` IDs
 - Barcode scanning — webcam-based with auto-confirm and staging flow
-- AI photo scanning — batch upload, Claude Vision, accuracy checking
+- AI photo scanning — batch upload, Ollama vision, accuracy checking
 - Mobile UI — mobile-first layout, queue visualization, retry controls
 - OMDb verification — AI scan results cross-checked against movie database
 - StacksUp spine rotation enrichment
 - Tabbed edit form and review queue
-- Test suite
+- Jest unit tests + Playwright E2E tests
 
 ---
 
@@ -28,8 +28,8 @@ The most reliable signal for VHS value is eBay "sold" listings, not asking price
 Options:
 
 - **Manual:** search eBay, paste in estimated low/high, add `source: "manual"`
-- **Semi-automated:** `valuate.py` script that opens an eBay search for each unvalued tape title — you confirm the range
-- **Automated (harder):** scrape eBay sold listings via the official eBay Browse API (free, needs account) — returns recent sold prices you can average
+- **In-app eBay search:** the ⚡ Fill button / 🔍 Lookup button already opens eBay comps for any tape
+- **Automated (planned):** `valuate.py` script that scrapes eBay sold listings via the Browse API — returns recent sold prices you can average
 
 ### Valuation tiers (rough guide)
 
@@ -44,23 +44,30 @@ Options:
 
 ---
 
-## Phase 3 — Use the data
+## Phase 3 — Use the data [PARTIAL]
 
-Once the index exists, you can do anything with it:
+Once the index exists, you can do anything with it.
 
-### Exports
+### Exports [COMPLETE]
 
-- `export.py --format csv` → open in Excel/Sheets for sorting/filtering
-- `export.py --format html` → shareable browsable page (no server needed, just open in browser)
-- `export.py --format print` → clean printable list sorted by ID
+All export formats are built into the web UI (no scripts needed):
+
+- **CSV export** — full collection; click "Export CSV" in the collect toolbar
+- **For-sale CSV** — filtered `for_sale` export with eBay condition labels
+- **JSON export/import** — full round-trip backup including photos
+- **Print price tags** — 2.4" printable tags for `for_sale` tapes
+- **Printable HTML list** — clean table sorted by ID
+
+### Sharing [COMPLETE]
+
+- **Public collection URL** — toggle a shareable `/c/<uuid>` link via the Share panel
+- The public page is read-only; it shows the collection without any edit controls
 
 ### Sell workflow
 
-Set `status: "for_sale"` on tapes you want to move. Export a filtered list:
+Set status to `for_sale` on tapes you want to move. Export a for-sale CSV:
 
-```bash
-python scripts/export.py --status for_sale
-```
+> Click "↓ CSV" → choose "For Sale" from the export menu.
 
 That list becomes your eBay drafts or a Mercari batch upload.
 
@@ -68,7 +75,6 @@ That list becomes your eBay drafts or a Mercari batch upload.
 
 - Photo thumbnails auto-cropped per tape (OpenCV or ImageMagick, crop each tape from batch photo)
 - Condition grading rubric (create a standard so anyone rating tapes uses the same scale)
-- **Tape wall gallery view** — scrollable masonry grid of tape thumbnails (one photo minimum per tape)
 - **Sell queue export** — one-command workflow that auto-populates eBay/Mercari draft templates for each `for_sale` tape
 
 ---
@@ -77,17 +83,18 @@ That list becomes your eBay drafts or a Mercari batch upload.
 
 | Decision | Choice | Why |
 | --- | --- | --- |
-| Data format | `tapes.json` | Human-readable, git-diffable, no DB to install |
+| Data format | PostgreSQL (Neon) | Handles concurrent writes, user-scoped queries, upserts cleanly |
 | Version control | Git | Free history, easy backup, works on any machine |
-| AI vision | Claude API (Anthropic) | Best at messy/worn labels, good reasoning |
+| AI vision | Ollama (llava:7b) / Claude API | Good at messy/worn labels |
 | Valuation data | eBay sold listings | Most accurate real-world pricing signal |
-| Scripting | Python | Widely available, good JSON/HTTP libraries |
-| Exports | CSV + HTML | Works everywhere, no dependencies |
-| Hosting | Docker/Nginx | Consistent environment, mobile HTTPS support |
+| Backend | Node.js / Express | Same language as the frontend; lightweight |
+| Exports | Built into web UI | No dependency on Python; works on any device |
+| Hosting | Docker + Express | Consistent environment, mobile HTTPS support |
+| Auth | Google OAuth (optional) | Single-user by default; no login wall unless you want one |
 
 ## Other
 
-- Refer to README.md for the data model and repo structure.
+- Refer to README.md for setup, data model, and running instructions.
 - Refer to docs/TASKS.md for next steps and immediate action items.
 - Refer to docs/FEATURES.md for shipped vs planned feature status.
-- Use Docker for a consistent development environment (see Dockerfile and docker-compose.yml).
+- Use Docker for a consistent development environment (see Dockerfile and config/docker-compose.yml).

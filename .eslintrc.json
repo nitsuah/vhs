@@ -13,6 +13,11 @@
     {
       "files": ["tests/**/*.js", "tests/**/*.spec.js"],
       "env": { "jest": true }
+    },
+    {
+      "files": ["tests_playwright/**/*.js", "tests_playwright/**/*.spec.js"],
+      "env": { "browser": true, "node": true },
+      "globals": { "openDetail": "readonly", "openNewTapeModal": "readonly", "renderInv": "readonly" }
     }
   ]
 }

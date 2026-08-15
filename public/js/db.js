@@ -62,7 +62,7 @@ export async function dbPut(v){const r=await apiReq(`/api/tapes/${encodeURICompo
 export async function dbDel(k){const r=await apiReq(`/api/tapes/${encodeURIComponent(k)}`,{method:'DELETE'});_cacheDel(k).catch(()=>{});return r;}
 
 export async function nextId() {
-  if(!inventory.length) return 'VHS-0001';
-  const max=Math.max(...inventory.filter(t=>/^VHS-\d{4}$/.test(t.id)).map(t=>parseInt(t.id.slice(4),10)));
-  return `VHS-${String(max+1).padStart(4,'0')}`;
+  const ids = inventory.map(t => /^VHS-(\d+)$/.exec(t.id)?.[1]).filter(Boolean).map(Number);
+  const max = ids.length ? Math.max(...ids) : 0;
+  return `VHS-${String(max + 1).padStart(4, '0')}`;
 }
