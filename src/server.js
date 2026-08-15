@@ -153,7 +153,9 @@ app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
             avatar_url = EXCLUDED.avatar_url
     `, [payload.sub, payload.email, payload.name || null, payload.picture || null]);
 
-    // One-time: claim all null-owner tapes for the designated legacy owner email.
+    // Claim any null-owner (pre-auth) tapes for the designated legacy owner.
+    // Idempotent: new tapes always get owner_id from the auth layer, so after the
+    // first login only 0 rows match and subsequent runs are no-ops.
     const legacyEmail = (process.env.LEGACY_OWNER_EMAIL || '').trim().toLowerCase();
     if (legacyEmail && payload.email.toLowerCase() === legacyEmail) {
       const { rowCount } = await pool.query(
