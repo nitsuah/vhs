@@ -1,4 +1,24 @@
-# Without this, Netlify publishes the repository root, so index.html is served
-# at /public/index.html and "/" 404s. The static front-end lives in public/.
+# Static front-end lives in public/; backend routes are served via Netlify Functions.
 [build]
   publish = "public"
+  functions = "netlify/functions"
+
+# Include migrations dir in the function bundle (loaded via fs.readdirSync at runtime)
+[functions]
+  included_files = ["migrations/**"]
+
+# Route all backend paths to the Express function
+[[redirects]]
+  from = "/api/*"
+  to   = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/auth/*"
+  to   = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/health"
+  to   = "/.netlify/functions/server"
+  status = 200
