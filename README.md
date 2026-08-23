@@ -19,6 +19,7 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 - **Torch Toggle** — manual flashlight control when the device supports it
 
 ### Collection Management
+
 - **Batch AI Metadata Fill** — ⚡ Fill button auto-fills year, label, and value for incomplete tapes
 - **OMDb Verification** — cross-check AI scan results against the movie database
 - **StacksUp Integration** — spine-rotation enrichment for wall/spine view
@@ -157,7 +158,7 @@ Each tape is one row in the PostgreSQL `tapes` table. The row schema is:
 
 | SQL Column | Type | Notes |
 |---|---|---|
-| `id` | `TEXT` | Immutable `VHS-XXXX` identifier (primary key) |
+| `id` | `TEXT` | Immutable identifier (primary key); `VHS-XXXX` format when assigned at creation, or the scanned UPC barcode if a barcode is captured before the `VHS-XXXX` is assigned |
 | `data` | `JSONB` | Full tape object — all metadata fields live here |
 | `scanned_at` | `TEXT` | ISO timestamp; default sort key |
 | `owner_id` | `TEXT` | Google account `sub`; NULL in single-user mode |

@@ -6,7 +6,7 @@
 | --------------- | ---------- | --------------------------------------- |
 | Code Coverage   | 75.74%     | Docker-validated Jest coverage run      |
 | Test Files      | 5          | server.test.js, coverage-boost.test.js, debug-jobs.test.js, basic.test.js, test-omdb-enhancements.spec.js |
-| Unit Test Cases | 113        | All passing                             |
+| Unit Test Cases | 113+       | All passing (5 test files; exact count for test-omdb-enhancements.spec.js not yet tracked) |
 | E2E Test Files  | 14         | Playwright specs in tests_playwright/   |
 | Last Updated    | 2026-08-22 |                                         |
 
