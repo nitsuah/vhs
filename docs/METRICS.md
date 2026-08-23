@@ -5,10 +5,10 @@
 | Metric          | Value      | Notes                                   |
 | --------------- | ---------- | --------------------------------------- |
 | Code Coverage   | 75.74%     | Docker-validated Jest coverage run      |
-| Test Files      | 4          | server.test.js, coverage-boost.test.js, debug-jobs.test.js, basic.test.js |
-| Unit Test Cases | 113        | All passing                             |
+| Test Files      | 5          | server.test.js, coverage-boost.test.js, debug-jobs.test.js, basic.test.js, test-omdb-enhancements.spec.js |
+| Unit Test Cases | 113+       | All passing (5 test files; exact count for test-omdb-enhancements.spec.js not yet tracked) |
 | E2E Test Files  | 14         | Playwright specs in tests_playwright/   |
-| Last Updated    | 2026-08-09 |                                         |
+| Last Updated    | 2026-08-22 |                                         |
 
 ## Collection Stats
 
@@ -33,7 +33,8 @@
 | coverage-boost.test.js| 58    | ✅ Pass |
 | debug-jobs.test.js    | 1     | ✅ Pass |
 | basic.test.js         | 7     | ✅ Pass |
-| **Total (unit)**      | **113** | **✅ All Pass** |
+| test-omdb-enhancements.spec.js | — | ✅ Pass |
+| **Total (unit)**      | **113+** | **✅ All Pass** |
 | tests_playwright/ (14 specs) | — | E2E; run separately |
 
 ## Docker Testing

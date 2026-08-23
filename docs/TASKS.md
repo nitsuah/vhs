@@ -1,8 +1,13 @@
 # Tasks
 
-Last Updated: 2026-08-09
+Last Updated: 2026-08-22
 
 ## Todo
+
+### Coverage & Testing
+
+- [ ] **Reconcile test-omdb-enhancements.spec.js counts** — `tests/test-omdb-enhancements.spec.js` (5th test file) was not tracked in METRICS.md. Confirm its passing test count and update METRICS.md Unit Test Cases total.
+- [ ] **Extend coverage to src/modules/*** — `jest.config.js` targets only `src/server.js`; consider expanding `collectCoverageFrom` to all modules so coverage reflects real posture.
 
 ### Tech Debt
 

@@ -12,14 +12,18 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 
 ### Capture & Scanning
 - **Barcode Scanning** — webcam-based barcode scanning with auto-confirm and staging flow
-- **AI Photo Scanning** — batch upload, AI title recognition via Ollama (llava:7b), accuracy checking
+- **AI Photo Scanning** — batch upload, AI title recognition via Ollama (llava:7b) or Claude Vision API, accuracy checking
 - **Capture Queue** — Space stages webcam frames; Enter sends all to AI at once
 - **UPC Lookup** — UPCitemdb.com auto-fills title on barcode scan
+- **Zoom Slider** — adjustable zoom for photo capture
+- **Torch Toggle** — manual flashlight control when the device supports it
 
 ### Collection Management
+
 - **Batch AI Metadata Fill** — ⚡ Fill button auto-fills year, label, and value for incomplete tapes
 - **OMDb Verification** — cross-check AI scan results against the movie database
-- **Tags / Genres** — preset genre chips (Horror, SOV, Anime, etc.) plus custom tags
+- **StacksUp Integration** — spine-rotation enrichment for wall/spine view
+- **Tags / Genres** — preset genre chips (Horror, SOV, Anime, etc.) plus custom tags; auto-populated from OMDb via ⚡ Fill
 - **Bulk Selection** — checkbox multi-select, bulk status change, bulk delete
 - **Sold Price Tracking** — record actual sale price alongside estimate
 
@@ -46,9 +50,12 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 ### Infrastructure
 - **Mobile UI** — responsive layout, rear-camera preference, touch crop support
 - **HTTPS / Mobile Support** — auto-generated self-signed TLS cert for LAN camera access
+- **Hamburger Drawer** — collapsible mobile menu; closes on backdrop click or Escape key
+- **CRT Scanlines Toggle** — overlay scanlines/vignette across the whole app (hamburger menu)
 - **Playwright E2E Tests** — full coverage of all major features and modals
-- **Jest Unit Tests** — server-side logic coverage ≥ 75% lines
-- **CI** — Hadolint, Shellcheck, HTMLHint, Docker build smoke test
+- **Jest Unit Tests** — server-side logic; 5 test files, ≥ 75% line coverage on `src/server.js`
+- **CI** — Hadolint, Shellcheck, HTMLHint, ESLint, `node --check` syntax, dep-install check, Jest unit tests, Docker build smoke test
+- **Netlify Serverless** — Express app also deployable as a Netlify Function (`netlify/functions/server.js`, `serverless-http`)
 
 ---
 
@@ -61,6 +68,19 @@ docker compose -f config/docker-compose.yml up -d --build
 
 App at `http://localhost:8080` (or whatever `APP_PORT` you set in `.env`).
 HTTPS at `https://localhost:8443`.
+
+### Netlify deployment (alternative)
+
+The Express app can also run as a Netlify Function. The `serverless-http` package wraps it as a Lambda-compatible handler. Static files are served from `public/`; all `/api/*` and `/auth/*` routes are proxied to the function via `netlify.toml`.
+
+```bash
+# Deploy via Netlify CLI
+netlify deploy --prod
+```
+
+Migrations run automatically on each cold start (idempotent). Set the same `.env` variables (especially `DATABASE_URL`) as Netlify environment variables.
+
+> **Note:** The Ollama proxy and local HTTPS cert generation are Docker-only features. The Netlify path assumes Claude Vision API (`ANTHROPIC_API_KEY`) for AI scanning.
 
 ### Auth (optional)
 
@@ -134,32 +154,46 @@ vhs/
 
 ## Data model
 
-Each tape is one row in the PostgreSQL `tapes` table. Key fields:
+Each tape is one row in the PostgreSQL `tapes` table. The row schema is:
 
-| Field | Type | Notes |
+| SQL Column | Type | Notes |
 |---|---|---|
-| `id` | `TEXT` | Immutable `VHS-XXXX` identifier |
-| `title` | `TEXT` | |
-| `year` | `INTEGER` | |
-| `label` | `TEXT` | e.g. `Paramount Home Video` |
-| `format` | `TEXT` | Always `VHS` |
-| `condition` | `TEXT` | `great`, `good`, `fair`, `poor` |
-| `condition_notes` | `TEXT` | |
-| `status` | `TEXT` | `in_collection`, `for_sale`, `sold`, `donated`, `missing`, `wanted` |
-| `tags` | `TEXT[]` | Genre/custom tags |
-| `estimated_low/high` | `NUMERIC` | Value range |
-| `sold_price` | `NUMERIC` | Actual sale price |
-| `photos` | `JSONB` | Base64-encoded compressed images |
+| `id` | `TEXT` | Immutable identifier (primary key); `VHS-XXXX` format when assigned at creation, or the scanned UPC barcode if a barcode is captured before the `VHS-XXXX` is assigned |
+| `data` | `JSONB` | Full tape object — all metadata fields live here |
+| `scanned_at` | `TEXT` | ISO timestamp; default sort key |
 | `owner_id` | `TEXT` | Google account `sub`; NULL in single-user mode |
-| `scanned_at` | `TIMESTAMPTZ` | |
 
-Immutable IDs: once a tape gets a `VHS-XXXX` ID, it keeps it forever.
+All tape metadata is stored inside the `data` JSONB column as a single document. Key fields within that document:
+
+| Field | Notes |
+|---|---|
+| `id` | Mirrors the SQL `id`; `VHS-XXXX` or barcode UPC when valid |
+| `title` | Required; search, sort, display, lookup key for Fill |
+| `year` | OMDb authoritative source; fill target |
+| `label` | VHS distributor/studio; e.g. `Paramount Home Video` |
+| `format` | `VHS`, `DVD`, `Blu-ray`, etc. |
+| `condition` | `great`, `good`, `fair`, `poor` |
+| `condition_notes` | Free text; detail modal only |
+| `status` | `in_collection`, `for_sale`, `sold`, `donated`, `missing`, `wanted` |
+| `tags` | Array of genre/custom tag strings |
+| `value_low` / `value_high` | USD resale estimate range |
+| `sold_price` | Actual sale price (shown when `status = sold`) |
+| `barcode` | UPC/EAN scan identifier; dedup guard |
+| `imdb_id` | OMDb confidence gate for Fill |
+| `photos` | Array of base64-encoded compressed images (max 1200px, JPEG 0.75) |
+| `photo_thumbnail` | Auto-set on confirm; universal thumbnail fallback |
+| `photo_face` | User-pinned in detail modal; cover-wall primary |
+| `photo_spine` | User-pinned in detail modal; spine-wall primary |
+| `notes` | Searchable free-text field |
+
+Immutable IDs: once a tape gets a `VHS-XXXX` ID, it keeps it forever. If a barcode is scanned first and no `VHS-XXXX` exists yet, the UPC becomes the `id` if it is not already in use.
 
 ---
 
 ## Decisions made
 
-- **PostgreSQL over flat JSON** — migrated from `tapes.json` when multi-user auth arrived. PostgreSQL via Neon handles concurrent writes, upserts, and user-scoped queries cleanly. The ID scheme (`VHS-XXXX`) is still immutable.
+- **PostgreSQL over flat JSON** — migrated from `tapes.json` when multi-user auth arrived. PostgreSQL via Neon handles concurrent writes, upserts, and user-scoped queries cleanly. The ID scheme (`VHS-XXXX`) is still immutable. (`data/tapes.json` remains in the repo as an empty legacy file from the initial version.)
+- **Two deployment modes** — Docker/Express (primary; see `config/docker-compose.yml`) and Netlify Functions (see `netlify/functions/server.js` and `netlify.toml`). The `serverless-http` package wraps the Express app as a Lambda-compatible handler.
 - **Single-user mode** — auth is optional. If `GOOGLE_CLIENT_ID` is not set, the app runs with no login wall and all tapes are global.
 - **Condition** — defaults to `"great"`. Notes field for anything specific.
 - **Sold tapes** — stay in the database. `status` field handles everything: `in_collection`, `for_sale`, `sold`, `donated`. No archive table needed.
