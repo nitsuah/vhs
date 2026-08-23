@@ -4,7 +4,7 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 
 ## Browser App
 
-- `[shipped]` **VHS Shelf Scanner** — web UI served via Docker/Express (`src/server.js`, `public/`)
+- `[shipped]` **VHS Shelf Scanner** — web UI served via Docker/Express (`src/server.js`, `public/`) or Netlify Functions (`netlify/functions/server.js`)
 - `[shipped]` **Mobile UI** — responsive layout, rear-camera preference, touch crop support
 - `[shipped]` **HTTPS / Mobile Support** — auto-generated self-signed TLS cert for LAN camera access
 - `[shipped]` **Zoom Slider** — adjustable zoom for photo capture
@@ -20,7 +20,7 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 ## Scanning
 
 - `[shipped]` **Barcode Scanning** — webcam-based barcode scanning with auto-confirm and staging flow
-- `[shipped]` **AI Photo Scanning** — batch photo upload, Ollama/Claude vision title recognition
+- `[shipped]` **AI Photo Scanning** — batch photo upload; uses Claude Vision API when `ANTHROPIC_API_KEY` is set, otherwise falls back to Ollama (llava:7b) via server-side job queue
 - `[shipped]` **Capture Queue** — Space stages frames; Enter sends all to AI at once
 - `[shipped]` **UPC Lookup** — UPCitemdb.com auto-fills title on barcode scan
 
@@ -64,9 +64,9 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 
 ## Quality
 
-- `[shipped]` **Jest Unit Tests** — server-side logic; ≥ 75% line coverage
+- `[shipped]` **Jest Unit Tests** — server-side logic; 5 test files; ≥ 75% line coverage on `src/server.js`
 - `[shipped]` **Playwright E2E Tests** — full coverage of all major features and modals
-- `[shipped]` **CI** — Hadolint, Shellcheck, HTMLHint, Docker build smoke test
+- `[shipped]` **CI** — Hadolint, Shellcheck, HTMLHint, ESLint, `node --check` syntax check, `npm ci --omit=dev` dep check, Jest unit tests, Docker build smoke test
 
 ## Planned
 
