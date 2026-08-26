@@ -224,7 +224,20 @@
         <button class="ctrl-btn bulk-del-btn" id="bulk-del" style="color:var(--red);border-color:rgba(232,64,64,.3)"><span class="bulk-del-txt">Delete</span><span class="bulk-del-ico" style="display:none">🗑</span></button>
         <button class="ctrl-btn" id="bulk-clear" style="margin-left:auto" title="Deselect all">↩</button>
       </div>
-      <div id="inv-list"><table class="tape-table"><tbody id="inv-tbl"></tbody></table></div>
+      <div id="inv-list"><table class="tape-table">
+        <thead><tr>
+          <th class="mc-2" style="width:calc(184px * var(--tbl-zoom))"></th>
+          <th class="mc-3 th-sort" data-col="title">Title</th>
+          <th class="mc-4 th-sort" data-col="year">Year</th>
+          <th class="mc-5 th-sort" data-col="label">Label</th>
+          <th class="mc-6 th-sort" data-col="format">Format</th>
+          <th class="mc-7 th-sort" data-col="condition">Cond.</th>
+          <th class="mc-8 th-sort" data-col="status">Status</th>
+          <th class="mc-9 th-sort" data-col="value">Value</th>
+          <th class="mc-10">Tags</th>
+        </tr></thead>
+        <tbody id="inv-tbl"></tbody>
+      </table></div>
       <div id="zoom-bar">
         <span style="color:var(--text3);font-size:13px;cursor:default;user-select:none" title="Zoom out">⊖</span>
         <input type="range" id="zoom-slider" min="0.5" max="2.5" step="0.1" value="1" title="Collection zoom">

@@ -1,6 +1,5 @@
 // ── PHOTO CROP OVERLAY ────────────────────────────────────────────────────────
 import { getInventory, getSelectedId } from './inventory-state.js';
-import { _cropStyle } from './render-helpers.js';
 
 let _cropRole = 'face';
 let _cropX = 50, _cropY = 50, _cropS = 1;
@@ -13,43 +12,47 @@ export function openCropOverlay(role) {
   const src = role === 'spine' ? (t.photo_spine || t.photo_thumbnail) : (t.photo_face || t.photo_thumbnail);
   if (!src) return;
 
-  const overlay = document.getElementById('crop-overlay');
+  const modal = document.getElementById('m-crop');
   const img = document.getElementById('crop-img');
-  img.src = src;
-  overlay.style.display = 'flex';
+  const hint = document.getElementById('crop-role-hint');
+  if (!modal || !img) return;
 
-  // Reset crop to current values
+  img.src = src;
+  if (hint) hint.textContent = role === 'spine'
+    ? 'Positioning the spine image — drag to reposition, scroll/pinch to zoom. This sets how the spine appears in the shelf view.'
+    : 'Positioning the cover image — drag to reposition, scroll/pinch to zoom. This sets how the cover appears in the cover wall.';
+
   const crop = (t.photo_crop || {})[role] || { x: 50, y: 50, s: 1 };
   _cropX = crop.x; _cropY = crop.y; _cropS = crop.s;
+
+  modal.style.display = 'flex';
   updateCropPreview();
 }
 
 export function closeCropOverlay() {
-  document.getElementById('crop-overlay').style.display = 'none';
+  const modal = document.getElementById('m-crop');
+  if (modal) modal.style.display = 'none';
 }
 
 function updateCropPreview() {
   const img = document.getElementById('crop-img');
-  const handle = document.getElementById('crop-handle');
-  if (!img || !handle) return;
+  const pct = document.getElementById('crop-pct');
+  const zoomSlider = document.getElementById('crop-zoom');
+  const zoomLbl = document.getElementById('crop-zoom-lbl');
+  if (!img) return;
 
   const parts = [];
   if (_cropRole === 'spine') parts.push('rotate(90deg)');
-  if (_cropS > 1) parts.push(`scale(${_cropS})`);
-  img.style.transform = parts.join(' ');
+  if (_cropS > 1) parts.push(`scale(${_cropS.toFixed(2)})`);
+  img.style.transform = parts.join(' ') || 'none';
   img.style.objectPosition = `${_cropX}% ${_cropY}%`;
 
-  handle.style.left = `${_cropX}%`;
-  handle.style.top = `${_cropY}%`;
-  handle.style.transform = 'translate(-50%, -50%)';
+  if (pct) pct.textContent = `${Math.round(_cropX)}% × ${Math.round(_cropY)}%`;
+  if (zoomSlider) zoomSlider.value = String(Math.round(_cropS * 100));
+  if (zoomLbl) zoomLbl.textContent = `${_cropS.toFixed(1)}×`;
 }
 
 function startDrag(x, y) {
-  _cropPanning = true;
-  _cropPx = x; _cropPy = y;
-}
-
-function startResize(x, y) {
   _cropPanning = true;
   _cropPx = x; _cropPy = y;
 }
@@ -64,9 +67,7 @@ function onMove(x, y) {
   _cropPx = x; _cropPy = y;
 }
 
-function onUp() {
-  _cropPanning = false;
-}
+function onUp() { _cropPanning = false; }
 
 export function applyCrop() {
   const t = getInventory().find(x => x.id === getSelectedId());
@@ -93,17 +94,33 @@ export function zoomOut() {
   updateCropPreview();
 }
 
-// Event listeners — registered at module load time (modules are deferred, DOM is ready)
-document.getElementById('crop-overlay')?.addEventListener('click', e => {
-  if (e.target.id === 'crop-overlay') closeCropOverlay();
-});
+// Event listeners
+const frame = document.getElementById('crop-frame');
+const img = document.getElementById('crop-img');
 
-document.getElementById('crop-img')?.addEventListener('mousedown', e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
-document.getElementById('crop-handle')?.addEventListener('mousedown', e => { startResize(e.clientX, e.clientY); e.stopPropagation(); e.preventDefault(); });
+frame?.addEventListener('mousedown', e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
+frame?.addEventListener('touchstart', e => { const t = e.touches[0]; startDrag(t.clientX, t.clientY); e.preventDefault(); }, { passive: false });
 document.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
 document.addEventListener('mouseup', onUp);
-
-document.getElementById('crop-img')?.addEventListener('touchstart', e => { if (e.target === document.getElementById('crop-handle')) return; const t = e.touches[0]; startDrag(t.clientX, t.clientY); e.preventDefault(); }, { passive: false });
-document.getElementById('crop-handle')?.addEventListener('touchstart', e => { const t = e.touches[0]; startResize(t.clientX, t.clientY); e.stopPropagation(); e.preventDefault(); }, { passive: false });
 document.addEventListener('touchmove', e => { if (_cropPanning) { const t = e.touches[0]; onMove(t.clientX, t.clientY); e.preventDefault(); } }, { passive: false });
 document.addEventListener('touchend', onUp);
+
+frame?.addEventListener('wheel', e => {
+  e.preventDefault();
+  const delta = e.deltaY < 0 ? 1.1 : 0.91;
+  _cropS = Math.max(1, Math.min(4, _cropS * delta));
+  updateCropPreview();
+}, { passive: false });
+
+document.getElementById('crop-zoom')?.addEventListener('input', e => {
+  _cropS = parseInt(e.target.value, 10) / 100;
+  updateCropPreview();
+});
+
+document.getElementById('crop-save')?.addEventListener('click', applyCrop);
+document.getElementById('crop-cancel')?.addEventListener('click', closeCropOverlay);
+document.getElementById('crop-reset')?.addEventListener('click', resetCrop);
+
+document.getElementById('m-crop')?.addEventListener('click', e => {
+  if (e.target.id === 'm-crop') closeCropOverlay();
+});

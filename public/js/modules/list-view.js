@@ -58,15 +58,15 @@ export function renderList() {
     const tagStr = (t.tags || []).map(tag => `<span class="tag-chip small">${esc(tag)}</span>`).join('');
 
     return `<tr class="tape-row${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}${_eggAttrs(t)}" data-id="${t.id}">
-      <td><img class="row-thumb" src="${t.photo_thumbnail || ''}" alt=""></td>
-      <td class="cell-title"><span class="title-text">${esc(t.title)}</span></td>
-      <td class="cell-year">${esc(t.year || '')}</td>
-      <td class="cell-label">${esc(t.label || '')}</td>
-      <td class="cell-format">${esc(t.format || 'VHS')}</td>
-      <td class="cell-cond"><span class="cond-${t.condition || 'good'}">${esc(t.condition || 'good')}</span></td>
-      <td class="cell-status">${esc(statusLabel(t.status))}</td>
-      <td class="cell-val">${esc(t.value_low || t.value_high ? `$${t.value_low || '?'}–$${t.value_high || '?'}` : '')}</td>
-      <td class="cell-tags">${tagStr}</td>
+      <td class="mc-2">${t.photo_thumbnail ? `<img class="tbl-thumb" src="${t.photo_thumbnail}" alt="">` : `<div class="tbl-thumb-ph">📼</div>`}</td>
+      <td class="cell-title mc-3"><span class="title-text">${esc(t.title)}</span></td>
+      <td class="cell-year mc-4">${esc(t.year || '')}</td>
+      <td class="cell-label mc-5">${esc(t.label || '')}</td>
+      <td class="cell-format mc-6">${esc(t.format || 'VHS')}</td>
+      <td class="cell-cond mc-7"><span class="cond-${t.condition || 'good'}">${esc(t.condition || 'good')}</span></td>
+      <td class="cell-status mc-8">${esc(statusLabel(t.status))}</td>
+      <td class="cell-val mc-9">${esc(t.value_low || t.value_high ? `$${t.value_low || '?'}–$${t.value_high || '?'}` : '')}</td>
+      <td class="cell-tags mc-10">${tagStr}</td>
     </tr>`;
   }).join('');
 
