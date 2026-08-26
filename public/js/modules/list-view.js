@@ -58,7 +58,7 @@ export function renderList() {
     const tagStr = (t.tags || []).map(tag => `<span class="tag-chip small">${esc(tag)}</span>`).join('');
 
     return `<tr class="tape-row${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}${_eggAttrs(t)}" data-id="${t.id}">
-      <td class="mc-2">${t.photo_thumbnail ? `<img class="tbl-thumb" src="${t.photo_thumbnail}" alt="">` : `<div class="tbl-thumb-ph">📼</div>`}</td>
+      <td class="mc-2">${t.photo_thumbnail ? `<img class="tbl-thumb" src="${esc(t.photo_thumbnail)}" alt="">` : `<div class="tbl-thumb-ph">📼</div>`}</td>
       <td class="cell-title mc-3"><span class="title-text">${esc(t.title)}</span></td>
       <td class="cell-year mc-4">${esc(t.year || '')}</td>
       <td class="cell-label mc-5">${esc(t.label || '')}</td>

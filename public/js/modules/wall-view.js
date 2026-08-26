@@ -1,5 +1,5 @@
 // ── WALL VIEW RENDER ──────────────────────────────────────────────────────────
-import { getInventory, getWallMode, getSelectedId, getSelectedIds } from './inventory-state.js';
+import { getInventory, getWallMode, getSelectedId, setSelectedId, getSelectedIds } from './inventory-state.js';
 import { getFiltered } from './filtering.js';
 import { esc, _cropStyle, _eggAttrs, statusLabel } from './render-helpers.js';
 
@@ -55,6 +55,7 @@ export function renderWall() {
     c.addEventListener('click', e => {
       if (e.target.closest('input, select, button, .tag-chip')) return;
       const id = c.dataset.id;
+      setSelectedId(id);
       const ids = getSelectedIds();
       ids.clear();
       ids.add(id);
