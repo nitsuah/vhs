@@ -22,3 +22,9 @@
   from = "/health"
   to   = "/.netlify/functions/server"
   status = 200
+
+# Public share URLs — serve the SPA; client-side JS handles /c/:slug routing
+[[redirects]]
+  from = "/c/*"
+  to   = "/index.html"
+  status = 200

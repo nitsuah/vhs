@@ -1,91 +1,70 @@
 // ── WALL VIEW RENDER ──────────────────────────────────────────────────────────
-import { getInventory, getWallMode, getSelectedId, getSelectedIds } from './inventory-state.js';
+import { getInventory, getWallMode, getSelectedId, setSelectedId, getSelectedIds } from './inventory-state.js';
 import { getFiltered } from './filtering.js';
 import { esc, _cropStyle, _eggAttrs, statusLabel } from './render-helpers.js';
 
 export function renderWall() {
   const items = getFiltered();
   const selectedId = getSelectedId();
-  const selectedIds = getSelectedIds();
   const wall = document.getElementById('wall-view');
   if (!wall) return;
 
   const mode = getWallMode();
 
-  if (mode === 1) { // Cover wall
-    wall.className = 'on';
+  if (mode === 1) { // StacksUp — upright spines, books-on-shelf
+    wall.className = 'on stacksup-mode';
     wall.innerHTML = items.map(t => {
       const sel = t.id === selectedId;
-      const bulk = selectedIds.has(t.id);
       const isSpine = !!t.photo_spine;
-      const src = t.photo_spine || t.photo_face || t.photo_thumbnail;
-      const cropRole = isSpine ? 'spine' : 'face';
+      const src = t.photo_spine || t.photo_thumbnail;
       const inner = src
-        ? `<img class="su-img${isSpine ? ' su-img-spine' : ''}" src="${esc(src)}" alt=""${_cropStyle(t, cropRole, isSpine)}>`
+        ? `<img class="su-img${isSpine ? ' su-img-spine' : ''}" src="${esc(src)}" alt=""${_cropStyle(t, 'spine', isSpine)}>`
         : `<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
-      return `<div class="su-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
+      return `<div class="su-card${sel ? ' sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
     }).join('');
+
   } else if (mode === 2) { // Spine landscape
     wall.className = 'on spine-mode';
     wall.innerHTML = items.map(t => {
       const sel = t.id === selectedId;
-      const bulk = selectedIds.has(t.id);
       const isSpine = !!t.photo_spine;
       const src = t.photo_spine || t.photo_thumbnail;
       const inner = src
-        ? `<img class="spine-img" src="${esc(src)}" alt=""${_cropStyle(t, 'spine', true)}>`
+        ? `<img class="spine-img" src="${esc(src)}" alt=""${_cropStyle(t, 'spine', isSpine)}>`
         : `<div class="spine-ph"><span>${esc(t.title)}</span></div>`;
-      return `<div class="spine-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div></div>`;
+      return `<div class="spine-card${sel ? ' sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div></div>`;
     }).join('');
-  } else if (mode === 3) { // StackSup upright
-    wall.className = 'on stacksup-mode';
+
+  } else if (mode === 3) { // Covers — face/portrait images
+    wall.className = 'on covers-mode';
     wall.innerHTML = items.map(t => {
       const sel = t.id === selectedId;
-      const bulk = selectedIds.has(t.id);
-      const isSpine = !!t.photo_spine;
-      const src = t.photo_spine || t.photo_face || t.photo_thumbnail;
-      const cropRole = isSpine ? 'spine' : 'face';
+      const src = t.photo_face || t.photo_thumbnail;
       const inner = src
-        ? `<img class="su-img${isSpine ? ' su-img-spine' : ''}" src="${esc(src)}" alt=""${_cropStyle(t, cropRole, isSpine)}>`
-        : `<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
-      return `<div class="su-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
+        ? `<img class="cover-img" src="${esc(src)}" alt=""${_cropStyle(t, 'face', false)}>`
+        : `<div class="cover-ph"><span class="cover-ph-txt">${esc(t.title)}</span></div>`;
+      return `<div class="cover-card${sel ? ' sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}><div class="cover-wrap">${inner}</div><div class="cover-lbl">${esc(t.title)}</div></div>`;
     }).join('');
+
   } else {
     return;
   }
 
-  // Attach events
-  wall.querySelectorAll('.su-card, .spine-card, .stack-card').forEach(c => {
+  // Attach events — single-select only (no multi-select in wall views)
+  wall.querySelectorAll('.su-card, .spine-card, .cover-card').forEach(c => {
     c.addEventListener('click', e => {
       if (e.target.closest('input, select, button, .tag-chip')) return;
       const id = c.dataset.id;
+      setSelectedId(id);
       const ids = getSelectedIds();
-      if (e.shiftKey) {
-        // Not implementing shift range select for wall
-      } else if (e.ctrlKey || e.metaKey) {
-        ids.has(id) ? ids.delete(id) : ids.add(id);
-      } else {
-        ids.clear();
-        ids.add(id);
-      }
+      ids.clear();
+      ids.add(id);
       renderWall();
-      updateBulkBar();
+      window.updateBulkBar?.();
     });
     c.addEventListener('dblclick', () => {
       if (typeof window.openDetail === 'function') window.openDetail(c.dataset.id);
       else window.dispatchEvent(new CustomEvent('open-detail', { detail: c.dataset.id }));
     });
   });
-}
-
-export function updateBulkBar() {
-  const count = getSelectedIds().size;
-  const bar = document.getElementById('bulk-bar');
-  if (!bar) return;
-  if (count) {
-    bar.style.display = 'flex';
-    bar.querySelector('.bulk-count').textContent = count;
-  } else {
-    bar.style.display = 'none';
-  }
 }

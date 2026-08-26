@@ -560,12 +560,12 @@ document.getElementById('sort-sel')?.addEventListener('change', () => renderInv(
 (function initZoom() {
   const slider = document.getElementById('zoom-slider');
   if (!slider) return;
-  const saved = localStorage.getItem('vhs-zoom') || '1';
-  document.documentElement.style.setProperty('--inv-zoom', saved);
+  const saved = localStorage.getItem('vhs-tbl-zoom') || '1';
+  document.documentElement.style.setProperty('--tbl-zoom', saved);
   slider.value = saved;
   slider.addEventListener('input', () => {
-    localStorage.setItem('vhs-zoom', slider.value);
-    document.documentElement.style.setProperty('--inv-zoom', slider.value);
+    localStorage.setItem('vhs-tbl-zoom', slider.value);
+    document.documentElement.style.setProperty('--tbl-zoom', slider.value);
   });
 })();
 
@@ -579,14 +579,23 @@ document.getElementById('bulk-del')?.addEventListener('click', async () => { awa
 // ── WALL MODE TOGGLE ─────────────────────────────────────────────────────────
 (function(){
   const btn = document.getElementById('btn-wall');
-  const labels = ['⊞ Wall', '⊟ Covers', '⊠ Spines', '📚 Stacks'];
+  // Mode 0=Table, 1=StacksUp (upright spines), 2=Spines (landscape), 3=Covers (face art)
+  const labels = ['⊞ Wall', '📚 StacksUp', '⊠ Spines', '⊟ Covers'];
   if (!btn) return;
+  function updateWallBtn() {
+    const m = getWallMode();
+    btn.textContent = labels[m];
+    btn.classList.toggle('active', m > 0);
+    // Zoom bar only relevant in table view
+    const zb = document.getElementById('zoom-bar');
+    if (zb) zb.style.display = m === 0 ? '' : 'none';
+  }
   btn.addEventListener('click', () => {
     setWallMode((getWallMode() + 1) % 4);
-    btn.textContent = labels[getWallMode()];
-    btn.classList.toggle('active', getWallMode() > 0);
+    updateWallBtn();
     renderInv();
   });
+  updateWallBtn();
 })();
 
 // Expose for external callers

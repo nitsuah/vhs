@@ -25,9 +25,15 @@ export async function checkOllama(silent=false){
   updateAiBadge();
 }
 export function updateAiBadge(){
+  const hasAi = !!(apiKey || ollamaAvail);
   if(apiKey)setAiBadge('claude','CLAUDE');
   else if(ollamaAvail)setAiBadge('ollama',ollamaModel);
   else setAiBadge('noai','NO AI');
+  // Hide fill/check buttons when no AI is connected
+  ['btn-fill-data','btn-revalidate','bulk-fill'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.style.display=hasAi?'':'none';
+  });
 }
 
 // ── AI DISPATCH ──────────────────────────────────────────────────────────

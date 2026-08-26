@@ -4,7 +4,7 @@ import { getFiltered } from './modules/filtering.js';
 import { renderList, renderInv as renderListView, openDetail, updateBulkBar, updateCount } from './modules/list-view.js';
 import { dbPut } from './db.js';
 import { toast } from './utils.js';
-import { renderWall, updateBulkBar as updateWallBulkBar } from './modules/wall-view.js';
+import { renderWall } from './modules/wall-view.js';
 import { openDetail as openDetailModal, renderDetailPhotos, initTagChips } from './modules/detail-modal.js';
 import { openCropOverlay, closeCropOverlay, applyCrop, resetCrop, zoomIn, zoomOut } from './modules/crop-overlay.js';
 import { applyBulkStatus, deleteBulk, clearBulk } from './modules/bulk-actions.js';
@@ -65,15 +65,15 @@ function renderPublicCollection(tapes) {
   // click handlers so the view remains read-only.
   tbl.innerHTML = tapes.length
     ? tapes.map(t => `<tr class="tape-row" data-id="${esc(t.id || '')}">
-        <td><img class="row-thumb" src="${esc(t.photo_thumbnail || '')}" alt=""></td>
-        <td class="cell-title">${esc(t.title || '')}</td>
-        <td class="cell-year">${esc(t.year || '')}</td>
-        <td class="cell-label">${esc(t.label || '')}</td>
-        <td class="cell-format">${esc(t.format || 'VHS')}</td>
-        <td class="cell-cond"><span class="cond-${t.condition || 'good'}">${esc(t.condition || 'good')}</span></td>
-        <td class="cell-status">${esc(statusLabel(t.status))}</td>
-        <td class="cell-val">${esc(t.value_low || t.value_high ? `$${t.value_low || '?'}–$${t.value_high || '?'}` : '')}</td>
-        <td class="cell-tags">${(t.tags || []).map(g => `<span class="tag-chip small">${esc(g)}</span>`).join('')}</td>
+        <td class="mc-2">${t.photo_thumbnail ? `<img class="tbl-thumb" src="${esc(t.photo_thumbnail)}" alt="">` : `<div class="tbl-thumb-ph">📼</div>`}</td>
+        <td class="cell-title mc-3">${esc(t.title || '')}</td>
+        <td class="cell-year mc-4">${esc(t.year || '')}</td>
+        <td class="cell-label mc-5">${esc(t.label || '')}</td>
+        <td class="cell-format mc-6">${esc(t.format || 'VHS')}</td>
+        <td class="cell-cond mc-7"><span class="cond-${t.condition || 'good'}">${esc(t.condition || 'good')}</span></td>
+        <td class="cell-status mc-8">${esc(statusLabel(t.status))}</td>
+        <td class="cell-val mc-9">${esc(t.value_low || t.value_high ? `$${t.value_low || '?'}–$${t.value_high || '?'}` : '')}</td>
+        <td class="cell-tags mc-10">${(t.tags || []).map(g => `<span class="tag-chip small">${esc(g)}</span>`).join('')}</td>
       </tr>`).join('')
     : `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text2)">This collection is empty.</td></tr>`;
 }
