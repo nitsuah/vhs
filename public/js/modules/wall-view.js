@@ -60,6 +60,7 @@ export function renderWall() {
       ids.clear();
       ids.add(id);
       renderWall();
+      window.updateBulkBar?.();
     });
     c.addEventListener('dblclick', () => {
       if (typeof window.openDetail === 'function') window.openDetail(c.dataset.id);
