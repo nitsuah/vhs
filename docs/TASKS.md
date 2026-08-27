@@ -1,12 +1,13 @@
 # Tasks
 
-Last Updated: 2026-08-22
+Last Updated: 2026-08-27
 
 ## Todo
 
 ### Coverage & Testing
 
-- [ ] **Reconcile test-omdb-enhancements.spec.js counts** — `tests/test-omdb-enhancements.spec.js` (5th test file) was not tracked in METRICS.md. Confirm its passing test count and update METRICS.md Unit Test Cases total.
+- [ ] **Restore ≥75% line coverage** — currently 74.64%. The old 75.74% figure was not reproducible; the true pre-eBay baseline was 70.82%. Biggest uncovered gaps: `worker.js` (44%), `auth.js` (34%), `system.js` (52%).
+- [ ] **Copy `jest.config.js` into the Docker image** — the Dockerfile never copies it, so the documented `docker run … npx jest --coverage` command silently ignores `collectCoverageFrom` and the coverage thresholds. The two measurement bases disagree (71.94% vs 74.64%).
 - [ ] **Extend coverage to src/modules/*** — `jest.config.js` targets only `src/server.js`; consider expanding `collectCoverageFrom` to all modules so coverage reflects real posture.
 
 ### Tech Debt
@@ -32,6 +33,8 @@ Last Updated: 2026-08-22
 
 ## Done (recent)
 
+- [x] **eBay sold-listing valuation (Phase 2)** — `src/modules/ebay.js` (OAuth client-credentials + cached app token, Browse API `soldItemsOnly` search, low/high/avg aggregation), `src/modules/routes/valuate.js` (`GET /api/valuate` preview, `POST /api/tapes/:id/valuate` valuate-and-store with `source: "ebay-sold"`), and the previously dead `#d-ebay` button in the detail modal is now wired. 34 new tests.
+- [x] **Reconcile test-omdb-enhancements.spec.js counts** — 41 tests; METRICS.md per-suite table now reflects all six suites (200 total).
 - [x] **SPA catch-all rate limit** — registered `app.use('/', limiter)` before static/proxy/SPA handlers (PR #40)
 - [x] **CSV export / JSON export / print** — shipped in web UI (no Python scripts needed)
 - [x] **Google OAuth + multi-user** — optional auth, public sharing via `/c/<uuid>` (PR #38)
