@@ -6,7 +6,10 @@ Last Updated: 2026-08-27
 
 ### Coverage & Testing
 
-- [ ] **Restore ≥75% line coverage** — currently 74.64%. The old 75.74% figure was not reproducible; the true pre-eBay baseline was 70.82%. Biggest uncovered gaps: `worker.js` (44%), `auth.js` (34%), `system.js` (52%).
+- [ ] **True sold-price valuation (eBay Marketplace Insights)** — the shipped valuation uses the Browse API, which returns **active listings (asking prices), not realized sale prices**; asking prices skew high. The Browse API has no supported sold/completed-item filter (an earlier draft sent `soldItemsOnly:true`, which eBay does not honour). Real sold data needs the Marketplace Insights API, which requires a separate eBay application and approval. Until then the source label is `ebay-browse` / `basis: active-asking` and the UI says "asking". When Insights access lands, add a new source label rather than redefining this one.
+- [ ] **Stop returning raw `err.message` to API clients** — repo-wide convention (`tapes.js`, `jobs.js`, `server.js`, `valuate.js`) leaks PostgreSQL error text to unauthenticated callers. `valuate.js` already returns a fixed string for upstream eBay failures; the DB paths still need the same treatment, as a single consistent pass rather than one file at a time.
+- [ ] **`/api/logs` is unauthenticated** — the SSE activity log exposes scan/review detail including tape titles to any caller. Either gate it with `requireAuth` or scope entries per owner. (Valuation deliberately logs to `console` instead of `logActivity` to avoid adding to this exposure.)
+- [ ] **Restore ≥75% line coverage** — currently 74.82%. The old 75.74% figure was not reproducible; the true pre-eBay baseline was 70.82%. Biggest uncovered gaps: `worker.js` (44%), `auth.js` (34%), `system.js` (52%).
 - [ ] **Copy `jest.config.js` into the Docker image** — the Dockerfile never copies it, so the documented `docker run … npx jest --coverage` command silently ignores `collectCoverageFrom` and the coverage thresholds. The two measurement bases disagree (71.94% vs 74.64%).
 - [ ] **Extend coverage to src/modules/*** — `jest.config.js` targets only `src/server.js`; consider expanding `collectCoverageFrom` to all modules so coverage reflects real posture.
 
@@ -33,7 +36,7 @@ Last Updated: 2026-08-27
 
 ## Done (recent)
 
-- [x] **eBay sold-listing valuation (Phase 2)** — `src/modules/ebay.js` (OAuth client-credentials + cached app token, Browse API `soldItemsOnly` search, low/high/avg aggregation), `src/modules/routes/valuate.js` (`GET /api/valuate` preview, `POST /api/tapes/:id/valuate` valuate-and-store with `source: "ebay-sold"`), and the previously dead `#d-ebay` button in the detail modal is now wired. 34 new tests.
+- [x] **eBay listing valuation (Phase 2)** — `src/modules/ebay.js` (OAuth client-credentials + cached app token, Browse API search, low/high/avg aggregation), `src/modules/routes/valuate.js` (`GET /api/valuate` preview, `POST /api/tapes/:id/valuate` valuate-and-store with `source: "ebay-browse"`), and the previously dead `#d-ebay` button in the detail modal is now wired. 37 new tests. **These are asking prices from active listings, not sold prices** — see the follow-up task below.
 - [x] **Reconcile test-omdb-enhancements.spec.js counts** — 41 tests; METRICS.md per-suite table now reflects all six suites (200 total).
 - [x] **SPA catch-all rate limit** — registered `app.use('/', limiter)` before static/proxy/SPA handlers (PR #40)
 - [x] **CSV export / JSON export / print** — shipped in web UI (no Python scripts needed)

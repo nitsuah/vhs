@@ -1,10 +1,11 @@
-// ── ROUTES: VALUATION (eBay sold listings) ────────────────────────────────────
+// ── ROUTES: VALUATION (eBay active listings) ──────────────────────────────────
+// Figures come from the Browse API, i.e. asking prices on active listings — not
+// realized sale prices. See src/modules/ebay.js.
 'use strict';
 
 const { pool } = require('../db');
 const { ENABLED } = require('../auth');
 const { valuateTitle, isConfigured } = require('../ebay');
-const { logActivity } = require('../activity-log');
 
 function notConfigured(res) {
   return res.status(503).json({
@@ -13,9 +14,13 @@ function notConfigured(res) {
 }
 
 // Distinguish "we could not reach eBay" (502) from a bad request (400).
+//
+// Upstream detail (eBay response bodies, token errors) stays server-side: the
+// client gets a fixed message, and the detail never reaches logActivity because
+// /api/logs is unauthenticated and would expose it to anyone.
 function ebayFailure(res, err) {
-  const msg = err && err.message ? err.message : 'eBay lookup failed';
-  return res.status(502).json({ error: msg });
+  console.warn('eBay valuation failed:', err && err.message);
+  return res.status(502).json({ error: 'eBay lookup failed' });
 }
 
 /**
@@ -43,6 +48,7 @@ async function valuatePreviewHandler(req, res) {
  *
  * Persists the result into the tape's JSONB `data` under `valuation`, and
  * mirrors low/high into the existing value_low / value_high fields the UI reads.
+ * A zero-comp result never overwrites an existing valuation or estimate.
  */
 async function valuateTapeHandler(req, res) {
   if (!isConfigured()) return notConfigured(res);
@@ -74,25 +80,46 @@ async function valuateTapeHandler(req, res) {
     return ebayFailure(res, err);
   }
 
-  const updated = { ...tape, valuation };
+  // Write only the fields this handler owns, via a server-side JSONB merge.
+  // A read-modify-write of the whole `data` object would silently revert any
+  // edit the user saved during the (up to ~20s) eBay round trip.
+  const prior = tape.valuation;
+  const priorHasFigures = Boolean(prior && prior.sample_size > 0);
+  const patch = {};
+
   if (valuation.sample_size > 0) {
-    updated.value_low = String(valuation.low);
-    updated.value_high = String(valuation.high);
+    patch.valuation = valuation;
+    patch.value_low = String(valuation.low);
+    patch.value_high = String(valuation.high);
+  } else if (!priorHasFigures) {
+    // Nothing worth preserving — record the empty result so checked_at advances.
+    patch.valuation = valuation;
+  }
+  // else: zero comps but a real prior valuation exists — leave the stored
+  // record untouched. The response still carries the fresh empty result.
+
+  let updated = tape;
+  if (Object.keys(patch).length > 0) {
+    try {
+      const { rows } = scoped
+        ? await pool.query(
+            'UPDATE tapes SET data = data || $1::jsonb WHERE id=$2 AND owner_id=$3 RETURNING data',
+            [JSON.stringify(patch), id, req.user.sub]
+          )
+        : await pool.query(
+            'UPDATE tapes SET data = data || $1::jsonb WHERE id=$2 RETURNING data',
+            [JSON.stringify(patch), id]
+          );
+      if (!rows.length) return res.status(404).json({ error: 'not found' });
+      updated = rows[0].data;
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
   }
 
-  try {
-    const { rowCount } = scoped
-      ? await pool.query('UPDATE tapes SET data=$1 WHERE id=$2 AND owner_id=$3', [updated, id, req.user.sub])
-      : await pool.query('UPDATE tapes SET data=$1 WHERE id=$2', [updated, id]);
-    if (rowCount === 0) return res.status(404).json({ error: 'not found' });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-
-  logActivity(
-    'info',
-    `Valuation ${id}: ${valuation.sample_size} sold comps for "${valuation.query}"` +
-      (valuation.sample_size ? ` → $${valuation.low}–$${valuation.high} (avg $${valuation.average})` : '')
+  console.log(
+    `Valuation ${id}: ${valuation.sample_size} active-listing comps` +
+      (valuation.sample_size ? ` → ${valuation.low}-${valuation.high} (avg ${valuation.average})` : '')
   );
 
   res.json({ valuation, tape: updated });

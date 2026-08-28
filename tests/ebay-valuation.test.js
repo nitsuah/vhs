@@ -175,24 +175,38 @@ describe('getAppToken', () => {
 
 // ── Search + valuation ────────────────────────────────────────────────────────
 
-describe('searchSoldListings', () => {
-  it('hits the Browse API with the soldItemsOnly filter and a bearer token', async () => {
+describe('searchActiveListings', () => {
+  it('hits the Browse API with a bearer token and no body headers', async () => {
     fetchMock
       .mockResolvedValueOnce(tokenRes('tok-xyz'))
       .mockResolvedValueOnce(searchRes([usd('10')]));
 
-    await ebay.searchSoldListings({ title: 'The Thing', year: '1982', format: 'VHS' });
+    await ebay.searchActiveListings({ title: 'The Thing', year: '1982', format: 'VHS' });
 
     const [url, opts] = fetchMock.mock.calls[1];
     expect(url).toContain('https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search?');
     expect(url).toContain('q=The+Thing+1982+VHS');
-    expect(url).toContain('filter=soldItemsOnly%3Atrue');
     expect(opts.headers.Authorization).toBe('Bearer tok-xyz');
     expect(opts.headers['X-EBAY-C-MARKETPLACE-ID']).toBe('EBAY_US');
+    // GET carries no body, so no Content-Type.
+    expect(opts.headers['Content-Type']).toBeUndefined();
+  });
+
+  it('does not send the unsupported soldItemsOnly filter', async () => {
+    fetchMock
+      .mockResolvedValueOnce(tokenRes())
+      .mockResolvedValueOnce(searchRes([usd('10')]));
+
+    await ebay.searchActiveListings({ title: 'The Thing' });
+
+    // Browse API has no sold-item filter; sending one would be a false claim
+    // of sold-price provenance (and eBay may reject it outright).
+    expect(fetchMock.mock.calls[1][0]).not.toContain('soldItemsOnly');
+    expect(fetchMock.mock.calls[1][0]).not.toContain('filter=');
   });
 
   it('rejects an empty title', async () => {
-    await expect(ebay.searchSoldListings({ title: '  ' })).rejects.toThrow(/title required/);
+    await expect(ebay.searchActiveListings({ title: '  ' })).rejects.toThrow(/title required/);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -203,7 +217,7 @@ describe('searchSoldListings', () => {
       .mockResolvedValueOnce(tokenRes('fresh'))
       .mockResolvedValueOnce(searchRes([usd('15')]));
 
-    const { data } = await ebay.searchSoldListings({ title: 'Tron' });
+    const { data } = await ebay.searchActiveListings({ title: 'Tron' });
     expect(data.itemSummaries).toHaveLength(1);
     expect(fetchMock.mock.calls[3][1].headers.Authorization).toBe('Bearer fresh');
   });
@@ -212,19 +226,20 @@ describe('searchSoldListings', () => {
     fetchMock
       .mockResolvedValueOnce(tokenRes())
       .mockResolvedValueOnce(searchRes([], { ok: false, status: 500 }));
-    await expect(ebay.searchSoldListings({ title: 'Tron' })).rejects.toThrow(/500/);
+    await expect(ebay.searchActiveListings({ title: 'Tron' })).rejects.toThrow(/500/);
   });
 });
 
 describe('valuateTitle', () => {
-  it('returns an ebay-sold valuation aggregated from the sold comps', async () => {
+  it('returns an ebay-browse valuation aggregated from the listing prices', async () => {
     fetchMock
       .mockResolvedValueOnce(tokenRes())
       .mockResolvedValueOnce(searchRes([usd('8'), usd('25'), usd('12')]));
 
     const v = await ebay.valuateTitle({ title: 'Jaws', year: '1984', format: 'VHS' });
     expect(v).toMatchObject({
-      source: 'ebay-sold',
+      source: 'ebay-browse',
+      basis: 'active-asking',
       query: 'Jaws 1984 VHS',
       currency: 'USD',
       low: 8,
@@ -235,6 +250,16 @@ describe('valuateTitle', () => {
     expect(typeof v.checked_at).toBe('string');
   });
 
+  it('never labels the result as sold data', async () => {
+    fetchMock
+      .mockResolvedValueOnce(tokenRes())
+      .mockResolvedValueOnce(searchRes([usd('8')]));
+
+    const v = await ebay.valuateTitle({ title: 'Jaws' });
+    expect(v.source).not.toMatch(/sold/i);
+    expect(v.basis).toBe('active-asking');
+  });
+
   it('reports sample_size 0 with null prices when there are no comps', async () => {
     fetchMock
       .mockResolvedValueOnce(tokenRes())
@@ -242,7 +267,7 @@ describe('valuateTitle', () => {
 
     const v = await ebay.valuateTitle({ title: 'Nonexistent Tape' });
     expect(v).toMatchObject({
-      source: 'ebay-sold', low: null, high: null, average: null, sample_size: 0,
+      source: 'ebay-browse', low: null, high: null, average: null, sample_size: 0,
     });
   });
 });
@@ -263,7 +288,7 @@ describe('GET /api/valuate', () => {
 
     const res = await request(app).get('/api/valuate').query({ title: 'Akira', format: 'VHS' });
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ source: 'ebay-sold', low: 20, high: 30, average: 25, sample_size: 2 });
+    expect(res.body).toMatchObject({ source: 'ebay-browse', low: 20, high: 30, average: 25, sample_size: 2 });
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
@@ -288,10 +313,11 @@ describe('POST /api/tapes/:id/valuate', () => {
     expect(res.body.error).toMatch(/title required/);
   });
 
-  it('stores the valuation with source ebay-sold and mirrors value_low/high', async () => {
+  it('stores the valuation via a JSONB merge and mirrors value_low/high', async () => {
+    const merged = { id: 'VHS-0001', title: 'Jaws', value_low: '8', value_high: '25' };
     mockQuery
       .mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001', title: 'Jaws', year: '1984', format: 'VHS' } }] })
-      .mockResolvedValueOnce({ rowCount: 1 });
+      .mockResolvedValueOnce({ rows: [{ data: merged }] });
     fetchMock
       .mockResolvedValueOnce(tokenRes())
       .mockResolvedValueOnce(searchRes([usd('8'), usd('25'), usd('12')]));
@@ -299,22 +325,30 @@ describe('POST /api/tapes/:id/valuate', () => {
     const res = await request(app).post('/api/tapes/VHS-0001/valuate').send({});
     expect(res.status).toBe(200);
     expect(res.body.valuation).toMatchObject({
-      source: 'ebay-sold', low: 8, high: 25, average: 15, sample_size: 3,
+      source: 'ebay-browse', basis: 'active-asking', low: 8, high: 25, average: 15, sample_size: 3,
     });
 
     const [sql, params] = mockQuery.mock.calls[1];
-    expect(sql).toMatch(/UPDATE tapes SET data=\$1/);
-    const stored = params[0];
-    expect(stored.valuation.source).toBe('ebay-sold');
-    expect(stored.value_low).toBe('8');
-    expect(stored.value_high).toBe('25');
-    expect(stored.title).toBe('Jaws'); // existing fields preserved
+    // Server-side merge, not a read-modify-write of the whole row.
+    expect(sql).toMatch(/UPDATE tapes SET data = data \|\| \$1::jsonb/);
+    expect(sql).toMatch(/RETURNING data/);
+
+    const patch = JSON.parse(params[0]);
+    expect(patch.valuation.source).toBe('ebay-browse');
+    expect(patch.value_low).toBe('8');
+    expect(patch.value_high).toBe('25');
+    // The patch carries ONLY the fields this handler owns, so a concurrent
+    // edit to any other field survives.
+    expect(Object.keys(patch).sort()).toEqual(['valuation', 'value_high', 'value_low']);
+
+    // Response reports the committed state returned by the database.
+    expect(res.body.tape).toEqual(merged);
   });
 
   it('prefers a title supplied in the body over the stored one', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001', title: 'Old Title' } }] })
-      .mockResolvedValueOnce({ rowCount: 1 });
+      .mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001' } }] });
     fetchMock
       .mockResolvedValueOnce(tokenRes())
       .mockResolvedValueOnce(searchRes([usd('11')]));
@@ -327,30 +361,59 @@ describe('POST /api/tapes/:id/valuate', () => {
     expect(res.body.valuation.query).toBe('Edited Title 1990 VHS');
   });
 
-  it('does not overwrite value_low/high when there are no comps', async () => {
+  it('records a zero-comp result when there is no prior valuation', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001', title: 'Obscure', value_low: '3', value_high: '9' } }] })
-      .mockResolvedValueOnce({ rowCount: 1 });
+      .mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001', title: 'Obscure' } }] })
+      .mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001' } }] });
     fetchMock
       .mockResolvedValueOnce(tokenRes())
       .mockResolvedValueOnce(searchRes([]));
 
     const res = await request(app).post('/api/tapes/VHS-0001/valuate').send({});
     expect(res.status).toBe(200);
+    const patch = JSON.parse(mockQuery.mock.calls[1][1][0]);
+    // Empty result is recorded, but no bogus value_low/high are written.
+    expect(patch.valuation.sample_size).toBe(0);
+    expect(patch.value_low).toBeUndefined();
+    expect(patch.value_high).toBeUndefined();
+  });
+
+  it('preserves a prior valuation and estimate when a re-check finds no comps', async () => {
+    const prior = {
+      source: 'ebay-browse', low: 3, high: 9, average: 6,
+      sample_size: 4, checked_at: '2026-01-01T00:00:00.000Z',
+    };
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ data: { id: 'VHS-0001', title: 'Obscure', value_low: '3', value_high: '9', valuation: prior } }],
+    });
+    fetchMock
+      .mockResolvedValueOnce(tokenRes())
+      .mockResolvedValueOnce(searchRes([]));
+
+    const res = await request(app).post('/api/tapes/VHS-0001/valuate').send({});
+    expect(res.status).toBe(200);
+
+    // No UPDATE at all — the stored valuation, its figures and its checked_at
+    // timestamp all survive.
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(res.body.tape.valuation).toEqual(prior);
+    expect(res.body.tape.value_low).toBe('3');
+
+    // The UI still gets the fresh empty result so it can report "no comps".
     expect(res.body.valuation.sample_size).toBe(0);
-    const stored = mockQuery.mock.calls[1][1][0];
-    expect(stored.value_low).toBe('3');
-    expect(stored.value_high).toBe('9');
-    expect(stored.valuation.source).toBe('ebay-sold');
   });
 
   it('502s when the eBay lookup fails, leaving the tape untouched', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001', title: 'Jaws' } }] });
-    fetchMock.mockResolvedValue({ ok: false, status: 503, text: async () => 'down' });
+    fetchMock.mockResolvedValue({ ok: false, status: 503, text: async () => 'upstream-secret-detail' });
 
     const res = await request(app).post('/api/tapes/VHS-0001/valuate').send({});
     expect(res.status).toBe(502);
     expect(mockQuery).toHaveBeenCalledTimes(1); // no UPDATE issued
+
+    // Upstream detail stays server-side.
+    expect(res.body.error).toBe('eBay lookup failed');
+    expect(JSON.stringify(res.body)).not.toContain('upstream-secret-detail');
   });
 
   it('500s when the tape read fails', async () => {

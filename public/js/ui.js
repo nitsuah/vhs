@@ -244,9 +244,11 @@ document.getElementById('d-save')?.addEventListener('click', async () => {
   }
 });
 
-// ── EBAY SOLD-LISTING VALUATION ──────────────────────────────────────────
+// ── EBAY LISTING VALUATION ───────────────────────────────────────────────
 // Saved tapes valuate-and-store via POST /api/tapes/:id/valuate; an unsaved
 // new tape gets a preview from GET /api/valuate (nothing to persist onto yet).
+// Figures are asking prices from ACTIVE listings, not sold prices — the copy
+// below must not imply otherwise.
 document.getElementById('d-ebay')?.addEventListener('click', async () => {
   const btn = document.getElementById('d-ebay');
   const id = document.getElementById('d-id').value;
@@ -281,14 +283,15 @@ document.getElementById('d-ebay')?.addEventListener('click', async () => {
     }
 
     if (!valuation || !valuation.sample_size) {
-      toast(`No eBay sold comps for "${valuation?.query || title}"`, 'warn', 5000);
+      toast(`No eBay listings found for "${valuation?.query || title}"`, 'warn', 5000);
       return;
     }
     document.getElementById('d-value-low').value = valuation.low;
     document.getElementById('d-value-high').value = valuation.high;
     toast(
-      `eBay sold: $${valuation.low}–$${valuation.high} · avg $${valuation.average} (${valuation.sample_size} comps)`,
-      'ok', 6000
+      `eBay asking: $${valuation.low}–$${valuation.high} · avg $${valuation.average} ` +
+      `(${valuation.sample_size} active listings, not sold prices)`,
+      'ok', 7000
     );
   } catch (e) {
     toast('eBay lookup failed: ' + e.message, 'err', 5000);

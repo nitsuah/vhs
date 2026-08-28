@@ -1,5 +1,10 @@
-// ── EBAY SOLD-LISTING VALUATION ───────────────────────────────────────────────
-// Queries the eBay Browse API for sold comparables and aggregates low/high/avg.
+// ── EBAY LISTING VALUATION ────────────────────────────────────────────────────
+// Queries the eBay Browse API for comparable listings and aggregates low/high/avg.
+//
+// IMPORTANT: Browse API results are ACTIVE listings — asking prices, not realized
+// sale prices. Asking prices skew high. Sold/completed data requires the
+// Marketplace Insights API (separate eBay approval), so nothing here may be
+// presented to the user as a sold comparable.
 //
 // Auth: OAuth 2.0 client-credentials flow yields an *application* token, which is
 // cached in module memory until shortly before it expires.
@@ -18,7 +23,12 @@ const HOSTS = {
 };
 
 const OAUTH_SCOPE = 'https://api.ebay.com/oauth/api_scope';
-const VALUATION_SOURCE = 'ebay-sold';
+
+// Browse API returns ACTIVE listings (asking prices). It has no supported
+// sold/completed-item filter — that data is behind the Marketplace Insights API,
+// which needs separate eBay approval. The source label must not claim "sold".
+const VALUATION_SOURCE = 'ebay-browse';
+const VALUATION_BASIS = 'active-asking';
 
 // Refresh the token this many ms before eBay's stated expiry.
 const TOKEN_SAFETY_WINDOW_MS = 60 * 1000;
@@ -132,51 +142,49 @@ function buildQuery({ title, year, format }) {
 
 // ── Browse API search ─────────────────────────────────────────────────────────
 
-async function searchSoldListings({ title, year, format, limit = 50 }) {
+/**
+ * Search the Browse API for listings matching a title.
+ *
+ * These are ACTIVE listings — i.e. asking prices, not realized sale prices.
+ * The Browse API has no supported sold/completed-item filter; genuine sold data
+ * lives behind the Marketplace Insights API, which requires separate approval
+ * from eBay. Callers must not present these figures as sold comparables.
+ */
+async function searchActiveListings({ title, year, format, limit = 50 }) {
   const q = buildQuery({ title, year, format });
   if (!q) throw new Error('title required');
 
-  const token = await getAppToken();
   const params = new URLSearchParams({
     q,
-    filter: 'soldItemsOnly:true',
     limit: String(Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200)),
   });
+  const url = `${baseUrl()}/buy/browse/v1/item_summary/search?${params}`;
 
-  const r = await fetch(`${baseUrl()}/buy/browse/v1/item_summary/search?${params}`, {
+  // No Content-Type: this GET carries no body.
+  const send = bearer => fetch(url, {
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${bearer}`,
       'X-EBAY-C-MARKETPLACE-ID': EBAY_MARKETPLACE_ID,
-      'Content-Type': 'application/json',
     },
     signal: AbortSignal.timeout(10000),
   });
 
+  let r = await send(await getAppToken());
   if (r.status === 401) {
     // Cached token went stale early — refresh once and retry.
-    const fresh = await getAppToken({ force: true });
-    const retry = await fetch(`${baseUrl()}/buy/browse/v1/item_summary/search?${params}`, {
-      headers: {
-        Authorization: `Bearer ${fresh}`,
-        'X-EBAY-C-MARKETPLACE-ID': EBAY_MARKETPLACE_ID,
-        'Content-Type': 'application/json',
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!retry.ok) throw new Error(`eBay search failed (${retry.status})`);
-    return { query: q, data: await retry.json() };
+    r = await send(await getAppToken({ force: true }));
   }
-
   if (!r.ok) throw new Error(`eBay search failed (${r.status})`);
   return { query: q, data: await r.json() };
 }
 
 /**
- * Full valuation: search sold listings, aggregate, and shape the record that
- * gets persisted onto the tape.
+ * Full valuation: search listings, aggregate, and shape the record that gets
+ * persisted onto the tape. See searchActiveListings — this is an asking-price
+ * estimate, not a sold-price valuation.
  */
 async function valuateTitle({ title, year, format, currency = 'USD', limit }) {
-  const { query, data } = await searchSoldListings({ title, year, format, limit });
+  const { query, data } = await searchActiveListings({ title, year, format, limit });
   const prices = extractPrices(data && data.itemSummaries, currency);
   const agg = aggregatePrices(prices);
   const checkedAt = new Date().toISOString();
@@ -184,6 +192,7 @@ async function valuateTitle({ title, year, format, currency = 'USD', limit }) {
   if (!agg) {
     return {
       source: VALUATION_SOURCE,
+      basis: VALUATION_BASIS,
       query,
       currency,
       low: null,
@@ -194,12 +203,19 @@ async function valuateTitle({ title, year, format, currency = 'USD', limit }) {
     };
   }
 
-  return { source: VALUATION_SOURCE, query, currency, ...agg, checked_at: checkedAt };
+  return {
+    source: VALUATION_SOURCE,
+    basis: VALUATION_BASIS,
+    query,
+    currency,
+    ...agg,
+    checked_at: checkedAt,
+  };
 }
 
 module.exports = {
   getAppToken,
-  searchSoldListings,
+  searchActiveListings,
   valuateTitle,
   aggregatePrices,
   extractPrices,
@@ -207,6 +223,7 @@ module.exports = {
   isConfigured,
   baseUrl,
   VALUATION_SOURCE,
+  VALUATION_BASIS,
   _resetTokenCache,
   _peekTokenCache,
 };
