@@ -77,6 +77,6 @@ documentation goal, not an enforced gate.
 
 Note: the previously recorded 75.74% is not reproducible on current `main`. Measured
 against the same command, the pre-eBay baseline is **70.82% lines / 166 tests**; adding
-the valuation feature moved it to **74.88% lines / 205 tests** (+4.00 pts).
+the valuation feature moved it to **74.88% lines / 205 tests** (+4.06 pts).
 
 New-module coverage (lines): `src/modules/ebay.js` 100%, `src/modules/routes/valuate.js` 96%.
