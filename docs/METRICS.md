@@ -4,9 +4,9 @@
 
 | Metric          | Value      | Notes                                   |
 | --------------- | ---------- | --------------------------------------- |
-| Code Coverage   | 74.82%     | Docker whole-tree measurement (lines) — see caveat below |
+| Code Coverage   | 74.88%     | Docker whole-tree measurement (lines) — see caveat below |
 | Test Files      | 6          | server.test.js, coverage-boost.test.js, debug-jobs.test.js, basic.test.js, test-omdb-enhancements.spec.js, ebay-valuation.test.js |
-| Unit Test Cases | 203        | All passing (6 test files; per-suite counts below) |
+| Unit Test Cases | 205        | All passing (6 test files; per-suite counts below) |
 | E2E Test Files  | 14         | Playwright specs in tests_playwright/   |
 | Last Updated    | 2026-08-27 |                                         |
 
@@ -34,8 +34,8 @@
 | debug-jobs.test.js    | 1     | ✅ Pass |
 | basic.test.js         | 1     | ✅ Pass |
 | test-omdb-enhancements.spec.js | 41 | ✅ Pass |
-| ebay-valuation.test.js | 37   | ✅ Pass |
-| **Total (unit)**      | **203** | **✅ All Pass** |
+| ebay-valuation.test.js | 39   | ✅ Pass |
+| **Total (unit)**      | **205** | **✅ All Pass** |
 | tests_playwright/ (14 specs) | — | E2E; run separately |
 
 ## Docker Testing
@@ -59,7 +59,7 @@ comparable to each other:
 
 | Basis | Command | Scope | Lines | Gate |
 | ----- | ------- | ----- | ----- | ---- |
-| **Measurement only** | `docker run … npx jest --coverage` | Whole tree (config ignored) | **74.82%** | none applied |
+| **Measurement only** | `docker run … npx jest --coverage` | Whole tree (config ignored) | **74.88%** | none applied |
 | **Config-backed gate** | `npx jest --coverage` with `jest.config.js` | `src/server.js` only | **71.94%** | 60% lines — passes |
 
 The whole-tree run silently ignores both `collectCoverageFrom` and `coverageThreshold`,
@@ -70,13 +70,13 @@ threshold. Fix tracked in TASKS.md (copy `jest.config.js` into the image).
 - Statements: 71.7%
 - Branches: 66.96%
 - Functions: 63.84%
-- Lines: 74.82%
+- Lines: 74.88%
 
-**Aspirational target: ≥75% lines (whole tree)** — 74.82%, just short. This is a
+**Aspirational target: ≥75% lines (whole tree)** — 74.88%, just short. This is a
 documentation goal, not an enforced gate.
 
 Note: the previously recorded 75.74% is not reproducible on current `main`. Measured
 against the same command, the pre-eBay baseline is **70.82% lines / 166 tests**; adding
-the valuation feature moved it to **74.82% lines / 203 tests** (+4.00 pts).
+the valuation feature moved it to **74.88% lines / 205 tests** (+4.00 pts).
 
 New-module coverage (lines): `src/modules/ebay.js` 100%, `src/modules/routes/valuate.js` 96%.

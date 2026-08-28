@@ -297,6 +297,25 @@ describe('GET /api/valuate', () => {
     const res = await request(app).get('/api/valuate').query({ title: 'Akira' });
     expect(res.status).toBe(502);
   });
+
+  // Express parses ?title=a&title=b into an array; calling .trim() on it would
+  // throw outside the try block and surface as an uncaught 500.
+  it('handles repeated query parameters without throwing', async () => {
+    fetchMock
+      .mockResolvedValueOnce(tokenRes())
+      .mockResolvedValueOnce(searchRes([usd('12')]));
+
+    const res = await request(app).get('/api/valuate?title=Akira&title=Ghost&year=1988&year=1995');
+    expect(res.status).toBe(200);
+    expect(res.body.query).toContain('Ghost');
+    expect(res.body.query).toContain('1995');
+  });
+
+  it('400s when a repeated title parameter is entirely blank', async () => {
+    const res = await request(app).get('/api/valuate?title=&title=');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/title required/);
+  });
 });
 
 describe('POST /api/tapes/:id/valuate', () => {

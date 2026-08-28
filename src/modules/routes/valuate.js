@@ -24,15 +24,31 @@ function ebayFailure(res, err) {
 }
 
 /**
+ * Coerce a query value to a trimmed string.
+ *
+ * Express's default query parser returns repeated parameters as arrays
+ * (`?title=a&title=b`), so calling .trim() directly would throw before the
+ * handler's try block and surface as an uncaught 500 rather than a 400.
+ * Repeated values take the last one, matching how most clients mean them.
+ *
+ * @param {unknown} value Raw `req.query` value.
+ * @returns {string} Trimmed string, or '' when absent or not string-like.
+ */
+function queryString(value) {
+  const raw = Array.isArray(value) ? value[value.length - 1] : value;
+  return typeof raw === 'string' ? raw.trim() : '';
+}
+
+/**
  * GET /api/valuate?title=&year=&format=
  * Preview a valuation without persisting it (used for tapes not yet saved).
  */
 async function valuatePreviewHandler(req, res) {
   if (!isConfigured()) return notConfigured(res);
-  const title = (req.query.title || '').trim();
+  const title = queryString(req.query.title);
   if (!title) return res.status(400).json({ error: 'title required' });
-  const year = (req.query.year || '').trim();
-  const format = (req.query.format || '').trim();
+  const year = queryString(req.query.year);
+  const format = queryString(req.query.format);
   try {
     const valuation = await valuateTitle({ title, year, format });
     res.json(valuation);
