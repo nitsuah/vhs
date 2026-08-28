@@ -26,6 +26,12 @@ Rules: SPINE = mentally rotate 90° to read vertical text. COVER = largest/most 
 Do NOT hallucinate titles — only output text you can actually see in the image.
 A "low" confidence entry is better than omitting it. Return [] only if truly unreadable.`;
 
+// ── eBay Browse API (sold-listing valuation) ─────────────────────────────────
+const EBAY_CLIENT_ID       = (process.env.EBAY_CLIENT_ID       || '').trim();
+const EBAY_CLIENT_SECRET   = (process.env.EBAY_CLIENT_SECRET   || '').trim();
+const EBAY_ENVIRONMENT     = (process.env.EBAY_ENVIRONMENT     || 'production').trim();
+const EBAY_MARKETPLACE_ID  = (process.env.EBAY_MARKETPLACE_ID  || 'EBAY_US').trim();
+
 const GOOGLE_CLIENT_ID     = (process.env.GOOGLE_CLIENT_ID     || '').trim();
 const GOOGLE_CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || '').trim();
 const JWT_SECRET           = (process.env.JWT_SECRET           || '').trim();
@@ -42,6 +48,10 @@ module.exports = {
   CERT_DIR,
   OMDB_API_KEY,
   SCAN_PROMPT,
+  EBAY_CLIENT_ID,
+  EBAY_CLIENT_SECRET,
+  EBAY_ENVIRONMENT,
+  EBAY_MARKETPLACE_ID,
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   JWT_SECRET,

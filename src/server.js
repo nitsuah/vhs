@@ -38,6 +38,7 @@ const {
   tapesPutHandler,
   tapesDeleteHandler
 } = require('./modules/routes/tapes');
+const { valuatePreviewHandler, valuateTapeHandler } = require('./modules/routes/valuate');
 const { registerStaticAndProxy } = require('./modules/routes/system');
 
 // ── App setup ──────────────────────────────────────────────────────────────────
@@ -246,6 +247,18 @@ app.post('/api/tapes', tapeLimiter, requireAuth, tapesPostHandler);
 app.put('/api/tapes/:id', tapeWriteLimiter, requireAuth, tapesPutHandler);
 // codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site DELETE; requireAuth enforces authentication
 app.delete('/api/tapes/:id', tapeWriteLimiter, requireAuth, tapesDeleteHandler);
+
+// ── Valuation (eBay active listings) ───────────────────────────────────────────
+// Tighter limit than the other routes: each call spends an upstream eBay quota unit.
+// Both routes carry requireAuth so anonymous clients cannot burn the application's
+// eBay quota — a per-IP limiter alone does not stop distributed exhaustion.
+// requireAuth is a no-op when auth is disabled.
+const valuateLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false
+});
+app.get('/api/valuate', valuateLimiter, requireAuth, valuatePreviewHandler);
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site POST; requireAuth enforces authentication
+app.post('/api/tapes/:id/valuate', valuateLimiter, requireAuth, valuateTapeHandler);
 
 // ── Lookup endpoints ───────────────────────────────────────────────────────────
 app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {

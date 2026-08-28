@@ -244,6 +244,63 @@ document.getElementById('d-save')?.addEventListener('click', async () => {
   }
 });
 
+// ── EBAY LISTING VALUATION ───────────────────────────────────────────────
+// Saved tapes valuate-and-store via POST /api/tapes/:id/valuate; an unsaved
+// new tape gets a preview from GET /api/valuate (nothing to persist onto yet).
+// Figures are asking prices from ACTIVE listings, not sold prices — the copy
+// below must not imply otherwise.
+document.getElementById('d-ebay')?.addEventListener('click', async () => {
+  const btn = document.getElementById('d-ebay');
+  const id = document.getElementById('d-id').value;
+  const title = document.getElementById('d-title').value.trim();
+  const year = document.getElementById('d-year').value.trim();
+  const format = document.getElementById('d-format').value;
+  if (!title) { toast('Enter a title first', 'warn'); return; }
+
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '🛒 …';
+  try {
+    let valuation;
+    if (getIsNewTape()) {
+      const qs = new URLSearchParams({ title, year, format });
+      const r = await fetch(`/api/valuate?${qs}`);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      valuation = d;
+    } else {
+      const r = await fetch(`/api/tapes/${encodeURIComponent(id)}/valuate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, year, format }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      valuation = d.valuation;
+      const idx = inventory.findIndex(t => t.id === id);
+      if (idx >= 0 && d.tape) inventory[idx] = d.tape;
+      renderInv();
+    }
+
+    if (!valuation || !valuation.sample_size) {
+      toast(`No eBay listings found for "${valuation?.query || title}"`, 'warn', 5000);
+      return;
+    }
+    document.getElementById('d-value-low').value = valuation.low;
+    document.getElementById('d-value-high').value = valuation.high;
+    toast(
+      `eBay asking: $${valuation.low}–$${valuation.high} · avg $${valuation.average} ` +
+      `(${valuation.sample_size} active listings, not sold prices)`,
+      'ok', 7000
+    );
+  } catch (e) {
+    toast('eBay lookup failed: ' + e.message, 'err', 5000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+});
+
 document.getElementById('d-delete')?.addEventListener('click', () => {
   const title = document.getElementById('d-title').value || 'this tape';
   document.getElementById('del-text').textContent = `Delete "${title}"? This cannot be undone.`;

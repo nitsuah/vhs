@@ -68,8 +68,12 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 - `[shipped]` **Playwright E2E Tests** — full coverage of all major features and modals
 - `[shipped]` **CI** — Hadolint, Shellcheck, HTMLHint, ESLint, `node --check` syntax check, `npm ci --omit=dev` dep check, Jest unit tests, Docker build smoke test
 
+## Enrichment
+
+- `[shipped]` **eBay Valuation** — 🛒 eBay button in the detail modal estimates low/high/avg from eBay Browse API listings and stores the result on the tape (`source: "ebay-browse"`). **Asking prices from active listings, not sold prices** — true sold data needs the Marketplace Insights API (tracked in TASKS.md)
+
 ## Planned
 
-- `[planned]` **eBay Valuation Script** — `valuate.py` eBay sold-listings lookup (or in-app eBay search already works manually)
+- `[planned]` **Sold-price valuation** — eBay Marketplace Insights API for realized sale prices rather than asking prices
 - `[planned]` **Multi-tape detection** — detect and crop individual tapes from batch photos (OpenCV)
 - `[planned]` **Tape wall gallery** — scrollable masonry grid (wall view is shipped; auto-crop thumbnails are the remaining piece)
