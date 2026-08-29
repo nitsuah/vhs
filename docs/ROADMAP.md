@@ -17,19 +17,17 @@ All Phase 1 goals shipped:
 
 ---
 
-## Phase 2 — Valuation
+## Phase 2 — Valuation [PARTIAL — shipped, not "sold" data]
 
 **Goal:** attach a realistic price range to each tape.
 
-### eBay sold listings
+### eBay listings
 
-The most reliable signal for VHS value is eBay "sold" listings, not asking prices.
-
-Options:
+The most reliable signal for VHS value would be eBay "sold" listings, not asking prices — but that data isn't available yet (see below).
 
 - **Manual:** search eBay, paste in estimated low/high, add `source: "manual"`
 - **In-app eBay search:** the ⚡ Fill button / 🔍 Lookup button already opens eBay comps for any tape
-- **Automated (planned):** `valuate.py` script that scrapes eBay sold listings via the Browse API — returns recent sold prices you can average
+- **Automated — shipped, but asking prices, not sold prices:** `src/modules/ebay.js` (OAuth client-credentials + cached app token) and `src/modules/routes/valuate.js` (`GET /api/valuate` preview, `POST /api/tapes/:id/valuate` valuate-and-store) call the eBay **Browse API** and aggregate low/high/avg from **active listings**. The Browse API's `soldItemsOnly` filter is silently unsupported — an earlier draft assumed it worked and mislabeled the result as sold-price data. Source is honestly labeled `ebay-browse` / `basis: "active-asking"` in the UI and stored data, not `ebay-sold`. True sold-price data requires eBay's separate Marketplace Insights API, which needs its own application and approval — see the new task below.
 
 ### Valuation tiers (rough guide)
 
@@ -76,6 +74,8 @@ That list becomes your eBay drafts or a Mercari batch upload.
 - Photo thumbnails auto-cropped per tape (OpenCV or ImageMagick, crop each tape from batch photo)
 - Condition grading rubric (create a standard so anyone rating tapes uses the same scale)
 - **Sell queue export** — one-command workflow that auto-populates eBay/Mercari draft templates for each `for_sale` tape
+- **eBay Marketplace Insights application** — new idea (2026-08-28): the current valuation is asking-price-based because the Browse API has no real sold-item filter. Marketplace Insights is a separate, limited-release API — different endpoint (`/item_sales/search`), different OAuth scope (`https://api.ebay.com/oauth/api_scope/buy` via client-credentials grant), and a different response schema (`SalesHistoryPagedCollection`/`ItemSales`) than the Browse API used today — so migrating is more than a source-label swap. Worth starting the developer application now since approval lead time is unknown, but scope the work as: new endpoint + OAuth scope, response mapping changes, sold-price semantics, any newly-persisted fields, and UI/export label updates.
+- **Valuation confidence badge** — new idea (2026-08-28): since `basis: "active-asking"` is a real caveat users may not read closely, a small UI badge next to any displayed valuation ("asking price, not sold price") would surface the limitation at the point of decision rather than only in docs.
 
 ---
 
@@ -86,7 +86,7 @@ That list becomes your eBay drafts or a Mercari batch upload.
 | Data format | PostgreSQL (Neon) | Handles concurrent writes, user-scoped queries, upserts cleanly |
 | Version control | Git | Free history, easy backup, works on any machine |
 | AI vision | Ollama (llava:7b) / Claude API | Good at messy/worn labels |
-| Valuation data | eBay sold listings | Most accurate real-world pricing signal |
+| Valuation data | eBay active listings (asking price) via Browse API | Best available signal today; true sold-price data is a future target pending Marketplace Insights API access (see roadmap idea below) |
 | Backend | Node.js / Express | Same language as the frontend; lightweight |
 | Exports | Built into web UI | No dependency on Python; works on any device |
 | Hosting | Docker + Express | Consistent environment, mobile HTTPS support |
