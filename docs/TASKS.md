@@ -1,43 +1,52 @@
 # Tasks
 
-Last Updated: 2026-08-28
+Last Updated: 2026-09-02
 
 ## Todo
 
 ### Coverage & Testing
 
-- [ ] **True sold-price valuation (eBay Marketplace Insights)** — the shipped valuation uses the Browse API, which returns **active listings (asking prices), not realized sale prices**; asking prices skew high. The Browse API has no supported sold/completed-item filter (an earlier draft sent `soldItemsOnly:true`, which eBay does not honour). Real sold data needs the Marketplace Insights API, which requires a separate eBay application and approval. Until then the source label is `ebay-browse` / `basis: active-asking` and the UI says "asking". When Insights access lands, add a new source label rather than redefining this one.
-- [ ] **Stop returning raw `err.message` to API clients** — repo-wide convention (`tapes.js`, `jobs.js`, `server.js`, `valuate.js`) leaks PostgreSQL error text to unauthenticated callers. `valuate.js` already returns a fixed string for upstream eBay failures; the DB paths still need the same treatment, as a single consistent pass rather than one file at a time.
-- [ ] **`/api/logs` is unauthenticated** — the SSE activity log exposes scan/review detail including tape titles to any caller. Either gate it with `requireAuth` or scope entries per owner. (Valuation deliberately logs to `console` instead of `logActivity` to avoid adding to this exposure.)
-- [ ] **Restore ≥75% line coverage** — currently 74.88%. The old 75.74% figure was not reproducible; the true pre-eBay baseline was 70.82%. Biggest uncovered gaps: `worker.js` (44%), `auth.js` (34%), `system.js` (52%).
-- [ ] **Copy `jest.config.js` into the Docker image** — the Dockerfile never copies it, so the documented `docker run … npx jest --coverage` command silently ignores `collectCoverageFrom` and the coverage thresholds. The two measurement bases disagree (71.94% vs 74.88%).
-- [ ] **Extend coverage to src/modules/*** — `jest.config.js` targets only `src/server.js`; consider expanding `collectCoverageFrom` to all modules so coverage reflects real posture.
+- [ ] **True sold-price valuation (eBay Marketplace Insights)** — the shipped valuation uses the Browse API, which returns **active listings (asking prices), not realized sale prices**; asking prices skew high. The Browse API has no supported sold/completed-item filter (an earlier draft sent `soldItemsOnly:true`, which eBay does not honour). Real sold data needs the Marketplace Insights API, which requires a separate eBay application and approval. Until then the source label is `ebay-browse` / `basis: active-asking` and the UI says "asking". When Insights access lands, add a new source label rather than redefining this one. (Feature work, not a testing gap — miscategorized here historically; see `docs/ROADMAP.md` Future ideas.)
 
-### Tech Debt
+### Tech Debt / Cleanup
 
-- [ ] **state.js read-only exported bindings** — `cards`, `captureQueue`, `uidSeq` are exported `let` bindings that consumers reassign (TypeError in strict ES modules). Refactor to use setter functions (e.g. `setCards`, `setCaptureQueue`) and update all callers. Key files: `public/js/state.js`, `public/js/review.js:79`, `public/js/capture.js:129`.
-- [ ] **Circular self-imports** — `review.js:8` imports from `./review.js` itself; `ui.js:5` imports from `./ui.js` itself; `capture.js` imports from `./review.js` for state that should live in `state.js`. Split shared state (cards, uidSeq, seenJobIds) into `state.js` and shared helpers into their own modules.
-- [ ] **crop-overlay.js CommonJS→ESM** — uses `require()` but is loaded in a browser ES-module graph; `require` is undefined in the browser. Convert to `import`/`export` syntax matching the other `public/js/modules/` files.
-- [ ] **list-view.js stale window listeners** — `_initLongPress()` attaches `window` mousemove/touchmove/mouseup/touchend listeners on every row per `renderList()` call and never removes them. Move global listeners outside the per-row loop so they are attached once.
-- [ ] **list-view.js missing imports** — `setSelectedId`, `setIsNewTape`, `updateBulkBar`, `openCropOverlay`, `renderDetailPhotos` are used but not imported in `public/js/modules/list-view.js`. Add the missing imports.
-- [ ] **wall-view.js selected state** — cover/spine/stack render branches never apply a selected class even though `selectedId`/`selectedIds` are available. Mirror the `sel`/`bulk-sel` pattern from `list-view.js` so selection is visually reflected in wall mode.
-- [ ] **string-utils.js over-aggressive tag stripping** — `normalizeTitle` removes `'film'`, `'title'`, `'video'`, `'tape'` as standalone words, which strips legitimate parts of real titles. Limit these to parenthetical/trailing-only removal or remove them from the list entirely. (Regression test suite added in PR #40.)
+- [ ] **Delete orphaned `src/modules/routes/jobs.js` and `routes/lookup.js`** — confirmed unused: `server.js` implements `/api/jobs*` and `/api/lookup*` inline and never `require()`s either file (verified 2026-09-02: zero references anywhere in `src/` or `tests/`). Currently excluded from `jest.config.js` `collectCoverageFrom` with a comment rather than deleted, to keep the 2026-09 cleanup PR reviewable. Delete both files in a follow-up, or wire `server.js` to use them instead of the inline duplicates (bigger refactor, same net effect).
+- [ ] **`/api/logs/stream` vs `/api/logs` mismatch** — `public/js/ui.js` opens `new EventSource('/api/logs/stream')`, but the server only registers `app.get('/api/logs', ...)`. The stream path falls through to the SPA catch-all (`text/html`, not `text/event-stream`), so the live log panel likely never receives real events client-side. Either add a `/api/logs/stream`-specific route or point the client at `/api/logs`.
+- [ ] **Mobile export menu wiring is dead** — `public/js/ui.js` wires click-through for `exp-json-mob`, `exp-csv-mob`, `exp-sell-mob`, `exp-print-mob` (and would need `exp-drafts-mob`), but none of those ids exist in `public/index.html`. The `?.addEventListener` guards mean this fails silently rather than throwing — mobile users only get the export menu via the desktop dropdown markup, which is present but was designed for the wider layout. Either add the mobile hamburger buttons or remove the dead wiring.
 
-### P1
+### Already fixed (verified 2026-09-02, previously mismarked as open)
 
-- [ ] Multi-photo batch support — handle multiple photo uploads, show all tapes simultaneously with collapsible form cards
-- [ ] GPU performance optimization for AI scanning
-- [ ] Multi-tape detection — detect and crop individual tapes from batch photos (OpenCV)
+The following items were carried in this file as open Tech Debt but were found, on inspection, to already be resolved on `main`. Re-verified against the current source rather than re-implemented:
 
-### P2
+- ~~state.js read-only exported bindings~~ — `public/js/state.js` already exports `setCards`/`setCaptureQueue`/`setUidSeq`/`nextUidSeq`, and both `review.js` and `capture.js` already call the setters instead of reassigning the bindings directly.
+- ~~Circular self-imports in review.js/ui.js~~ — neither file imports from itself; `review.js` imports state from `state.js`, `ui.js` imports UI helpers from `review.js` (a legitimate one-directional dependency, not a cycle).
+- ~~crop-overlay.js CommonJS `require()`~~ — the file is pure ESM (`import`/`export`); no `require()` calls exist anywhere under `public/js/`.
+- ~~list-view.js stale `window` listeners~~ — the long-press mouse/touch listeners are already registered once at module scope (see the comment at the top of `list-view.js`), not per-row.
+- ~~list-view.js missing imports~~ — `setSelectedId`, `setIsNewTape`, `openCropOverlay`, `renderDetailPhotos` are all imported; `updateBulkBar` is defined locally in the same file and needs no import.
+- ~~wall-view.js missing selected-state styling~~ — all three wall render branches (StacksUp/spine/cover) already apply a `sel` class from `selectedId`, mirroring `list-view.js`.
+- ~~string-utils.js over-aggressive tag stripping~~ — `STANDALONE_EXCLUDE` already keeps `movie`/`film`/`title`/`video`/`tape` out of standalone stripping; the PR #40 regression suite covers it.
 
-- [ ] Sell queue export — one-command eBay/Mercari draft template generator from `for_sale` tapes
-- [ ] Auto-crop tape thumbnails for wall view (OpenCV/ImageMagick per-tape crop from batch photos)
+## P1
 
-## Done (recent)
+- [x] **Multi-photo batch support** — already substantially shipped: `public/js/capture.js` accepts multiple files via `fileInput` (native multi-select), stages them in `captureQueue`, and `processQueue()` analyzes each one in sequence with per-item progress (`Analyzing image N of M…`) and individual review cards. The remaining gap vs. the original wording ("collapsible form cards") is cosmetic — the review panel renders a table, not accordion cards — and is not worth a rewrite of a working flow.
+- [ ] **GPU performance optimization for AI scanning** — `config/docker-compose.yml` already has a `web-gpu` profile for pointing at a native GPU-accelerated Ollama (DirectML/CUDA) instead of the CPU container. Remaining work (model/prompt tuning, throughput benchmarking under real GPU load) needs actual GPU hardware to measure — deferred to **2027** (see `docs/ROADMAP.md`).
+- [ ] **Multi-tape detection** — detect and crop individual tapes from a single batch photo (OpenCV). Real computer-vision work, not tractable as part of a docs/hardening pass — deferred to **2027** (see `docs/ROADMAP.md`).
 
-- [x] **eBay listing valuation (Phase 2)** — `src/modules/ebay.js` (OAuth client-credentials + cached app token, Browse API search, low/high/avg aggregation), `src/modules/routes/valuate.js` (`GET /api/valuate` preview, `POST /api/tapes/:id/valuate` valuate-and-store with `source: "ebay-browse"`), and the previously dead `#d-ebay` button in the detail modal is now wired. 39 new tests. **These are asking prices from active listings, not sold prices** — see the follow-up task below.
-- [x] **Reconcile test-omdb-enhancements.spec.js counts** — 41 tests; METRICS.md per-suite table now reflects all six suites (205 total).
+## P2
+
+- [x] **Sell queue export** — shipped 2026-09: "Sell Drafts (eBay/Mercari)" export button generates a printable/copyable draft per `for_sale` tape (title, condition-aware description, suggested price, tags, notes) with a one-click "Copy listing text" per card. See `buildSellDraft()` in `public/js/ui.js`.
+- [ ] **Auto-crop tape thumbnails** — per-tape crop from a batch photo (OpenCV/ImageMagick). Real computer-vision work — deferred to **2027** (see `docs/ROADMAP.md`).
+
+## Done (2026-09-02 security/coverage/docs pass)
+
+- [x] **Stopped leaking raw `err.message` to API clients** — `tapes.js`, `jobs.js`, `server.js`, and the two remaining DB paths in `valuate.js` now use a shared `src/modules/http-errors.js#serverError()` helper: logs the real error server-side, returns a fixed `{"error":"internal server error"}` to the client.
+- [x] **`/api/logs` gated with `requireAuth`** — no-op in single-user mode (default); blocks anonymous access to scan/review detail once Google OAuth is configured.
+- [x] **Dockerfile copies `jest.config.js`** — `docker run … npx jest --coverage` and the config-backed `npx jest --coverage` now measure the identical thing (previously 71.94% vs. 74.88% — see `docs/METRICS.md`).
+- [x] **Extended coverage to `src/modules/*`** — `collectCoverageFrom` now covers `src/server.js` + `src/modules/**/*.js` (excluding the two confirmed-orphaned route files, see Tech Debt above).
+- [x] **Restored line coverage well above 75%** — whole-tree, Docker-measured, config-honored: **85.4% lines** (was 71.94% on the same basis pre-fix). `worker.js` and `auth.js` — the two biggest gaps (44%/34%) — are now at 100% via new `tests/worker.test.js` / `tests/auth.test.js`. `system.js` reached 100% after removing dead code (see below) rather than by adding tests to it.
+- [x] **Fixed a real production bug found via new test coverage** — `src/modules/worker.js` referenced an undefined `OLLAMA` variable in a log line, throwing on every pending job and aborting the scan pipeline (caught silently by the outer try/catch) before it ever called Ollama. The AI photo-scanning worker has been non-functional until this fix.
+- [x] **Removed dead code from `routes/system.js`** — `healthHandler`/`caCertHandler` were unused duplicates of `routes/health.js` and the inline `/api/ca-cert` handler in `server.js`; only `registerStaticAndProxy` was ever imported.
+- [x] **eBay listing valuation (Phase 2)** — `src/modules/ebay.js` (OAuth client-credentials + cached app token, Browse API search, low/high/avg aggregation), `src/modules/routes/valuate.js` (`GET /api/valuate` preview, `POST /api/tapes/:id/valuate` valuate-and-store with `source: "ebay-browse"`), and the previously dead `#d-ebay` button in the detail modal is now wired. **These are asking prices from active listings, not sold prices** — see the follow-up task above.
 - [x] **SPA catch-all rate limit** — registered `app.use('/', limiter)` before static/proxy/SPA handlers (PR #40)
 - [x] **CSV export / JSON export / print** — shipped in web UI (no Python scripts needed)
 - [x] **Google OAuth + multi-user** — optional auth, public sharing via `/c/<uuid>` (PR #38)
