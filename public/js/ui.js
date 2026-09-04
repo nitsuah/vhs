@@ -533,14 +533,29 @@ h1{margin-bottom:2px}p{color:#777;font-size:13px;margin-bottom:18px}
 <body><h1>Sell Drafts</h1><p>${drafts.length} tape${drafts.length !== 1 ? 's' : ''} marked For Sale — copy each listing into eBay or Mercari.</p>
 <div class="grid">${cards}</div>
 <script>
+function fallbackCopy(text){
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
 document.querySelectorAll('.draft-copy').forEach(function(btn){
   btn.addEventListener('click', function(){
     var card = btn.closest('.draft-card');
     var text = card.querySelector('.draft-title').textContent + '\\n\\n' + card.querySelector('.draft-desc').textContent;
-    navigator.clipboard.writeText(text).then(function(){
-      btn.textContent = '✓ Copied'; btn.classList.add('copied');
-      setTimeout(function(){ btn.textContent = '📋 Copy listing text'; btn.classList.remove('copied'); }, 1500);
-    });
+    function flash(ok){
+      btn.textContent = ok ? '✓ Copied' : '✗ Copy failed — select text manually';
+      btn.classList.toggle('copied', ok);
+      setTimeout(function(){ btn.textContent = '📋 Copy listing text'; btn.classList.remove('copied'); }, 1800);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ flash(true); }, function(){ flash(fallbackCopy(text)); });
+    } else {
+      flash(fallbackCopy(text));
+    }
   });
 });
 </script>
