@@ -3,12 +3,12 @@
 ## Core Metrics
 
 | Metric          | Value      | Notes                                   |
-| --------------- | ---------- | --------------------------------------- |
-| Code Coverage   | 74.88%     | Docker whole-tree measurement (lines) — see caveat below |
-| Test Files      | 6          | server.test.js, coverage-boost.test.js, debug-jobs.test.js, basic.test.js, test-omdb-enhancements.spec.js, ebay-valuation.test.js |
-| Unit Test Cases | 205        | All passing (6 test files; per-suite counts below) |
+| --------------- | ---------- | ---------------------------------------------- |
+| Code Coverage   | 85.4%      | Whole tree (`src/server.js` + `src/modules/**`), lines. Docker-measured and config-gated numbers now agree — see note below. |
+| Test Files      | 8          | server.test.js, coverage-boost.test.js, debug-jobs.test.js, basic.test.js, test-omdb-enhancements.spec.js, ebay-valuation.test.js, worker.test.js, auth.test.js |
+| Unit Test Cases | 231        | All passing (8 test files; per-suite counts below) |
 | E2E Test Files  | 14         | Playwright specs in tests_playwright/   |
-| Last Updated    | 2026-08-27 |                                         |
+| Last Updated    | 2026-09-02 |                                         |
 
 ## Collection Stats
 
@@ -23,6 +23,7 @@
 - [x] Export to CSV working (built into web UI)
 - [x] Export to JSON working (built into web UI)
 - [x] Print price tags working
+- [x] Sell Drafts (eBay/Mercari) export working (built into web UI)
 - [x] Valuation script (eBay **active-listing** lookup) — `src/modules/ebay.js` + `POST /api/tapes/:id/valuate`. Asking prices, not sold prices; true sold data needs the Marketplace Insights API (see TASKS.md).
 
 ## Test Breakdown
@@ -35,7 +36,9 @@
 | basic.test.js         | 1     | ✅ Pass |
 | test-omdb-enhancements.spec.js | 41 | ✅ Pass |
 | ebay-valuation.test.js | 39   | ✅ Pass |
-| **Total (unit)**      | **205** | **✅ All Pass** |
+| worker.test.js        | 9     | ✅ Pass |
+| auth.test.js           | 17    | ✅ Pass |
+| **Total (unit)**      | **231** | **✅ All Pass** |
 | tests_playwright/ (14 specs) | — | E2E; run separately |
 
 ## Docker Testing
@@ -47,36 +50,46 @@ docker compose -f config/docker-compose.yml build
 # Unit tests
 docker run --rm vhs-web npx jest --runInBand
 
-# Whole-tree coverage — MEASUREMENT ONLY (see warning below)
+# Whole-tree coverage
 docker run --rm vhs-web npx jest --runInBand --coverage
 ```
 
-### ⚠️ Two different coverage bases — do not compare them
+### Coverage measurement — Docker and local now agree
 
-The Dockerfile never copies `jest.config.js` into the image, and `package.json` defines no
-inline Jest config. So the two numbers below measure different things and are **not**
-comparable to each other:
+As of 2026-09-02 the Dockerfile copies `jest.config.js` into the image (it previously
+didn't), so `docker run … npx jest --coverage` and a local `npx jest --coverage` measure
+**the same thing**: `collectCoverageFrom: ['src/server.js', 'src/modules/**/*.js']`
+(excluding the two confirmed-orphaned files below), gated by `coverageThreshold` in
+`jest.config.js`. Previously these disagreed (71.94% config-scoped vs. 74.88%
+whole-tree-ungated) because the Docker image silently ignored the config file entirely.
 
-| Basis | Command | Scope | Lines | Gate |
-| ----- | ------- | ----- | ----- | ---- |
-| **Measurement only** | `docker run … npx jest --coverage` | Whole tree (config ignored) | **74.88%** | none applied |
-| **Config-backed gate** | `npx jest --coverage` with `jest.config.js` | `src/server.js` only | **71.94%** | 60% lines — passes |
+`src/modules/routes/jobs.js` and `routes/lookup.js` are excluded from
+`collectCoverageFrom` — both are confirmed orphaned (server.js implements those routes
+inline and never `require()`s either file; see `docs/TASKS.md`). Counting dead code
+against coverage would understate real posture, not overstate it, so this is a scope
+correction, not a threshold-gaming move.
 
-The whole-tree run silently ignores both `collectCoverageFrom` and `coverageThreshold`,
-so it never enforces anything. Never check the whole-tree figure against the configured
-threshold. Fix tracked in TASKS.md (copy `jest.config.js` into the image).
+**Whole-tree measurement (2026-09-02, Docker, `npx jest --coverage`):**
+- Statements: 85.4%
+- Branches: 79.78%
+- Functions: 88.33%
+- Lines: **85.4%**
 
-**Whole-tree measurement detail:**
-- Statements: 71.7%
-- Branches: 66.96%
-- Functions: 63.84%
-- Lines: 74.88%
+Coverage history on this basis (whole tree, config honored):
 
-**Aspirational target: ≥75% lines (whole tree)** — 74.88%, just short. This is a
-documentation goal, not an enforced gate.
+| Date | Lines | Notes |
+| --- | --- | --- |
+| 2026-08-27 (pre-eBay) | 70.82% | 166 tests, `src/server.js` only |
+| 2026-08-27 (post-eBay) | 74.88% | 205 tests, `src/server.js` only — but measured via the *ungated* Docker command; not directly comparable to the config-scoped number of the same date (71.94%) |
+| 2026-09-02 | **85.4%** | 231 tests, `src/server.js` + `src/modules/**` (jobs.js/lookup.js excluded as dead code); Docker and config-gated measurement now identical |
 
-Note: the previously recorded 75.74% is not reproducible on current `main`. Measured
-against the same command, the pre-eBay baseline is **70.82% lines / 166 tests**; adding
-the valuation feature moved it to **74.88% lines / 205 tests** (+4.06 pts).
+The jump from 74.88% to 85.4% is **not** an apples-to-apples improvement on the old
+basis — the 2026-09-02 number covers far more code (`src/modules/**` was previously
+uncounted entirely) while also removing two dead files from the denominator. The real,
+comparable improvement: `worker.js` went from 44% to 100% lines, `auth.js` from 34% to
+100% lines, and `system.js` from 52% to 100% lines (the last one via deleting unused
+`healthHandler`/`caCertHandler`, not by adding tests to dead code).
 
-New-module coverage (lines): `src/modules/ebay.js` 100%, `src/modules/routes/valuate.js` 96%.
+`coverageThreshold` in `jest.config.js` is set a few points below the measured
+2026-09-02 baseline (82% statements / 77% branches / 85% functions / 82% lines) so it
+gates real regressions without being brittle to minor day-to-day drift.

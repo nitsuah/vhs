@@ -486,6 +486,84 @@ document.getElementById('exp-sell').addEventListener('click',()=>{
   dl([cols.map(c=>`"${c}"`).join(','),...rows].join('\n'),'vhs-for-sale.csv','text/csv');
   document.getElementById('exp-dd').classList.remove('on');
 });
+// ── SELL QUEUE: eBay/Mercari draft template generator ───────────────────
+// One-command generator for `for_sale` tapes — produces a ready-to-paste
+// title + description + suggested price per tape, so listing on eBay or
+// Mercari is copy/paste rather than retyping from the collection.
+const CONDITION_WORDING = {
+  great: 'Like new — tested and working, minimal wear.',
+  good: 'Good used condition — tested and working, normal shelf wear.',
+  fair: 'Fair condition — tested and working, visible wear (see photos).',
+  poor: 'For parts/not working, or heavy wear — sold as-is.',
+};
+function buildSellDraft(t) {
+  const bits = [t.title, t.year, t.label].filter(Boolean).join(' ');
+  const title = `${bits}${t.format && t.format !== 'VHS' ? ` (${t.format})` : ' VHS'} — Tested`.slice(0, 80);
+  const price = t.value_low && t.value_high ? `$${t.value_low}–$${t.value_high}`
+    : t.value_low ? `$${t.value_low}` : t.value_high ? `$${t.value_high}` : 'price TBD — see comps';
+  const cond = CONDITION_WORDING[t.condition] || CONDITION_WORDING.good;
+  const tagLine = (t.tags || []).length ? `\nTags: ${t.tags.join(', ')}` : '';
+  const notesLine = t.condition_notes ? `\nNotes: ${t.condition_notes}` : '';
+  const desc = `${t.title}${t.year ? ` (${t.year})` : ''}${t.label ? ` — ${t.label}` : ''}\n`
+    + `${cond}\nSuggested price: ${price}${tagLine}${notesLine}\n`
+    + `From a smoke-free home. Ships securely, fast combined shipping on multiple tapes.`;
+  return { id: t.id, title, desc, price };
+}
+document.getElementById('exp-drafts')?.addEventListener('click', () => {
+  const forSale = inventory.filter(t => t.status === 'for_sale');
+  if (!forSale.length) { toast('No tapes marked For Sale', 'err'); document.getElementById('exp-dd').classList.remove('on'); return; }
+  const drafts = forSale.map(buildSellDraft);
+  const cards = drafts.map(d => `<div class="draft-card">
+    <div class="draft-id">${esc(d.id)}</div>
+    <div class="draft-title">${esc(d.title)}</div>
+    <pre class="draft-desc">${esc(d.desc)}</pre>
+    <button class="draft-copy" data-id="${esc(d.id)}">📋 Copy listing text</button>
+  </div>`).join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Sell Drafts</title>
+<style>body{font-family:system-ui,sans-serif;margin:24px;color:#222;background:#f7f7f7}
+h1{margin-bottom:2px}p{color:#777;font-size:13px;margin-bottom:18px}
+.grid{display:flex;flex-direction:column;gap:14px;max-width:760px}
+.draft-card{background:#fff;border:1px solid #ddd;border-radius:8px;padding:14px 16px}
+.draft-id{font-family:monospace;font-size:10px;color:#999;margin-bottom:4px}
+.draft-title{font-weight:700;font-size:14px;margin-bottom:8px}
+.draft-desc{white-space:pre-wrap;font-family:inherit;font-size:12.5px;background:#fafafa;border:1px solid #eee;border-radius:5px;padding:8px 10px;margin:0 0 8px}
+.draft-copy{padding:6px 12px;background:#222;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px}
+.draft-copy.copied{background:#2a7}
+@media print{.draft-copy{display:none}}</style></head>
+<body><h1>Sell Drafts</h1><p>${drafts.length} tape${drafts.length !== 1 ? 's' : ''} marked For Sale — copy each listing into eBay or Mercari.</p>
+<div class="grid">${cards}</div>
+<script>
+function fallbackCopy(text){
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+document.querySelectorAll('.draft-copy').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var card = btn.closest('.draft-card');
+    var text = card.querySelector('.draft-title').textContent + '\\n\\n' + card.querySelector('.draft-desc').textContent;
+    function flash(ok){
+      btn.textContent = ok ? '✓ Copied' : '✗ Copy failed — select text manually';
+      btn.classList.toggle('copied', ok);
+      setTimeout(function(){ btn.textContent = '📋 Copy listing text'; btn.classList.remove('copied'); }, 1800);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ flash(true); }, function(){ flash(fallbackCopy(text)); });
+    } else {
+      flash(fallbackCopy(text));
+    }
+  });
+});
+</script>
+</body></html>`;
+  const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); }
+  document.getElementById('exp-dd').classList.remove('on');
+});
+
 document.getElementById('exp-tags')?.addEventListener('click',()=>{
 
   const items=inventory.filter(t=>t.status==='for_sale');

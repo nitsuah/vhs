@@ -37,6 +37,7 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 ### Exports & Imports
 - **CSV Export** — full collection with all fields; formula-injection safe
 - **For-Sale CSV** — filtered export with eBay condition labels
+- **Sell Drafts (eBay/Mercari)** — one-command draft template generator for `for_sale` tapes; copy-ready title, description, and suggested price per tape
 - **JSON Export / Import** — full round-trip backup including photos
 - **CSV Import** — accepts the app's own export format or manual spreadsheets
 - **Print Price Tags** — printable 2.4" dashed-border tags for `for_sale` tapes
@@ -53,7 +54,7 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 - **Hamburger Drawer** — collapsible mobile menu; closes on backdrop click or Escape key
 - **CRT Scanlines Toggle** — overlay scanlines/vignette across the whole app (hamburger menu)
 - **Playwright E2E Tests** — full coverage of all major features and modals
-- **Jest Unit Tests** — server-side logic; 5 test files, ≥ 75% line coverage on `src/server.js`
+- **Jest Unit Tests** — server-side logic; 8 test files, ≥ 85% whole-tree line coverage (`src/server.js` + `src/modules/**`)
 - **CI** — Hadolint, Shellcheck, HTMLHint, ESLint, `node --check` syntax, dep-install check, Jest unit tests, Docker build smoke test
 - **Netlify Serverless** — Express app also deployable as a Netlify Function (`netlify/functions/server.js`, `serverless-http`)
 

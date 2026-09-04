@@ -5,7 +5,7 @@ const { enhancedLookup, callOmdb } = require('./omdb');
 const { logScanAnalytics } = require('./analytics');
 const { reviewItemId } = require('./ids');
 const { logActivity } = require('./activity-log');
-const { OMDB_API_KEY, MAX_RETRIES, OLLAMA_MODEL } = require('./config');
+const { OMDB_API_KEY, MAX_RETRIES, OLLAMA, OLLAMA_MODEL } = require('./config');
 const { parseJsonArray } = require('./json-parser');
 
 let workerBusy = false;

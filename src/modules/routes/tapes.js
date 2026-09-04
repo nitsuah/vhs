@@ -3,6 +3,7 @@
 
 const { pool } = require('../db');
 const { ENABLED } = require('../auth');
+const { serverError } = require('../http-errors');
 
 // When auth is enabled: scope reads to this user's tapes only.
 // When auth is disabled: return everything (existing behaviour).
@@ -19,7 +20,7 @@ async function tapesGetHandler(req, res) {
     }
     res.json(rows.map(r => r.data));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 }
 
@@ -33,7 +34,7 @@ async function tapesPostHandler(req, res) {
     );
     res.status(201).json(tape);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 }
 
@@ -55,7 +56,7 @@ async function tapesPutHandler(req, res) {
     if (rowCount === 0) return res.status(404).json({ error: 'not found' });
     res.json(tape);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 }
 
@@ -73,7 +74,7 @@ async function tapesDeleteHandler(req, res) {
     if (rowCount === 0) return res.status(404).json({ error: 'not found' });
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 }
 
