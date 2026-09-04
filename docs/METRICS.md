@@ -4,11 +4,11 @@
 
 | Metric          | Value      | Notes                                   |
 | --------------- | ---------- | --------------------------------------- |
-| Code Coverage   | 74.88%     | Docker whole-tree measurement (lines) — see caveat below |
+| Code Coverage   | 72.06%     | Native `npx jest --coverage` (config-backed gate, `src/server.js` only) — cloud audit agent, Docker unavailable; whole-tree Docker measurement not run this cycle, see caveat below |
 | Test Files      | 6          | server.test.js, coverage-boost.test.js, debug-jobs.test.js, basic.test.js, test-omdb-enhancements.spec.js, ebay-valuation.test.js |
 | Unit Test Cases | 205        | All passing (6 test files; per-suite counts below) |
 | E2E Test Files  | 14         | Playwright specs in tests_playwright/   |
-| Last Updated    | 2026-08-27 |                                         |
+| Last Updated    | 2026-09-04 |                                         |
 
 ## Collection Stats
 
@@ -59,8 +59,8 @@ comparable to each other:
 
 | Basis | Command | Scope | Lines | Gate |
 | ----- | ------- | ----- | ----- | ---- |
-| **Measurement only** | `docker run … npx jest --coverage` | Whole tree (config ignored) | **74.88%** | none applied |
-| **Config-backed gate** | `npx jest --coverage` with `jest.config.js` | `src/server.js` only | **71.94%** | 60% lines — passes |
+| **Measurement only** | `docker run … npx jest --coverage` | Whole tree (config ignored) | **74.88%** (2026-08-27, not re-measured this cycle — Docker unavailable) | none applied |
+| **Config-backed gate** | `npx jest --coverage` with `jest.config.js` | `src/server.js` only | **72.06%** (2026-09-04, native) | 60% lines — passes |
 
 The whole-tree run silently ignores both `collectCoverageFrom` and `coverageThreshold`,
 so it never enforces anything. Never check the whole-tree figure against the configured
