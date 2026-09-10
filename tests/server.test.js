@@ -34,11 +34,12 @@ describe('GET /api/tapes', () => {
     expect(res.body).toEqual([{ id: 'VHS-0001', title: 'Jaws' }]);
   });
 
-  it('returns 500 on db error', async () => {
+  it('returns 500 on db error without leaking the raw error message', async () => {
     mockQuery.mockRejectedValue(new Error('connection refused'));
     const res = await request(app).get('/api/tapes');
     expect(res.status).toBe(500);
-    expect(res.body.error).toMatch(/connection refused/);
+    expect(res.body.error).toBe('internal server error');
+    expect(res.body.error).not.toMatch(/connection refused/);
   });
 });
 

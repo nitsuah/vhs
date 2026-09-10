@@ -53,6 +53,7 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 
 - `[shipped]` **CSV Export** — full collection with all fields; formula-injection safe
 - `[shipped]` **For-Sale CSV** — filtered export with eBay condition labels
+- `[shipped]` **Sell Drafts (eBay/Mercari)** — one-command draft template generator for `for_sale` tapes: copy-ready title, condition-aware description, suggested price, tags, and notes per tape, with a one-click "Copy listing text" button
 - `[shipped]` **JSON Export / Import** — full round-trip backup including photos
 - `[shipped]` **CSV Import** — accepts app export format or manual spreadsheets
 - `[shipped]` **Print Price Tags** — printable 2.4" dashed-border tags for `for_sale` tapes
@@ -64,7 +65,7 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 
 ## Quality
 
-- `[shipped]` **Jest Unit Tests** — server-side logic; 5 test files; ≥ 75% line coverage on `src/server.js`
+- `[shipped]` **Jest Unit Tests** — server-side logic; 8 test files; ≥ 85% whole-tree line coverage (`src/server.js` + `src/modules/**`, see `docs/METRICS.md`)
 - `[shipped]` **Playwright E2E Tests** — full coverage of all major features and modals
 - `[shipped]` **CI** — Hadolint, Shellcheck, HTMLHint, ESLint, `node --check` syntax check, `npm ci --omit=dev` dep check, Jest unit tests, Docker build smoke test
 
@@ -75,5 +76,6 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 ## Planned
 
 - `[planned]` **Sold-price valuation** — eBay Marketplace Insights API for realized sale prices rather than asking prices
-- `[planned]` **Multi-tape detection** — detect and crop individual tapes from batch photos (OpenCV)
-- `[planned]` **Tape wall gallery** — scrollable masonry grid (wall view is shipped; auto-crop thumbnails are the remaining piece)
+- `[planned — 2027]` **Multi-tape detection** — detect and crop individual tapes from batch photos (OpenCV); see `docs/ROADMAP.md`
+- `[planned — 2027]` **Auto-crop thumbnails for wall view** — depends on multi-tape detection above; see `docs/ROADMAP.md`
+- `[planned — 2027]` **GPU performance tuning for AI scanning** — the `web-gpu` Docker Compose profile exists; benchmarking and model/prompt tuning against real GPU hardware is the remaining work; see `docs/ROADMAP.md`

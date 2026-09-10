@@ -40,6 +40,7 @@ const {
 } = require('./modules/routes/tapes');
 const { valuatePreviewHandler, valuateTapeHandler } = require('./modules/routes/valuate');
 const { registerStaticAndProxy } = require('./modules/routes/system');
+const { serverError } = require('./modules/http-errors');
 
 // ── App setup ──────────────────────────────────────────────────────────────────
 const app = express();
@@ -51,7 +52,10 @@ app.use(cookieParser());
 app.use(optionalAuth); // sets req.user from JWT cookie when auth is enabled
 
 // ── Activity log SSE endpoint ──────────────────────────────────────────────────
-app.get('/api/logs', (req, res) => {
+// Exposes scan/review detail (tape titles, upstream errors) — requireAuth is a
+// no-op when auth is disabled (single-user mode), so this only actually gates
+// access once Google OAuth is configured.
+app.get('/api/logs', requireAuth, (req, res) => {
   const wantsSSE = req.headers.accept?.includes('text/event-stream');
   if (!wantsSSE) {
     // Regular request: return log array
@@ -109,7 +113,7 @@ app.get('/api/system', defaultLimiter, async (req, res) => {
       ts: new Date().toISOString()
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    serverError(res, e);
   }
 });
 
@@ -202,7 +206,7 @@ app.put('/api/auth/share', defaultLimiter, requireAuth, async (req, res) => {
     }
     res.json({ collection_public, share_slug: slug || null });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -216,7 +220,7 @@ app.get('/api/auth/share', defaultLimiter, requireAuth, async (req, res) => {
     const row = rows[0] || { collection_public: false, share_slug: null };
     res.json(row);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -235,7 +239,7 @@ app.get('/api/share/:slug', defaultLimiter, async (req, res) => {
     );
     res.json({ owner, tapes: tapes.map(r => r.data) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -417,7 +421,7 @@ app.post('/api/jobs', jobsCreateLimiter, async (req, res) => {
     logActivity('info', `Upload job created: ${id}`);
     res.status(201).json({ id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -489,7 +493,7 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
     const ct = r.headers.get('content-type') || 'image/jpeg';
     res.json({ dataUrl: `data:${ct};base64,${b64}` });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    serverError(res, e);
   }
 });
 
@@ -498,7 +502,7 @@ app.delete('/api/jobs/:id', defaultLimiter, async (req, res) => {
     await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -507,7 +511,7 @@ app.post('/api/jobs/retry-failed', defaultLimiter, async (_req, res) => {
     const { rowCount } = await pool.query("UPDATE upload_jobs SET status='pending' WHERE status='failed' AND retry_count<3");
     res.json({ ok: true, requeued: rowCount });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -529,7 +533,7 @@ app.post('/api/review', defaultLimiter, async (req, res) => {
     logActivity('info', `Review proposal created: ${id} source=${source || 'manual'} title=${data.title || '?'}`);
     res.status(201).json({ id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -540,7 +544,7 @@ app.get('/api/review/pending', defaultLimiter, async (_req, res) => {
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -549,7 +553,7 @@ app.delete('/api/review/:id', defaultLimiter, async (req, res) => {
     await pool.query('DELETE FROM review_items WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -564,7 +568,7 @@ app.get('/api/jobs/status', defaultLimiter, async (_req, res) => {
     counts.review_pending = parseInt(reviewRes.rows[0]?.c || reviewRes.rows[0]?.count || '0', 10);
     res.json(counts);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -575,7 +579,7 @@ app.get('/api/jobs/inflight', defaultLimiter, async (_req, res) => {
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -588,7 +592,7 @@ app.post('/api/jobs/:id/retry', defaultLimiter, async (req, res) => {
     if (!rowCount) return res.status(404).json({ error: 'not found or not retryable' });
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -598,7 +602,7 @@ app.get('/api/jobs/:id', defaultLimiter, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'not found' });
     res.json(rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -607,7 +611,7 @@ app.delete('/api/jobs/:id', defaultLimiter, async (req, res) => {
     await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -616,7 +620,7 @@ app.post('/api/jobs/retry-failed', defaultLimiter, async (_req, res) => {
     const { rowCount } = await pool.query("UPDATE upload_jobs SET status='pending' WHERE status='failed' AND retry_count<3");
     res.json({ ok: true, requeued: rowCount });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -631,7 +635,7 @@ app.post('/api/analytics/outcome', defaultLimiter, async (req, res) => {
     );
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 

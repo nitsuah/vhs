@@ -435,10 +435,11 @@ describe('POST /api/tapes/:id/valuate', () => {
     expect(JSON.stringify(res.body)).not.toContain('upstream-secret-detail');
   });
 
-  it('500s when the tape read fails', async () => {
+  it('500s when the tape read fails, without leaking the raw error message', async () => {
     mockQuery.mockRejectedValue(new Error('connection refused'));
     const res = await request(app).post('/api/tapes/VHS-0001/valuate').send({});
     expect(res.status).toBe(500);
-    expect(res.body.error).toMatch(/connection refused/);
+    expect(res.body.error).toBe('internal server error');
+    expect(res.body.error).not.toMatch(/connection refused/);
   });
 });

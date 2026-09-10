@@ -6,6 +6,7 @@
 const { pool } = require('../db');
 const { ENABLED } = require('../auth');
 const { valuateTitle, isConfigured } = require('../ebay');
+const { serverError } = require('../http-errors');
 
 function notConfigured(res) {
   return res.status(503).json({
@@ -80,7 +81,7 @@ async function valuateTapeHandler(req, res) {
     if (!rows.length) return res.status(404).json({ error: 'not found' });
     tape = rows[0].data || {};
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return serverError(res, err);
   }
 
   const body = req.body || {};
@@ -129,7 +130,7 @@ async function valuateTapeHandler(req, res) {
       if (!rows.length) return res.status(404).json({ error: 'not found' });
       updated = rows[0].data;
     } catch (err) {
-      return res.status(500).json({ error: err.message });
+      return serverError(res, err);
     }
   }
 

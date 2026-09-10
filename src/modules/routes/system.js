@@ -1,8 +1,7 @@
-// ── System health ───────────────────────────────────────────────────────────────
+// ── Static files, Ollama proxy, SPA catch-all ─────────────────────────────────
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-const fs = require('fs');
 
 // Rate limit for all routes - 100 requests per minute per IP
 const limiter = rateLimit({
@@ -12,47 +11,8 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
-const { pool } = require('../db');
-const { callOmdb } = require('../omdb');
-const { pingOllama } = require('../ollama');
-const { OMDB_API_KEY, CERT_DIR, OLLAMA, OLLAMA_MODEL } = require('../config');
+const { OLLAMA } = require('../config');
 const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
-
-async function healthHandler(req, res) {
-  try {
-    const [dbRes, ollamaOk, omdbOk] = await Promise.allSettled([
-      pool.query('SELECT 1'),
-      pingOllama(),
-      (async () => {
-        if (!OMDB_API_KEY) return { ok: false, reason: 'no key' };
-        const r = await callOmdb({ title: 'test' }, OMDB_API_KEY).catch(() => null);
-        return { ok: !!r };
-      })()
-    ]);
-
-    const caCert = path.join(CERT_DIR, 'ca.crt');
-    const httpsCertsOk = fs.existsSync(caCert);
-
-    res.json({
-      status: 'ok',
-      db: dbRes.status === 'fulfilled' ? 'ok' : 'fail',
-      ollama: ollamaOk.status === 'fulfilled' && ollamaOk.value ? 'ok' : 'fail',
-      omdb: omdbOk.status === 'fulfilled' && omdbOk.value.ok ? 'ok' : 'fail',
-      httpsCerts: httpsCertsOk ? 'ok' : 'missing',
-      ts: new Date().toISOString(),
-    });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-}
-
-async function caCertHandler(req, res) {
-  const caCert = path.join(CERT_DIR, 'ca.crt');
-  if (!fs.existsSync(caCert)) return res.status(404).json({ error: 'CA cert not found' });
-  res.setHeader('Content-Type', 'application/x-x509-ca-cert');
-  res.setHeader('Content-Disposition', 'attachment; filename="vhs-scanner-ca.crt"');
-  res.sendFile(caCert);
-}
 
 function registerStaticAndProxy(app) {
   app.use('/', limiter);
@@ -78,4 +38,4 @@ function registerStaticAndProxy(app) {
   app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html'))); // codeql[js/missing-rate-limiting] app.use('/',limiter) above covers this catch-all
 }
 
-module.exports = { healthHandler, caCertHandler, registerStaticAndProxy };
+module.exports = { registerStaticAndProxy };

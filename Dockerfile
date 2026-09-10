@@ -4,6 +4,7 @@ RUN apk add --no-cache openssl
 WORKDIR /app
 COPY --chown=node:node package*.json ./
 COPY --chown=node:node .eslintrc.json ./
+COPY --chown=node:node jest.config.js ./
 RUN npm ci
 COPY --chown=node:node src/ src/
 COPY --chown=node:node migrations/ ./migrations/

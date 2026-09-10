@@ -2,6 +2,7 @@
 const { pool } = require('../db');
 const { logActivity } = require('../activity-log');
 const { jobId, reviewItemId } = require('../ids');
+const { serverError } = require('../http-errors');
 
 async function jobsReadyHandler(req, res) {
   try {
@@ -10,7 +11,7 @@ async function jobsReadyHandler(req, res) {
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 }
 
@@ -25,7 +26,7 @@ async function jobsStatusHandler(req, res) {
     counts.review_pending = parseInt(reviewRes.rows[0]?.count || '0', 10);
     res.json(counts);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 }
 
@@ -38,7 +39,7 @@ async function jobsGetHandler(req, res) {
     if (!rows.length) return res.status(404).json({ error: 'not found' });
     res.json(rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 }
 
@@ -47,7 +48,7 @@ async function jobsDeleteHandler(req, res) {
     await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 }
 
@@ -61,7 +62,7 @@ async function jobsRetryFailedHandler(req, res) {
     );
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 }
 
@@ -75,7 +76,7 @@ async function analyticsOutcomeHandler(req, res) {
     );
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 }
 
@@ -92,7 +93,7 @@ async function reviewCreateHandler(req, res) {
     logActivity('info', `Review proposal created: ${id} source=${source || 'manual'} title=${data.title || '?'}`);
     res.status(201).json({ id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 }
 

@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased] — 2026 roadmap completion + docs refresh
+
+### Fixed
+
+- **`worker.js` `OLLAMA` ReferenceError** — a log line referenced an undefined `OLLAMA` variable, throwing on every pending job and silently aborting the AI scan pipeline before it ever called Ollama (caught by the outer try/catch, logged only as a generic "Worker error"). Found via new test coverage, not by manual QA — the failure mode left no obvious symptom besides scans never completing.
+- **Raw `err.message` leaked to API clients** — `tapes.js`, `jobs.js`, `server.js`, and the two remaining DB paths in `valuate.js` returned PostgreSQL error text directly to callers. All now go through a shared `serverError()` helper (`src/modules/http-errors.js`) that logs server-side and returns a fixed message.
+- **`/api/logs` unauthenticated** — gated with `requireAuth` (no-op in single-user mode).
+- **Docker/config coverage mismatch** — Dockerfile now copies `jest.config.js`, so `docker run … npx jest --coverage` honors `collectCoverageFrom`/`coverageThreshold` instead of silently measuring the whole tree ungated.
+
+### Removed
+
+- **Dead code in `routes/system.js`** — `healthHandler`/`caCertHandler` were unused duplicates of `routes/health.js` and the inline `/api/ca-cert` handler in `server.js`.
+
+### Added
+
+- **Sell Drafts (eBay/Mercari) export** — one-command draft template generator for `for_sale` tapes; copy-ready title, condition-aware description, suggested price, tags, and notes per tape.
+- `tests/worker.test.js`, `tests/auth.test.js` — previously untested modules (44%/34% line coverage) now at 100%.
+
+### Docs
+
+- Corrected several `docs/TASKS.md` Tech Debt items that were already fixed on `main` but never marked done (state.js setters, circular imports, crop-overlay.js ESM, list-view.js listeners/imports, wall-view.js selection styling, string-utils.js tag stripping) — re-verified against current source rather than re-implemented.
+- Flagged two new findings for follow-up: orphaned `routes/jobs.js`/`routes/lookup.js` (never `require()`d — excluded from coverage scope, not yet deleted), and an `/api/logs/stream` vs. `/api/logs` client/server path mismatch.
+- Added a `2027` section to `docs/ROADMAP.md` for CV/GPU-heavy work (multi-tape detection, auto-crop thumbnails, GPU performance tuning) triaged out of this pass as needing real model/hardware work.
+- `docs/METRICS.md` rewritten with freshly measured numbers (85.4% whole-tree line coverage, 231 tests, 8 suites) rather than carried-forward figures.
+
+---
+
 ## [Unreleased] — security-and-auth-hardening (PR #41)
 
 ### Added
