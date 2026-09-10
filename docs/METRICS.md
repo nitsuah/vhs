@@ -63,7 +63,7 @@ didn't), so `docker run … npx jest --coverage` and a local `npx jest --coverag
 `jest.config.js`. Previously these disagreed (71.94% config-scoped vs. 74.88%
 whole-tree-ungated) because the Docker image silently ignored the config file entirely.
 
-`src/modules/routes/jobs.js` and `routes/lookup.js` are excluded from
+`src/modules/routes/jobs.js` and `src/modules/routes/lookup.js` are excluded from
 `collectCoverageFrom` — both are confirmed orphaned (server.js implements those routes
 inline and never `require()`s either file; see `docs/TASKS.md`). Counting dead code
 against coverage would understate real posture, not overstate it, so this is a scope

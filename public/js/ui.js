@@ -490,15 +490,20 @@ document.getElementById('exp-sell').addEventListener('click',()=>{
 // One-command generator for `for_sale` tapes — produces a ready-to-paste
 // title + description + suggested price per tape, so listing on eBay or
 // Mercari is copy/paste rather than retyping from the collection.
+// `condition` is a physical-condition grade only (like-new/good/fair/poor) —
+// there's no recorded playback test-status field on a tape, so the wording
+// here must not claim "tested and working". Listing a tape as tested when
+// it hasn't actually been played is a real return/dispute risk, not just a
+// wording nitpick.
 const CONDITION_WORDING = {
-  great: 'Like new — tested and working, minimal wear.',
-  good: 'Good used condition — tested and working, normal shelf wear.',
-  fair: 'Fair condition — tested and working, visible wear (see photos).',
+  great: 'Like new, minimal wear.',
+  good: 'Good used condition, normal shelf wear.',
+  fair: 'Fair condition, visible wear (see photos).',
   poor: 'For parts/not working, or heavy wear — sold as-is.',
 };
 function buildSellDraft(t) {
   const bits = [t.title, t.year, t.label].filter(Boolean).join(' ');
-  const title = `${bits}${t.format && t.format !== 'VHS' ? ` (${t.format})` : ' VHS'} — Tested`.slice(0, 80);
+  const title = `${bits}${t.format && t.format !== 'VHS' ? ` (${t.format})` : ' VHS'}`.slice(0, 80);
   const price = t.value_low && t.value_high ? `$${t.value_low}–$${t.value_high}`
     : t.value_low ? `$${t.value_low}` : t.value_high ? `$${t.value_high}` : 'price TBD — see comps';
   const cond = CONDITION_WORDING[t.condition] || CONDITION_WORDING.good;
