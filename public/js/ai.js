@@ -30,7 +30,7 @@ export function updateAiBadge(){
   else if(ollamaAvail)setAiBadge('ollama',ollamaModel);
   else setAiBadge('noai','NO AI');
   // Hide fill/check buttons when no AI is connected
-  ['btn-fill-data','btn-revalidate','bulk-fill'].forEach(id=>{
+  ['btn-fill-data','btn-revalidate','bulk-fill','btn-fill-data-mob','btn-revalidate-mob'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display=hasAi?'':'none';
   });

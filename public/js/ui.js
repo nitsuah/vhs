@@ -377,7 +377,7 @@ document.getElementById('btn-export-mob')?.addEventListener('click',e=>{
   e.stopPropagation();
   document.getElementById('exp-dd-mob').classList.toggle('open');
 });
-[['exp-json-mob','exp-json'],['exp-csv-mob','exp-csv'],['exp-sell-mob','exp-sell'],['exp-print-mob','exp-print']].forEach(([mob,desk])=>{
+[['exp-json-mob','exp-json'],['exp-csv-mob','exp-csv'],['exp-sell-mob','exp-sell'],['exp-drafts-mob','exp-drafts'],['exp-print-mob','exp-print']].forEach(([mob,desk])=>{
   document.getElementById(mob)?.addEventListener('click',()=>{closeDrawer();document.getElementById(desk)?.click();});
 });
 
@@ -632,7 +632,7 @@ tr:hover{background:#f0f0f0!important}@media print{button{display:none}}</style>
   function openLogs(){
     logPanel.style.display='flex';
     if(sse)return;
-    const es=new EventSource('/api/logs/stream');
+    const es=new EventSource('/api/logs');
     sse=es;
     let _closeTimer=null;
     es.onmessage=e=>{try{appendEntry(JSON.parse(e.data));}catch{}};

@@ -47,7 +47,7 @@ function renderAuthChip() {
   document.querySelectorAll('.btn-signout').forEach(el => el.addEventListener('click', signOut));
 
   const canWrite = !_authEnabled || !!_user;
-  ['btn-add-tape', 'btn-import'].forEach(id => {
+  ['btn-add-tape', 'btn-import', 'btn-add-tape-mob', 'btn-import-mob'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = canWrite ? '' : 'none';
   });
