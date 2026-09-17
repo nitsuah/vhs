@@ -37,6 +37,8 @@ export function renderDetailPhotos(t) {
   if (!wrap) return;
   const photos = t.photos || [];
   wrap.style.display = photos.length ? 'flex' : 'none';
+  const countEl = document.getElementById('d-photo-count');
+  if (countEl) countEl.textContent = photos.length ? `${photos.length} photo${photos.length !== 1 ? 's' : ''}` : '';
   wrap.innerHTML = photos.map((p, i) => {
     const isFace = t.photo_face === p;
     const isSpine = t.photo_spine === p;

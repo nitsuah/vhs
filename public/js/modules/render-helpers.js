@@ -1,6 +1,14 @@
 // ── RENDER HELPERS ────────────────────────────────────────────────────────────
 export const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
+// includeRotate: pass true only when this image is also getting the
+// StacksUp-mode sideways layout rotation (.su-img-spine's CSS class) —
+// an inline crop-adjustment style overrides that CSS transform outright,
+// so it must replicate the same rotation there or the image would render
+// upright-in-a-sideways-card. Every other context (table thumbnail, plain
+// Spine-landscape view, cover art) must pass false/omit it, since those
+// never apply a layout rotation and stacking one on top of a crop
+// adjustment would visibly rotate the image incorrectly.
 export function _cropStyle(t, role, includeRotate) {
   const c = (t.photo_crop || {})[role];
   if (!c) return '';

@@ -1,7 +1,7 @@
 // ── REVIEW PANEL ─────────────────────────────────────────────────────────
 import { inventory, setInventory, renderInv, updateCount, esc, renderTagChips, initTagChips } from './inventory.js';
 import { dbAdd, dbPut, nextId } from './db.js';
-import { lookupMetadata, callAI } from './ai.js';
+import { lookupMetadata, callAI, getLastLookupFailure } from './ai.js';
 import { findDup, toast, rotateImage90CCW, triggerTapeInsertAnim, flashInvRow } from './utils.js';
 import { cards, setCards, uidSeq, setUidSeq, nextUidSeq } from './state.js';
 
@@ -165,7 +165,7 @@ export function renderCards() {
       btn.disabled = true; btn.textContent = '…';
       const meta = await lookupMetadata(title);
       btn.disabled = false; btn.textContent = '🔍';
-      if (!meta) return;
+      if (!meta) { toast(getLastLookupFailure() || `No metadata found for "${title}"`, 'warn'); return; }
       if (meta.year) card.data.year = meta.year;
       if (meta.label) card.data.label = meta.label;
       if (meta.format) card.data.format = meta.format;

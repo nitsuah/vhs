@@ -41,6 +41,12 @@ export let ollamaModel = localStorage.getItem('vhs-ollama-model') || 'llava:7b';
 export let fastMode    = localStorage.getItem('vhs-fast-mode') !== 'false';
 export let omdbKey     = localStorage.getItem('vhs-omdb-key')     || '';
 export let ollamaAvail = false;
+// OpenAI-compatible local AI provider (LM Studio, 9router, llama.cpp server,
+// etc.) — a separate setting from ollamaUrl above since it's a different
+// wire format (OpenAI chat completions vs Ollama's /api/generate). Set via
+// Settings → Find Local AI (browser-side discovery, see ai.js).
+export let localAiUrl   = localStorage.getItem('vhs-local-ai-url')   || '';
+export let localAiModel = localStorage.getItem('vhs-local-ai-model') || '';
 export let cards          = [];   // pending review: [{uid, data, thumb, expanded, source}]
 export let captureQueue   = [];   // staged captures: [{base64, thumb}]
 export let uidSeq         = 0;
@@ -55,6 +61,8 @@ export function setOllamaModel(v) { ollamaModel = v; }
 export function setFastMode(v) { fastMode = v; }
 export function setOmdbKey(v) { omdbKey = v; }
 export function setOllamaAvail(v) { ollamaAvail = v; }
+export function setLocalAiUrl(v) { localAiUrl = v; }
+export function setLocalAiModel(v) { localAiModel = v; }
 export let cropFrac       = { x:.12, y:.08, w:.76, h:.84 };
 export let editingId      = null;
 export const pendingEdits = new Map();

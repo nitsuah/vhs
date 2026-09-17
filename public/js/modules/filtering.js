@@ -1,5 +1,5 @@
 // ── FILTERING & SORTING ───────────────────────────────────────────────────────
-import { getInventory, getColFilters } from './inventory-state.js';
+import { getInventory, getColFilters, getSortValue } from './inventory-state.js';
 
 function norm(t) {
   return (t || '').toLowerCase().replace(/^(the |a |an )/i, '').trim();
@@ -8,7 +8,7 @@ function norm(t) {
 export function getFiltered() {
   const inv = getInventory();
   const filters = getColFilters();
-  const sort = document.getElementById('sort-sel')?.value || 'scanned_desc';
+  const sort = getSortValue();
 
   let items = inv.filter(t => {
     const q = (document.getElementById('search')?.value || '').toLowerCase();
@@ -40,6 +40,14 @@ export function getFiltered() {
     const condRank = { great: 0, good: 1, fair: 2, poor: 3 };
     if (sort === 'cond_asc') return (condRank[a.condition] ?? 1) - (condRank[b.condition] ?? 1);
     if (sort === 'cond_desc') return (condRank[b.condition] ?? 1) - (condRank[a.condition] ?? 1);
+    // Label/format/status have no dedicated #sort-sel option — only reachable
+    // via clicking their column header (see attachSortHeaders in list-view.js).
+    if (sort === 'label_asc') return (a.label || '').toLowerCase().localeCompare((b.label || '').toLowerCase());
+    if (sort === 'label_desc') return (b.label || '').toLowerCase().localeCompare((a.label || '').toLowerCase());
+    if (sort === 'format_asc') return (a.format || '').toLowerCase().localeCompare((b.format || '').toLowerCase());
+    if (sort === 'format_desc') return (b.format || '').toLowerCase().localeCompare((a.format || '').toLowerCase());
+    if (sort === 'status_asc') return (a.status || '').toLowerCase().localeCompare((b.status || '').toLowerCase());
+    if (sort === 'status_desc') return (b.status || '').toLowerCase().localeCompare((a.status || '').toLowerCase());
     return (b.scanned_at || '').localeCompare(a.scanned_at || '');
   });
 

@@ -2,7 +2,7 @@
 import { inventory, renderInv, updateCount } from './inventory.js';
 import { dbAdd, nextId } from './db.js';
 import { findDup } from './utils.js';
-import { lookupBarcode, callAI } from './ai.js';
+import { lookupBarcode, callAI, getLastLookupFailure } from './ai.js';
 import { addCard, showRevPanel, renderCards, setRevLoading, setRevMsg, showRevErr, cards, _seenAdd, _seenDel, seenJobIds } from './review.js';
 import { captureQueue, setCaptureQueue, nextUidSeq } from './state.js';
 import { apiKey } from './state.js';
@@ -122,7 +122,7 @@ async function addBarcodeCard(code) {
     cards.push(card);
     showRevPanel();
     renderCards();
-    toast(`No match for ${code} — enter title manually`, 'warn', 4000);
+    toast(getLastLookupFailure() || `No match for ${code} — enter title manually`, 'warn', 4500);
   }
 }
 

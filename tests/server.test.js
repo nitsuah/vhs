@@ -422,11 +422,12 @@ describe('GET /api/lookup', () => {
     expect(res.body.poster).toBeUndefined();
   });
 
-  it('returns empty object when both Ollama and OMDb fail', async () => {
+  it('reports why, instead of an empty object, when both Ollama and OMDb fail', async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('network error'));
     const res = await request(app).get('/api/lookup?title=Unknown');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({});
+    expect(res.body.error).toBe('no_metadata_found');
+    expect(res.body.reasons.ollama).toBe('unreachable');
   });
 });
 

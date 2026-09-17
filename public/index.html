@@ -12,9 +12,9 @@
 <header id="header">
   <h1>VHS <span>Box</span></h1>
   <nav id="tab-nav">
-    <button class="tab-btn active" data-tab="capture" id="tab-capture"><span class="tab-ico">📷</span><span class="tab-lbl">Capture</span></button>
+    <button class="tab-btn" data-tab="capture" id="tab-capture"><span class="tab-ico">📷</span><span class="tab-lbl">Capture</span></button>
     <button class="tab-btn" data-tab="review" id="tab-review"><span class="tab-ico-wrap"><span class="tab-ico">📋</span><span class="tab-badge" id="tab-review-count" style="display:none">0</span></span><span class="tab-lbl">Review</span></button>
-    <button class="tab-btn" data-tab="collect" id="tab-collect"><span class="tab-ico">📼</span><span class="tab-lbl" id="collect-count"></span></button>
+    <button class="tab-btn active" data-tab="collect" id="tab-collect"><span class="tab-ico">📼</span><span class="tab-lbl" id="collect-count"></span></button>
   </nav>
   <select id="camera-select" style="display:none"></select>
   <div class="hdr-right" id="hdr-right-desktop">
@@ -191,17 +191,17 @@
     <div id="inv-panel">
       <div id="collect-subhdr">
         <div class="csh-row1">
-          <button class="hbtn hbtn-view" id="btn-wall">⊞ Wall</button>
-          <button class="hbtn hbtn-view hbtn-fill" id="btn-fill-data" title="Fill missing data from OMDb">⚡ Fill</button>
-          <div id="fill-progress" style="display:none;align-items:center;gap:5px">
-            <div style="width:70px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden"><div id="fill-progress-bar" style="height:100%;background:var(--yellow);width:0%;transition:width .25s ease-out"></div></div>
-            <button id="fill-cancel-btn" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:0 2px;line-height:1" title="Cancel fill">✕</button>
-          </div>
-          <button class="hbtn hbtn-view hbtn-check" id="btn-revalidate" title="Check with Ollama — re-analyze photo vs saved data" style="display:none">🦙 Check</button>
+          <input id="search" type="text" placeholder="Search…">
+          <button id="btn-search" title="Search">🔍</button>
+          <button class="hbtn hbtn-view" id="btn-wall">📋 Table</button>
+          <select id="sort-sel">
+            <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
+            <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
+            <option value="year_asc">Year ↑</option><option value="year_desc">Year ↓</option>
+            <option value="val_desc">Value ↓</option><option value="val_asc">Value ↑</option>
+            <option value="cond_asc">Cond. Best→Worst</option><option value="cond_desc">Cond. Worst→Best</option>
+          </select>
           <span style="flex:1"></span>
-          <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700">+ <span class="btn-txt">Add</span></button>
-          <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ <span class="btn-txt">Import</span></button>
-          <input type="file" id="import-input" accept=".json" style="display:none">
           <div class="exp-wrap">
             <button class="hbtn" id="btn-export" title="Export tapes">↓ <span class="btn-txt">Export</span></button>
             <div class="exp-dd" id="exp-dd">
@@ -213,17 +213,19 @@
               <button id="exp-print">Printable List</button>
             </div>
           </div>
+          <div id="auth-slot-toolbar"></div>
         </div>
         <div class="csh-row2">
-          <input id="search" type="text" placeholder="Search…">
-          <button id="btn-search" title="Search">🔍</button>
-          <select id="sort-sel">
-            <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
-            <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
-            <option value="year_asc">Year ↑</option><option value="year_desc">Year ↓</option>
-            <option value="val_desc">Value ↓</option><option value="val_asc">Value ↑</option>
-            <option value="cond_asc">Cond. Best→Worst</option><option value="cond_desc">Cond. Worst→Best</option>
-          </select>
+          <button class="hbtn hbtn-view hbtn-fill" id="btn-fill-data" title="Fill missing data from OMDb">⚡ Fill</button>
+          <div id="fill-progress" style="display:none;align-items:center;gap:5px">
+            <div style="width:70px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden"><div id="fill-progress-bar" style="height:100%;background:var(--yellow);width:0%;transition:width .25s ease-out"></div></div>
+            <button id="fill-cancel-btn" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:0 2px;line-height:1" title="Cancel fill">✕</button>
+          </div>
+          <button class="hbtn hbtn-view hbtn-check" id="btn-revalidate" title="Check with Ollama — re-analyze photo vs saved data" style="display:none">🦙 Check</button>
+          <span style="flex:1"></span>
+          <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700">+ <span class="btn-txt">Add</span></button>
+          <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ <span class="btn-txt">Import</span></button>
+          <input type="file" id="import-input" accept=".json" style="display:none">
         </div>
       </div>
       <div id="bulk-bar">
@@ -243,13 +245,13 @@
       <div id="inv-list"><table class="tape-table">
         <thead><tr>
           <th class="mc-2" style="width:calc(184px * var(--tbl-zoom))"></th>
-          <th class="mc-3 th-sort" data-col="title">Title</th>
-          <th class="mc-4 th-sort" data-col="year">Year</th>
-          <th class="mc-5 th-sort" data-col="label">Label</th>
-          <th class="mc-6 th-sort" data-col="format">Format</th>
-          <th class="mc-7 th-sort" data-col="condition">Cond.</th>
-          <th class="mc-8 th-sort" data-col="status">Status</th>
-          <th class="mc-9 th-sort" data-col="value">Value</th>
+          <th class="mc-3 th-sort" data-col="title"><span class="th-lbl">Title</span><span class="sort-arr">▲</span><span class="col-rh"></span></th>
+          <th class="mc-4 th-sort" data-col="year"><span class="th-lbl">Year</span><span class="sort-arr">▲</span><span class="col-rh"></span></th>
+          <th class="mc-5 th-sort" data-col="label"><span class="th-lbl">Label</span><span class="sort-arr">▲</span><span class="col-rh"></span></th>
+          <th class="mc-6 th-sort" data-col="format"><span class="th-lbl">Format</span><span class="sort-arr">▲</span><span class="col-rh"></span></th>
+          <th class="mc-7 th-sort" data-col="condition"><span class="th-lbl">Cond.</span><span class="sort-arr">▲</span><span class="col-rh"></span></th>
+          <th class="mc-8 th-sort" data-col="status"><span class="th-lbl">Status</span><span class="sort-arr">▲</span><span class="col-rh"></span></th>
+          <th class="mc-9 th-sort" data-col="value"><span class="th-lbl">Value</span><span class="sort-arr">▲</span><span class="col-rh"></span></th>
           <th class="mc-10">Tags</th>
         </tr></thead>
         <tbody id="inv-tbl"></tbody>
@@ -380,6 +382,14 @@
       </div>
     </div>
     <span class="shint">Docker proxies Ollama at <code>/api/ollama</code>. For GPU acceleration set <code>OLLAMA_UPSTREAM=http://host.docker.internal:11434</code> in <code>.env</code> to use native Windows Ollama with DirectML.</span>
+    <hr class="ssep">
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Find Local AI (tier 2b)</div>
+    <span class="shint">For a hosted deployment (e.g. Netlify) with no AI configured — try to find a local AI server already running on this machine (Ollama, LM Studio, 9router, or similar). Checks a small fixed list of known local endpoints only, never arbitrary network scanning.</span>
+    <div class="srow" style="margin-top:6px;align-items:flex-end">
+      <div class="sfield"><label>Custom URL (optional)</label><input id="s-local-ai-custom" type="text" placeholder="http://localhost:1234"></div>
+      <button class="hbtn" id="btn-find-local-ai" style="white-space:nowrap;margin-bottom:1px">🔎 Find Local AI</button>
+    </div>
+    <div id="local-ai-results" style="display:none;margin-top:8px;font-size:12px;color:var(--text2);line-height:1.6"></div>
     <hr class="ssep">
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">OMDb (movie metadata)</div>
     <div class="sfield">
@@ -517,7 +527,7 @@
     <h2>📍 Adjust Image Position</h2>
     <p id="crop-role-hint" style="font-size:12px;color:var(--text2);margin:0 0 12px;line-height:1.4"></p>
     <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
-      <div id="crop-frame" style="position:relative;overflow:hidden;border:2px solid var(--accent);border-radius:6px;cursor:grab;touch-action:none;user-select:none;flex-shrink:0">
+      <div id="crop-frame" style="position:relative;overflow:hidden;border:2px solid var(--accent);border-radius:6px;cursor:grab;touch-action:none;user-select:none;flex-shrink:0;margin:0 auto">
         <img id="crop-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none">
       </div>
       <div style="font-size:11px;color:var(--text3)" id="crop-pct">50% × 50%</div>

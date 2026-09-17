@@ -1,41 +1,10 @@
 // ── LIST VIEW RENDER ──────────────────────────────────────────────────────────
-import { getInventory, getSelectedId, getSelectedIds, getIsNewTape, setSelectedId, setIsNewTape, getWallMode } from './inventory-state.js';
+import { getInventory, getSelectedId, getSelectedIds, getWallMode, getIsReadOnly } from './inventory-state.js';
 import { getFiltered } from './filtering.js';
 import { esc, _cropStyle, _eggAttrs, statusLabel, renderTagChips } from './render-helpers.js';
-import { openCropOverlay } from './crop-overlay.js';
 import { openDetail as openDetailModal, renderDetailPhotos, initTagChips } from './detail-modal.js';
 import { renderWall } from './wall-view.js';
-
-let _longPressActive = false;
-
-// Global window listeners for long-press — registered once, not per row
-window.addEventListener('mousemove', e => _lpMove(e.clientX, e.clientY));
-window.addEventListener('touchmove', e => _lpMove(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
-window.addEventListener('mouseup', _lpEnd);
-window.addEventListener('touchend', _lpEnd);
-
-let _lpTimer = null, _lpSx = 0, _lpSy = 0, _lpId = null;
-
-function _lpStart(x, y, id) {
-  _lpSx = x; _lpSy = y; _lpId = id;
-  _lpTimer = setTimeout(() => {
-    _longPressActive = true;
-    const t = getInventory().find(x => x.id === _lpId);
-    if (t) { setSelectedId(_lpId); openCropOverlay('face'); }
-  }, 500);
-}
-
-function _lpMove(x, y) {
-  if (_lpTimer && (Math.abs(x - _lpSx) > 10 || Math.abs(y - _lpSy) > 10)) {
-    clearTimeout(_lpTimer);
-    _lpTimer = null;
-  }
-}
-
-function _lpEnd() {
-  if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
-  _longPressActive = false;
-}
+import { attachCardInteraction } from './selection.js';
 
 export function renderList() {
   const items = getFiltered();
@@ -56,9 +25,16 @@ export function renderList() {
     const sel = t.id === selectedId;
     const bulk = selectedIds.has(t.id);
     const tagStr = (t.tags || []).map(tag => `<span class="tag-chip small">${esc(tag)}</span>`).join('');
+    // Apply whichever role's crop adjustment matches the thumbnail actually
+    // shown, so pan/zoom edits are visible in Table view too, not just Wall
+    // views. The table thumbnail is a landscape box like .spine-img, so it
+    // never gets the StacksUp rotation (includeRotate=false either way).
+    const thumbCropStyle = t.photo_face && t.photo_thumbnail === t.photo_face ? _cropStyle(t, 'face', false)
+      : t.photo_spine && t.photo_thumbnail === t.photo_spine ? _cropStyle(t, 'spine', false)
+      : '';
 
     return `<tr class="tape-row${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}${_eggAttrs(t)}" data-id="${t.id}">
-      <td class="mc-2">${t.photo_thumbnail ? `<img class="tbl-thumb" src="${esc(t.photo_thumbnail)}" alt="">` : `<div class="tbl-thumb-ph">📼</div>`}</td>
+      <td class="mc-2">${t.photo_thumbnail ? `<img class="tbl-thumb" src="${esc(t.photo_thumbnail)}" alt=""${thumbCropStyle}>` : `<div class="tbl-thumb-ph">📼</div>`}</td>
       <td class="cell-title mc-3"><span class="title-text">${esc(t.title)}</span></td>
       <td class="cell-year mc-4">${esc(t.year || '')}</td>
       <td class="cell-label mc-5">${esc(t.label || '')}</td>
@@ -71,40 +47,44 @@ export function renderList() {
   }).join('');
 
   tbl.innerHTML = rows;
-  attachRowEvents(tbl);
+  if (!getIsReadOnly()) attachRowEvents(tbl);
+}
+
+function toggleSelected(id) {
+  const set = getSelectedIds();
+  set.has(id) ? set.delete(id) : set.add(id);
+  renderList();
+  updateBulkBar();
+}
+
+function modifierSelect(id, e, tbl) {
+  if (e.shiftKey) {
+    const ids = Array.from(tbl.querySelectorAll('.tape-row')).map(r => r.dataset.id);
+    const a = ids.indexOf(getSelectedId());
+    const b = ids.indexOf(id);
+    if (a < 0) {
+      getSelectedIds().clear();
+      getSelectedIds().add(id);
+    } else {
+      const [lo, hi] = a < b ? [a, b] : [b, a];
+      ids.slice(lo, hi + 1).forEach(i => getSelectedIds().add(i));
+    }
+  } else {
+    const set = getSelectedIds();
+    set.has(id) ? set.delete(id) : set.add(id);
+  }
+  renderList();
+  updateBulkBar();
 }
 
 export function attachRowEvents(tbl) {
   tbl.querySelectorAll('.tape-row').forEach(row => {
-    row.addEventListener('click', e => {
-      if (e.target.closest('input, select, button, .tag-chip')) return;
-      const id = row.dataset.id;
-      if (e.shiftKey) {
-        const ids = Array.from(tbl.querySelectorAll('.tape-row')).map(r => r.dataset.id);
-        const a = ids.indexOf(getSelectedId());
-        const b = ids.indexOf(id);
-        if (a < 0) {
-          getSelectedIds().clear();
-          getSelectedIds().add(id);
-        } else {
-          const [lo, hi] = a < b ? [a, b] : [b, a];
-          ids.slice(lo, hi + 1).forEach(i => getSelectedIds().add(i));
-        }
-      } else if (e.ctrlKey || e.metaKey) {
-        const set = getSelectedIds();
-        set.has(id) ? set.delete(id) : set.add(id);
-      } else {
-        getSelectedIds().clear();
-        getSelectedIds().add(id);
-      }
-      renderList();
-      updateBulkBar();
+    attachCardInteraction(row, {
+      getId: () => row.dataset.id,
+      onOpen: openDetail,
+      onToggleSelect: toggleSelected,
+      onModifierSelect: (id, e) => modifierSelect(id, e, tbl),
     });
-
-    row.addEventListener('dblclick', () => openDetail(row.dataset.id));
-
-    row.addEventListener('mousedown', e => _lpStart(e.clientX, e.clientY, row.dataset.id));
-    row.addEventListener('touchstart', e => _lpStart(e.touches[0].clientX, e.touches[0].clientY, row.dataset.id), { passive: true });
   });
 }
 

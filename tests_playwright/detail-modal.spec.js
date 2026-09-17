@@ -140,7 +140,7 @@ test('pinning face photo shows cover badge and blue border', async ({ page }) =>
   await expect(page.locator('#detail-photos')).toBeVisible({ timeout: 3000 });
 
   // Pin the photo as face cover
-  const pinFaceBtn = page.locator('button[title="Pin as cover (wall view)"]').first();
+  const pinFaceBtn = page.locator('button[title="Pin as cover"]').first();
   await pinFaceBtn.click();
 
   // Active (blue) border should appear immediately
@@ -162,7 +162,7 @@ test('📍 adjust button appears for pinned cover photo', async ({ page }) => {
   await expect(page.locator('#m-detail')).toBeVisible({ timeout: 5000 });
 
   // 📍 button should be present because photo is already pinned
-  const adjustBtn = page.locator('button[title="Adjust position / zoom"]');
+  const adjustBtn = page.locator('button[title="Adjust position"]');
   await expect(adjustBtn).toBeVisible({ timeout: 3000 });
 });
 
@@ -175,7 +175,7 @@ test('crop overlay opens from 📍 button and saves via PUT', async ({ page }) =
   await page.click('#tab-collect');
   await page.evaluate((id) => openDetail(id), tape.id);
 
-  await page.locator('button[title="Adjust position / zoom"]').first().click();
+  await page.locator('button[title="Adjust position"]').first().click();
   const cropModal = page.locator('#m-crop');
   await expect(cropModal).toBeVisible({ timeout: 3000 });
 

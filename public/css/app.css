@@ -191,7 +191,8 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .row-thumb{width:80px;height:22px;object-fit:cover;border-radius:3px;background:var(--bg4);flex-shrink:0}
 .row-thumb-ph{width:80px;height:22px;border-radius:3px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
 .tape-row:hover{background:var(--bg3)}
-.tape-row.selected{background:rgba(68,136,255,.08);border-bottom-color:rgba(68,136,255,.2)}
+.tape-row.sel{background:rgba(68,136,255,.08);border-bottom-color:rgba(68,136,255,.2)}
+.tape-row.bulk-sel{background:rgba(240,192,64,.1);outline:1px solid rgba(240,192,64,.4);outline-offset:-1px}
 .tape-row input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--blue);flex-shrink:0}
 .tid{font-size:11px;color:var(--text3);font-family:monospace}
 #bulk-bar{display:none;padding:8px 14px;background:var(--bg2);border-top:1px solid rgba(68,136,255,.3);flex-shrink:0;gap:8px;align-items:center;flex-wrap:wrap}
@@ -215,14 +216,6 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 
 #wall-view{flex:1;overflow-y:auto;display:none;padding:10px;gap:10px;flex-wrap:wrap;align-content:flex-start}
 #wall-view.on{display:flex}
-.wall-card{width:calc(160px * var(--inv-zoom));display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;padding:7px;border-radius:8px;border:1px solid var(--border);transition:border-color .15s,background .15s;position:relative;overflow:hidden}
-.wall-card:hover{background:var(--bg3);border-color:var(--accent2);transform:translateY(-1px)}
-.wall-img{width:calc(146px * var(--inv-zoom));height:calc(205px * var(--inv-zoom));object-fit:cover;border-radius:5px;background:var(--bg4)}
-.wall-ph{width:calc(146px * var(--inv-zoom));height:calc(205px * var(--inv-zoom));border-radius:5px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:32px}
-.wall-ph-txt{width:146px;height:205px;border-radius:5px;background:var(--bg4);display:flex;align-items:center;justify-content:center;padding:10px;font-size:12px;color:var(--text2);text-align:center;line-height:1.4;word-break:break-word}
-.wall-lbl{font-size:10px;text-align:center;color:var(--text2);line-height:1.3;max-width:146px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-weight:600}
-.wall-meta{font-size:9px;color:var(--text3);text-align:center;max-width:146px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.wall-val{font-size:9px;color:var(--green);text-align:center}
 /* ── SPINE WALL (landscape / hotdog orientation) ─────────────── */
 #wall-view.spine-mode{gap:3px;padding:8px;align-content:flex-start}
 /* ── STACKSUP (upright spines, books-on-shelf) ────────────────── */
@@ -232,6 +225,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .cover-card{width:calc(110px * var(--inv-zoom));display:flex;flex-direction:column;cursor:pointer;border-radius:5px;border:1px solid var(--border);overflow:hidden;background:var(--bg3);transition:border-color .15s;flex-shrink:0;position:relative}
 .cover-card:hover{border-color:var(--accent2);box-shadow:0 2px 8px rgba(0,0,0,.4)}
 .cover-card.sel{border-color:var(--blue);background:rgba(68,136,255,.06)}
+.cover-card.bulk-sel{border-color:var(--yellow);background:rgba(240,192,64,.1)}
 .cover-img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;flex-shrink:0}
 .cover-ph{width:100%;aspect-ratio:2/3;background:var(--bg4);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
 .cover-ph-txt{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:9px;color:var(--text2);padding:4px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-height:140px}
@@ -239,6 +233,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .su-card{width:calc(58px * var(--inv-zoom));height:calc(186px * var(--inv-zoom));display:flex;flex-direction:column;cursor:pointer;border-radius:4px;border:1px solid var(--border);overflow:hidden;background:var(--bg3);transition:border-color .15s;flex-shrink:0;position:relative}
 .su-card:hover{border-color:var(--accent2);box-shadow:0 2px 8px rgba(0,0,0,.4)}
 .su-card.sel{border-color:var(--blue);background:rgba(68,136,255,.06)}
+.su-card.bulk-sel{border-color:var(--yellow);background:rgba(240,192,64,.1)}
 .su-img{width:58px;flex:1;object-fit:cover;display:block}
 /* Spine photo rotated 90° CW so it reads correctly in the stacked-up shelf view */
 .su-img-spine{width:calc(186px * var(--inv-zoom));height:calc(58px * var(--inv-zoom));object-fit:cover;flex:none;display:block;transform:rotate(90deg);transform-origin:center;position:relative;left:calc((58px - 186px) * var(--inv-zoom) / 2);top:calc((186px - 58px) * var(--inv-zoom) / 2)}
@@ -248,6 +243,7 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .spine-card{width:calc(188px * var(--inv-zoom));height:calc(56px * var(--inv-zoom));display:flex;flex-direction:column;cursor:pointer;border-radius:5px;border:1px solid var(--border);overflow:hidden;background:var(--bg3);transition:border-color .15s;flex-shrink:0;position:relative}
 .spine-card:hover{border-color:var(--accent2)}
 .spine-card.sel{border-color:var(--blue);background:rgba(68,136,255,.06)}
+.spine-card.bulk-sel{border-color:var(--yellow);background:rgba(240,192,64,.1)}
 .spine-img{width:calc(188px * var(--inv-zoom));height:calc(44px * var(--inv-zoom));object-fit:cover;display:block;flex-shrink:0}
 .spine-ph-txt{width:calc(188px * var(--inv-zoom));height:calc(44px * var(--inv-zoom));background:var(--bg4);display:flex;align-items:center;padding:0 8px;font-size:10px;color:var(--text2);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;flex-shrink:0}
 .spine-lbl{font-size:8px;color:var(--text3);padding:2px 5px;text-align:left;width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;background:var(--bg2);line-height:1.3;flex:1}
@@ -378,7 +374,13 @@ body.crt-on #crt-overlay{display:block}
 #fbi-youtube-close{position:absolute;top:12px;right:12px;z-index:10;background:rgba(0,0,0,.75);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .15s}
 #fbi-youtube-close:hover{background:rgba(200,0,0,.8)}
 #fill-review-status{padding:7px 14px;font-size:12px;color:var(--text2);background:rgba(240,192,64,.08);border-bottom:1px solid rgba(240,192,64,.2);gap:8px;align-items:center;flex-shrink:0}
-#crop-frame{transition:cursor .1s}
+/* Fixed capture-zone size per role, matching the real display aspect ratio
+   (2:3 portrait for cover/face art, ~4.27:1 landscape for the spine strip)
+   so the pan/zoom preview here matches what Wall view actually shows —
+   previously this had no size at all and was sized by the source image's
+   own intrinsic dimensions instead. */
+#crop-frame{transition:cursor .1s;width:200px;height:300px}
+#crop-frame.crop-frame-spine{width:260px;height:61px}
 #crop-frame:active{cursor:grabbing}
 
 /* ── MATRIX GLITCH ───────────────────────────────────────────────── */
@@ -439,13 +441,14 @@ body.crt-on #crt-overlay{display:block}
 .tab-lbl{font-size:10px;font-weight:700;letter-spacing:.04em}
 /* ── COLLECT SUBHEADER ───────────────────────────────────────────── */
 #collect-subhdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:6px 10px;display:flex;flex-direction:column;gap:5px;flex-shrink:0}
-.csh-row1{display:flex;align-items:center;gap:5px;flex-wrap:nowrap}
-.csh-row2{display:flex;align-items:center;gap:5px}
-.csh-row2 #search{flex:1;min-width:0;background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:6px 9px;border-radius:6px;font-size:13px;font-family:inherit}
-.csh-row2 #search:focus{outline:none;border-color:var(--accent)}
-.csh-row2 #btn-search{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px}
-.csh-row2 #btn-search:hover{border-color:var(--accent);color:var(--text)}
-.csh-row2 #sort-sel{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12px;font-family:inherit;flex-shrink:0}
+.csh-row1{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.csh-row2{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.csh-row1 #search{flex:1;min-width:100px;background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:6px 9px;border-radius:6px;font-size:13px;font-family:inherit}
+.csh-row1 #search:focus{outline:none;border-color:var(--accent)}
+.csh-row1 #btn-search{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px}
+.csh-row1 #btn-search:hover{border-color:var(--accent);color:var(--text)}
+.csh-row1 #sort-sel{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:6px 8px;border-radius:6px;font-size:12px;font-family:inherit;flex-shrink:0}
+#auth-slot-toolbar{display:flex;align-items:center}
 /* Consistent-width view toggle + AI buttons */
 .hbtn-view{min-width:68px;justify-content:center}
 /* Fill AI — gold accent */
@@ -555,10 +558,6 @@ body.crt-on #crt-overlay{display:block}
   .tape-table .mc-10,.tape-table .mc-11,.tape-table .mc-12{display:none}
   /* Mobile checkboxes: grey unselected (browser default), red when checked */
   .tape-table .row-check{accent-color:var(--red)}
-  /* Wall: 2 tiles across on mobile */
-  .wall-card{width:calc(50% - 8px);padding:5px}
-  .wall-img,.wall-ph,.wall-ph-txt{width:100%;height:auto;aspect-ratio:2/3}
-  .wall-lbl{max-width:100%;font-size:9px}
 }
 @media (max-width:700px) and (orientation:landscape){
   #cam-panel{height:160px}

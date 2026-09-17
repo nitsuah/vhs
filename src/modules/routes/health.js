@@ -1,7 +1,7 @@
 // ── ROUTES: HEALTH ────────────────────────────────────────────────────────────
 const { pool } = require('../db');
 const { logActivity } = require('../activity-log');
-const { OLLAMA } = require('../config');
+const { resolveOllamaUrl } = require('../ollama');
 
 async function healthHandler(req, res) {
   let dbOk = false;
@@ -16,7 +16,8 @@ async function healthHandler(req, res) {
   }
 
   try {
-    const ollamaRes = await fetch(`${OLLAMA}/api/tags`, { signal: AbortSignal.timeout(3000) });
+    const upstream = await resolveOllamaUrl();
+    const ollamaRes = await fetch(`${upstream}/api/tags`, { signal: AbortSignal.timeout(3000) });
     ollamaOk = ollamaRes.ok;
     if (ollamaOk) {
       const data = await ollamaRes.json();
