@@ -5,6 +5,7 @@ import { esc, _cropStyle, _eggAttrs, statusLabel, renderTagChips } from './rende
 import { openDetail as openDetailModal, renderDetailPhotos, initTagChips } from './detail-modal.js';
 import { renderWall } from './wall-view.js';
 import { attachCardInteraction } from './selection.js';
+import { attachTitleEggHover, startTitleEggPreview, stopTitleEggPreview } from './title-eggs.js';
 
 export function renderList() {
   const items = getFiltered();
@@ -33,7 +34,7 @@ export function renderList() {
       : t.photo_spine && t.photo_thumbnail === t.photo_spine ? _cropStyle(t, 'spine', false)
       : '';
 
-    return `<tr class="tape-row${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}${_eggAttrs(t)}" data-id="${t.id}">
+    return `<tr class="tape-row${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${t.id}"${_eggAttrs(t)}>
       <td class="mc-2">${t.photo_thumbnail ? `<img class="tbl-thumb" src="${esc(t.photo_thumbnail)}" alt=""${thumbCropStyle}>` : `<div class="tbl-thumb-ph">📼</div>`}</td>
       <td class="cell-title mc-3"><span class="title-text">${esc(t.title)}</span></td>
       <td class="cell-year mc-4">${esc(t.year || '')}</td>
@@ -47,6 +48,7 @@ export function renderList() {
   }).join('');
 
   tbl.innerHTML = rows;
+  tbl.querySelectorAll('.tape-row').forEach(row => attachTitleEggHover(row));
   if (!getIsReadOnly()) attachRowEvents(tbl);
 }
 
@@ -84,6 +86,8 @@ export function attachRowEvents(tbl) {
       onOpen: openDetail,
       onToggleSelect: toggleSelected,
       onModifierSelect: (id, e) => modifierSelect(id, e, tbl),
+      onEggPreview: () => startTitleEggPreview(row),
+      onEggPreviewEnd: () => stopTitleEggPreview(row),
     });
   });
 }

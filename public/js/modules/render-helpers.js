@@ -36,6 +36,21 @@ export function _eggAttrs(t) {
   return attrs.length ? ' ' + attrs.join(' ') : '';
 }
 
+// Drives the genre easter-egg CSS ([data-genres~="horror"] etc., app.css) —
+// tags ARE this app's genre vocabulary, so any tag (predefined or a custom
+// one the user typed) that normalizes to a supported CSS key triggers its
+// effect. A couple of tag labels don't literally match their CSS key
+// (plural "Sports" vs. singular "sport" in the CSS) — aliased explicitly.
+const GENRE_ALIASES = { sports: 'sport' };
+export function _genresAttr(t) {
+  const norm = (t.tags || [])
+    .map(g => String(g).toLowerCase().replace(/[^a-z0-9]/g, ''))
+    .map(g => GENRE_ALIASES[g] || g)
+    .filter(Boolean);
+  const uniq = [...new Set(norm)];
+  return uniq.length ? ` data-genres="${esc(uniq.join(' '))}"` : '';
+}
+
 export function statusLabel(s) {
   return {
     in_collection: 'In Coll.',

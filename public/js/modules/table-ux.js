@@ -12,7 +12,12 @@ const COL_SORT_FIELD = {
 const WIDTHS_KEY = 'vhs-col-widths';
 
 function loadWidths() {
-  try { return JSON.parse(localStorage.getItem(WIDTHS_KEY) || '{}'); } catch { return {}; }
+  try {
+    const widths = JSON.parse(localStorage.getItem(WIDTHS_KEY) || '{}');
+    return widths && typeof widths === 'object' && !Array.isArray(widths) ? widths : {};
+  } catch {
+    return {};
+  }
 }
 function saveWidths(widths) {
   try { localStorage.setItem(WIDTHS_KEY, JSON.stringify(widths)); } catch { /* best-effort persistence only */ }
@@ -95,6 +100,7 @@ export function initTableUX() {
     window.addEventListener('touchmove', onMove, { passive: true });
     window.addEventListener('mouseup', onUp);
     window.addEventListener('touchend', onUp);
+    window.addEventListener('touchcancel', onUp);
 
     handle.addEventListener('dblclick', e => {
       e.stopPropagation();
