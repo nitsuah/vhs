@@ -28,9 +28,14 @@ function renderAuthChip() {
     document.getElementById('auth-slot'),
     document.getElementById('auth-slot-mob'),
   ].filter(Boolean);
-  if (!slots.length) return;
+  const toolbarSlot = document.getElementById('auth-slot-toolbar');
 
-  if (!_authEnabled) { slots.forEach(s => { s.innerHTML = ''; }); return; }
+  if (!_authEnabled) {
+    slots.forEach(s => { s.innerHTML = ''; });
+    if (toolbarSlot) toolbarSlot.innerHTML = '';
+    return;
+  }
+  if (!slots.length && !toolbarSlot) return;
 
   const html = _user
     ? `<div class="auth-chip">
@@ -43,11 +48,15 @@ function renderAuthChip() {
     : `<a href="/auth/google" class="hbtn auth-signin-btn">Sign in with Google</a>`;
 
   slots.forEach(s => { s.innerHTML = html; });
+  // The full chip (avatar/share/sign-out) already lives in the header for
+  // signed-in users — the collection toolbar only needs a sign-in prompt for
+  // unauthenticated visitors, not a duplicate of the header chip.
+  if (toolbarSlot) toolbarSlot.innerHTML = _user ? '' : `<a href="/auth/google" class="hbtn auth-signin-btn">Sign in</a>`;
   document.querySelectorAll('.btn-share-open').forEach(el => el.addEventListener('click', openSharePanel));
   document.querySelectorAll('.btn-signout').forEach(el => el.addEventListener('click', signOut));
 
   const canWrite = !_authEnabled || !!_user;
-  ['btn-add-tape', 'btn-import', 'btn-add-tape-mob', 'btn-import-mob'].forEach(id => {
+  ['btn-add-tape', 'btn-import', 'btn-add-tape-mob', 'btn-import-mob', 'd-add-photo-file'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = canWrite ? '' : 'none';
   });
@@ -200,31 +209,12 @@ export async function loadPublicCollection(slug) {
       </div>`;
   }
 
-  // Render tapes using existing inventory renderer in read-only mode
+  // Render tapes using the same table/wall renderers as the owner's view, in
+  // read-only mode — search/sort/view-switch stay live, mutating controls
+  // (Add/Import/Fill/Revalidate) are hidden individually rather than the
+  // whole toolbar, so a share visitor can still browse the way the owner can.
   const { renderPublicCollection } = await import('./inventory.js');
-  if (typeof renderPublicCollection === 'function') {
-    renderPublicCollection(data.tapes);
-  } else {
-    // Fallback: simple grid
-    renderSimpleGrid(data.tapes);
-  }
-}
-
-function renderSimpleGrid(tapes) {
-  const container = document.createElement('div');
-  container.style.cssText = 'padding:16px;overflow-y:auto;height:calc(100vh - 56px)';
-  container.innerHTML = tapes.length === 0
-    ? `<div style="text-align:center;padding:60px;color:var(--text2);font-size:14px">This collection is empty.</div>`
-    : tapes.map(t => `
-        <div style="display:flex;gap:10px;padding:10px;border-bottom:1px solid var(--border);align-items:center">
-          ${t.photos?.[0] ? `<img src="${escHtml(t.photos[0])}" style="width:48px;height:34px;object-fit:cover;border-radius:4px;flex-shrink:0">` : '<div style="width:48px;height:34px;background:var(--bg4);border-radius:4px;flex-shrink:0"></div>'}
-          <div>
-            <div style="font-size:14px;font-weight:600">${escHtml(t.title || 'Untitled')}</div>
-            <div style="font-size:12px;color:var(--text2)">${escHtml([t.year, t.label, t.condition].filter(Boolean).join(' · '))}</div>
-          </div>
-          <div style="margin-left:auto;font-size:12px;color:var(--text2)">${escHtml(t.status || '')}</div>
-        </div>`).join('');
-  document.body.appendChild(container);
+  renderPublicCollection(data.tapes);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

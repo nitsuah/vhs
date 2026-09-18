@@ -452,10 +452,15 @@ describe('GET /api/lookup', () => {
     expect(res.body.poster).toBe('http://img');
   });
 
-  it('returns {} when both fail', async () => {
+  it('reports why when both fail instead of a bare {}', async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('net'));
     const res = await request(app).get('/api/lookup?title=Unknown');
-    expect(res.body).toEqual({});
+    expect(res.body.error).toBe('no_metadata_found');
+    expect(res.body.reasons.ollama).toBe('unreachable');
+    // Whether OMDB_API_KEY happens to be set in this worker's env (other
+    // suites in this run set it) decides 'not_configured' vs 'no_match' —
+    // either way it must not read 'ok' (which would mean OMDb succeeded).
+    expect(res.body.reasons.omdb).not.toBe('ok');
   });
 
   it('skips ollama when noai=1', async () => {

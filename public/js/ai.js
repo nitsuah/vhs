@@ -1,5 +1,5 @@
 // ── AI MODULE ─────────────────────────────────────────────────────────────
-import { apiKey, ollamaUrl, ollamaModel, fastMode, omdbKey, ollamaAvail, setOllamaAvail, VISION_PROMPT_FAST, VISION_PROMPT_FULL } from './state.js';
+import { apiKey, ollamaUrl, ollamaModel, fastMode, omdbKey, ollamaAvail, setOllamaAvail, localAiUrl, localAiModel, VISION_PROMPT_FAST, VISION_PROMPT_FULL } from './state.js';
 import { parseJson, parseJsonObj } from './utils.js';
 
 // ── AI BADGE ─────────────────────────────────────────────────────────────
@@ -25,9 +25,10 @@ export async function checkOllama(silent=false){
   updateAiBadge();
 }
 export function updateAiBadge(){
-  const hasAi = !!(apiKey || ollamaAvail);
+  const hasAi = !!(apiKey || ollamaAvail || localAiUrl);
   if(apiKey)setAiBadge('claude','CLAUDE');
   else if(ollamaAvail)setAiBadge('ollama',ollamaModel);
+  else if(localAiUrl)setAiBadge('ollama','LOCAL AI');
   else setAiBadge('noai','NO AI');
   // Hide fill/check buttons when no AI is connected
   ['btn-fill-data','btn-revalidate','bulk-fill','btn-fill-data-mob','btn-revalidate-mob'].forEach(id=>{
@@ -81,6 +82,10 @@ export async function callAI(base64){
     try{window.setRevMsg?.('Analyzing with Claude…');results=await callClaude(b64);}
     catch(e){console.warn('Claude failed:',e.message);}
   }
+  if(!results.length&&b64&&localAiUrl){
+    try{window.setRevMsg?.('Analyzing with local AI…');results=await callLocalAI(b64);}
+    catch(e){console.warn('Local AI failed:',e.message);}
+  }
   if(!results.length&&b64){
     const ok=await pingOllama();
     if(ok){
@@ -131,7 +136,99 @@ async function pingOllama(){
   catch{setOllamaAvail(false);updateAiBadge();return false;}
 }
 
+// Generic OpenAI-compatible chat-completions vision call — works against
+// LM Studio, llama.cpp's server, 9router, or any other local router that
+// speaks the OpenAI API surface, not just Ollama's own /api/generate shape.
+async function callLocalAI(base64){
+  const res=await fetch(`${localAiUrl.replace(/\/$/,'')}/v1/chat/completions`,{
+    method:'POST',headers:{'content-type':'application/json'},
+    signal:AbortSignal.timeout(30000),
+    body:JSON.stringify({
+      model:localAiModel||'local-model',
+      messages:[{role:'user',content:[
+        {type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64}`}},
+        {type:'text',text:fastMode?VISION_PROMPT_FAST:VISION_PROMPT_FULL}
+      ]}],
+      max_tokens:fastMode?200:512,
+    })
+  });
+  if(!res.ok)throw new Error(`Local AI ${res.status}`);
+  const d=await res.json();
+  return parseJson(d.choices?.[0]?.message?.content||'[]');
+}
+
+// Every captured tape photo gets sent to whatever URL is connected here, so
+// a custom URL is restricted to loopback addresses — otherwise a mistaken or
+// malicious non-local URL would silently become a standing exfiltration
+// destination for the user's own photos once persisted.
+function isLoopbackHost(urlStr){
+  try{
+    const host=new URL(urlStr).hostname.toLowerCase();
+    return host==='localhost'||host==='127.0.0.1'||host==='::1'||host==='[::1]'||/^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
+  }catch{return false;}
+}
+
+// ── LOCAL AI DISCOVERY (Priority 3b) ────────────────────────────────────────
+// Best-effort browser-side discovery for a hosted deployment (e.g. Netlify)
+// with no AI backend configured. Checks a small FIXED list of known local
+// endpoints (never arbitrary port scanning) via a plain fetch — this only
+// works when the target answers the browser's request, which depends on
+// factors outside this app's control (see findLocalAI's returned `note`).
+const LOCAL_AI_CANDIDATES=[
+  {kind:'ollama',label:'Ollama',url:'http://localhost:11434'},
+  {kind:'openai',label:'LM Studio / OpenAI-compatible',url:'http://localhost:1234'},
+];
+
+export async function findLocalAI(customUrl){
+  const candidates=LOCAL_AI_CANDIDATES.map(c=>({...c}));
+  const results=[];
+  if(customUrl){
+    const u=customUrl.trim().replace(/\/$/,'');
+    if(u&&isLoopbackHost(u)){
+      candidates.push({kind:'openai',label:'Custom',url:u},{kind:'ollama',label:'Custom (Ollama)',url:u});
+    }else if(u){
+      results.push({kind:'custom-rejected',label:'Custom',url:u,found:false,rejected:true});
+    }
+  }
+  for(const c of candidates){
+    const probeUrl=c.kind==='ollama'?`${c.url}/api/tags`:`${c.url}/v1/models`;
+    try{
+      const res=await fetch(probeUrl,{signal:AbortSignal.timeout(2500)});
+      // For OpenAI-compatible providers, also capture a real model id from
+      // /v1/models — callLocalAI's fallback 'local-model' placeholder is
+      // rejected by some providers (LM Studio included), so a discovered
+      // connection needs an actual id to be usable after Connect.
+      const model=c.kind==='openai'&&res.ok?await res.json().then(d=>d?.data?.find(m=>typeof m?.id==='string')?.id||'').catch(()=>''):'';
+      results.push({...c,found:res.ok&&(c.kind!=='openai'||!!model),model});
+    }catch{
+      // fetch() deliberately does not expose *why* a request failed (plain
+      // connection-refused, CORS rejection, and a Chrome Private Network
+      // Access preflight block are all indistinguishable TypeErrors) — so
+      // this cannot claim to know which one happened, only that this
+      // candidate didn't respond.
+      results.push({...c,found:false});
+    }
+  }
+  return results;
+}
+
 // ── METADATA LOOKUPS ─────────────────────────────────────────────────────
+// Set right before lookupMetadata/lookupBarcode resolve to a "not found"
+// result, so callers can show a specific reason instead of a generic toast.
+let _lastLookupFailure = null;
+export function getLastLookupFailure(){ return _lastLookupFailure; }
+
+function describeServerReasons(reasons, sources){
+  if (!reasons) return null;
+  const parts = [];
+  sources.forEach(([key, label]) => {
+    const r = reasons[key];
+    if (r === 'not_configured') parts.push(`no ${label} key set`);
+    else if (r && r !== 'ok' && r !== 'skipped' && r !== 'no_match') parts.push(`${label} ${r}`);
+  });
+  return parts.length ? parts.join(', ') : null;
+}
+
 export async function lookupMetadata(title){
   const prompt=`You are a movie/TV database and VHS collectibles expert. For the title: ${JSON.stringify(title)}
 Return ONLY a JSON object with these fields (omit any you are unsure about):
@@ -142,6 +239,7 @@ Rough guide: common mainstream $1-5, out-of-print/cult $5-30, horror/SOV/anime/r
 Return {} if completely unknown.`;
 
   let claudeResult=null;
+  let claudeReason = apiKey ? 'ok' : 'not_configured';
   if(apiKey){
     try{
       const res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -150,18 +248,32 @@ Return {} if completely unknown.`;
         body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:150,messages:[{role:'user',content:prompt}]})
       });
       if(res.ok){const d=await res.json();claudeResult=parseJsonObj(d.content?.[0]?.text||'{}')||null;}
-    }catch(e){console.warn('Lookup (Claude):',e);}
+      else claudeReason = `error (HTTP ${res.status})`;
+    }catch(e){claudeReason='unreachable';console.warn('Lookup (Claude):',e);}
   }
 
   // Always call server for OMDb enrichment (imdb_id, poster, authoritative year/label)
   let serverResult=null;
+  let serverReasons=null;
   try{
     const hdrs={};if(omdbKey)hdrs['x-omdb-key']=omdbKey;
     const r=await fetch(`/api/lookup?title=${encodeURIComponent(title)}`,{signal:AbortSignal.timeout(35000),headers:hdrs});
-    if(r.ok){const d=await r.json();if(d&&!d.error&&Object.keys(d).length)serverResult=d;}
+    if(r.ok){
+      const d=await r.json();
+      if(d&&!d.error&&Object.keys(d).length)serverResult=d;
+      else if(d&&d.reasons)serverReasons=d.reasons;
+    }
   }catch(e){console.warn('Lookup (server):',e);}
 
-  if(!claudeResult&&!serverResult)return null;
+  if(!claudeResult&&!serverResult){
+    const claudePart = claudeReason!=='ok' ? [['claude', claudeReason==='not_configured'?'not_configured':claudeReason]] : [];
+    const reasons = { ...(serverReasons||{}) };
+    claudePart.forEach(([k,v])=>{reasons[k]=v;});
+    const detail = describeServerReasons(reasons, [['claude','Claude'],['ollama','Ollama'],['omdb','OMDb']]);
+    _lastLookupFailure = detail ? `No metadata found for "${title}" — ${detail}` : `No metadata found for "${title}"`;
+    return null;
+  }
+  _lastLookupFailure = null;
   // Merge: Claude supplies value estimates; server/OMDb supplies authoritative metadata + poster
   const merged={...(claudeResult||{}),...{}};
   if(serverResult){
@@ -177,7 +289,13 @@ export async function lookupBarcode(code){
   try{
     const hdrs={};if(omdbKey)hdrs['x-omdb-key']=omdbKey;
     const res=await fetch(`/api/lookup/barcode/${encodeURIComponent(code)}`,{signal:AbortSignal.timeout(8000),headers:hdrs});
-    if(!res.ok)return null;
+    if(!res.ok){
+      const d=await res.json().catch(()=>null);
+      const detail = d?.reasons ? describeServerReasons(d.reasons, [['upcitemdb','UPCItemDB'],['openlibrary','Open Library']]) : null;
+      _lastLookupFailure = detail ? `No match for ${code} — ${detail}` : `No match for ${code}`;
+      return null;
+    }
+    _lastLookupFailure = null;
     return await res.json();
-  }catch{return null;}
+  }catch(e){_lastLookupFailure=`Barcode lookup failed: ${e.message}`;return null;}
 }

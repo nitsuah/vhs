@@ -1,5 +1,14 @@
 // ── CAMERA ───────────────────────────────────────────────────────────────
-import { cropFrac, CROP_PRESETS } from './state.js';
+import { cropFrac, CROP_PRESETS, cards, captureQueue } from './state.js';
+import { inventory } from './inventory.js';
+import { toast, beep, buzz } from './utils.js';
+// addBarcodeCard is deliberately NOT imported directly: capture.js already
+// imports several bindings from this module (isCapturing, barcodeMode, ...),
+// and a direct import back here creates a circular ES-module dependency
+// that breaks module-evaluation order (capture.js's own top-level
+// `const btnCap = ...` ends up read before it's initialized). Routed
+// through window, matching this codebase's existing cross-module pattern
+// (window.capture, window.processQueue, window.renderInv, etc.).
 
 // Camera / barcode state — exported so capture.js and ui.js can read live bindings
 export let barcodeMode = false;
@@ -285,8 +294,8 @@ function _fireBarcodeResult(code){
   // Skip queue — immediately open a review card and run lookup in background.
   // Guard against scanning the same barcode twice while lookup is in flight.
   if(Array.isArray(cards)&&cards.some(c=>c.data&&c.data.barcode===code))return;
-  if(typeof addBarcodeCard==='function')addBarcodeCard(code);
-  else{captureQueue.push({barcode:code});renderQueue();toast(`Barcode staged: ${code}`,'ok',2500);}
+  if(typeof window.addBarcodeCard==='function')window.addBarcodeCard(code);
+  else{captureQueue.push({barcode:code});toast(`Barcode staged: ${code}`,'ok',2500);}
 }
 
 function startBarcodeLoop(){

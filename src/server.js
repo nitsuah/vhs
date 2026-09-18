@@ -14,7 +14,7 @@ const { randomUUID } = require('crypto');
 // ── SSRF protection moved inline to /api/fetch-image route (CodeQL sanitizer boundary)
 
 // Local modules
-const { PORT, HTTPS_PORT, OLLAMA, OMDB_API_KEY, APP_BASE_URL } = require('./modules/config');
+const { PORT, HTTPS_PORT, OMDB_API_KEY, APP_BASE_URL } = require('./modules/config');
 const {
   ENABLED: AUTH_ENABLED,
   getAuthUrl, exchangeCode, mintJWT,
@@ -29,7 +29,7 @@ const { jobId, reviewItemId, analyticsId } = require('./modules/ids');
 const { enhancedLookup, callOmdb, normalizeTitleForLookup, levenshteinDistance } = require('./modules/omdb');
 const { logScanAnalytics } = require('./modules/analytics');
 const { processJobs } = require('./modules/worker');
-const { callOllamaServer, pingOllama } = require('./modules/ollama');
+const { callOllamaServer, pingOllama, resolveOllamaUrl } = require('./modules/ollama');
 const { parseJsonArray } = require('./modules/json-parser');
 const { withRetry } = require('./modules/retry');
 const {
@@ -271,13 +271,20 @@ app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {
   const omdbKey = (req.headers['x-omdb-key'] || OMDB_API_KEY).trim();
 
   let found = null;
+  // Tracked so a 404 can tell the difference between "checked, no match"
+  // (a real miss) and "the upstream API itself failed" (rate-limited trial
+  // tier, network error, bad response shape) — previously both looked
+  // identical to the client.
+  let upcReason = 'no_match', openLibraryReason = 'skipped';
 
   // 1. UPC Item DB
   try {
     const r = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`, {
       signal: AbortSignal.timeout(5000)
     });
-    if (r.ok) {
+    if (!r.ok) {
+      upcReason = `error (HTTP ${r.status})`;
+    } else {
       const d = await r.json();
       if (d.items?.length) {
         const item = d.items[0];
@@ -290,15 +297,18 @@ app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {
         };
       }
     }
-  } catch (e) { console.warn('UPC Item DB lookup:', e.message); }
+  } catch (e) { upcReason = 'unreachable'; console.warn('UPC Item DB lookup:', e.message); }
 
   // 2. Open Library fallback
   if (!found) {
+    openLibraryReason = 'no_match';
     try {
       const r = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${code}&format=json&jscmd=data`, {
         signal: AbortSignal.timeout(5000)
       });
-      if (r.ok) {
+      if (!r.ok) {
+        openLibraryReason = `error (HTTP ${r.status})`;
+      } else {
         const d = await r.json();
         const key = `ISBN:${code}`;
         // Handle both formats: { ISBN:... } and direct response
@@ -313,10 +323,15 @@ app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {
           };
         }
       }
-    } catch (e) { console.warn('Open Library lookup:', e.message); }
+    } catch (e) { openLibraryReason = 'unreachable'; console.warn('Open Library lookup:', e.message); }
   }
 
-  if (!found) return res.status(404).json({ error: 'not found' });
+  if (!found) {
+    return res.status(404).json({
+      error: 'not_found',
+      reasons: { upcitemdb: upcReason, openlibrary: openLibraryReason }
+    });
+  }
 
   // 3. Enrich with OMDb
   if (omdbKey && found.title) {
@@ -342,23 +357,37 @@ Return ONLY JSON object — no other text:
 Rules: year=4-digit release year, label=VHS distributor/studio, value_low/value_high=USD resale range in good condition.
 Omit fields you're unsure about. Return {} if completely unknown.`;
 
-  const ollamaPromise = noai ? Promise.resolve({}) : fetch(`${OLLAMA}/api/generate`, {
+  // Tracked so a failed lookup can tell the client *why* — "not configured"
+  // vs "reachable but no match" vs "the upstream call itself errored" were
+  // previously indistinguishable (all collapsed into one generic {}).
+  let ollamaReason = noai ? 'skipped' : 'ok';
+  const ollamaPromise = noai ? Promise.resolve({}) : resolveOllamaUrl().then(upstream => fetch(`${upstream}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: process.env.OLLAMA_MODEL || 'llava:7b', prompt, stream: false, options: { num_predict: 64 } }),
     signal: AbortSignal.timeout(30000)
-  }).then(r => r.json()).catch(() => ({}));
+  })).then(r => {
+    if (!r.ok) { ollamaReason = `error (HTTP ${r.status})`; return {}; }
+    return r.json();
+  }).catch(() => { ollamaReason = 'unreachable'; return {}; });
 
-  const omdbPromise = omdbKey ? enhancedLookup({ title }, omdbKey).catch(() => null) : Promise.resolve(null);
+  let omdbReason = omdbKey ? 'ok' : 'not_configured';
+  const omdbPromise = omdbKey
+    ? enhancedLookup({ title }, omdbKey).catch(e => { omdbReason = 'error: ' + e.message; return null; })
+    : Promise.resolve(null);
 
   const [ollamaRes, omdb] = await Promise.all([ollamaPromise, omdbPromise]);
 
   let ai = {};
   try { ai = JSON.parse(ollamaRes.response || '{}'); } catch {}
+  if (ollamaReason === 'ok' && Object.keys(ai).length === 0) ollamaReason = 'no_match';
+  if (omdbReason === 'ok' && !omdb) omdbReason = 'no_match';
 
-  // If both fail, return empty object
+  // If both fail, report which backends were attempted and why, instead of
+  // a bare {} that looks identical whether nothing is configured, nothing
+  // matched, or an upstream call errored.
   if (!omdb && (!ai || Object.keys(ai).length === 0)) {
-    return res.json({});
+    return res.json({ error: 'no_metadata_found', reasons: { ollama: ollamaReason, omdb: omdbReason } });
   }
 
   const result = {

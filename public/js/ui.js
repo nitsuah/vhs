@@ -1,12 +1,15 @@
 // ── UI MODULE ──────────────────────────────────────────────────────────────
-import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getIsNewTape, getWallMode, setWallMode, clearBulk, applyBulkStatus, deleteBulk, getSelectedId, getInventory, renderTagChips, esc } from './inventory.js';
+import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getIsNewTape, getWallMode, setWallMode, clearBulk, applyBulkStatus, deleteBulk, getSelectedId, getInventory, renderTagChips, esc, renderDetailPhotos } from './inventory.js';
 import { dbAdd, dbPut, dbDel, nextId } from './db.js';
-import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound } from './utils.js';
+import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound, fileToThumb } from './utils.js';
 import { revPanel, showRevPanel, hideRevPanel } from './review.js';
-import { apiKey, omdbKey, ollamaUrl, ollamaModel, fastMode, cards, captureQueue, setApiKey, setOmdbKey, setOllamaUrl, setOllamaModel, setFastMode } from './state.js';
+import { apiKey, omdbKey, ollamaUrl, ollamaModel, fastMode, cards, captureQueue, setApiKey, setOmdbKey, setOllamaUrl, setOllamaModel, setFastMode, localAiUrl, setLocalAiUrl, setLocalAiModel } from './state.js';
 import { barcodeMode } from './camera.js';
-import { checkOllama, updateAiBadge, callAI, lookupMetadata } from './ai.js';
+import { checkOllama, updateAiBadge, callAI, lookupMetadata, getLastLookupFailure, findLocalAI } from './ai.js';
 import { setDbDot } from './db.js';
+import { initTableUX, updateSortIndicators } from './modules/table-ux.js';
+import { setSortValue, getSortValue, getIsReadOnly } from './modules/inventory-state.js';
+import { isAuthEnabled, getUser } from './auth.js';
 
 function csvCell(v) {
   const s = String(v ?? '');
@@ -44,7 +47,7 @@ document.getElementById('tab-collect')?.addEventListener('click', () => {
   if (document.body.dataset.tab !== 'collect') playRewindSound();
   setActiveTab('collect');
 });
-setActiveTab('capture');
+setActiveTab('collect');
 updateTabBadge();
 
 // ── KEYBOARD ─────────────────────────────────────────────────────────────
@@ -113,6 +116,11 @@ document.getElementById('btn-settings').addEventListener('click',()=>{
   document.getElementById('s-ollama-model').value=ollamaModel;
   document.getElementById('s-fast-mode').checked=fastMode;
   checkOllama();
+  const localAiResults=document.getElementById('local-ai-results');
+  if(localAiResults){
+    if(localAiUrl){localAiResults.style.display='block';localAiResults.textContent=`Connected to local AI at ${localAiUrl}`;}
+    else{localAiResults.style.display='none';localAiResults.textContent='';}
+  }
   document.getElementById('m-settings').style.display='flex';
 });
 document.getElementById('s-cancel').addEventListener('click',()=>document.getElementById('m-settings').style.display='none');
@@ -131,6 +139,72 @@ document.getElementById('s-save').addEventListener('click',()=>{
   updateAiBadge();
   document.getElementById('m-settings').style.display='none';
 });
+
+// ── FIND LOCAL AI (Priority 3b) ──────────────────────────────────────────
+document.getElementById('btn-find-local-ai')?.addEventListener('click', async () => {
+  const btn = document.getElementById('btn-find-local-ai');
+  const resultsEl = document.getElementById('local-ai-results');
+  const customUrl = document.getElementById('s-local-ai-custom')?.value.trim() || '';
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '🔎 Searching…';
+  resultsEl.style.display = 'block';
+  resultsEl.innerHTML = 'Checking known local endpoints…';
+  try {
+    const results = await findLocalAI(customUrl);
+    const rejected = results.find(r => r.rejected);
+    const found = results.filter(r => r.found);
+    resultsEl.innerHTML = '';
+    if (rejected) {
+      const warn = document.createElement('div');
+      warn.style.cssText = 'color:var(--yellow);margin-bottom:6px';
+      warn.textContent = `"${rejected.url}" was not checked — custom URLs must be a loopback address (localhost/127.0.0.1). Captured photos are sent to whatever this connects to, so non-local hosts are refused.`;
+      resultsEl.appendChild(warn);
+    }
+    if (!found.length) {
+      const msg = document.createElement('div');
+      msg.textContent = 'No local AI responded. Either nothing is running on these ports, or your browser blocked the connection for security ' +
+        "(Chrome enforces Private Network Access checks that most local AI servers don't yet answer — Firefox does not enforce this, so it's worth trying there). " +
+        'You can also enter a custom URL above and try again.';
+      resultsEl.appendChild(msg);
+      return;
+    }
+    found.forEach(r => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:4px';
+      const modelPart = r.model ? ` (${esc(r.model)})` : '';
+      row.innerHTML = `<span style="color:var(--green)">✓ ${esc(r.label)} found at ${esc(r.url)}${modelPart}</span>`;
+      const connectBtn = document.createElement('button');
+      connectBtn.className = 'hbtn';
+      connectBtn.style.cssText = 'font-size:11px;padding:4px 9px';
+      connectBtn.textContent = 'Connect';
+      connectBtn.addEventListener('click', () => {
+        if (r.kind === 'ollama') {
+          document.getElementById('s-ollama-url').value = r.url;
+          setOllamaUrl(r.url);
+          localStorage.setItem('vhs-ollama-url', r.url);
+          checkOllama();
+        } else {
+          setLocalAiUrl(r.url);
+          setLocalAiModel(r.model || '');
+          localStorage.setItem('vhs-local-ai-url', r.url);
+          localStorage.setItem('vhs-local-ai-model', r.model || '');
+        }
+        updateAiBadge();
+        connectBtn.textContent = '✓ Connected';
+        connectBtn.disabled = true;
+        toast(`Connected to ${r.label} at ${r.url}`, 'ok');
+      });
+      row.appendChild(connectBtn);
+      resultsEl.appendChild(row);
+    });
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+});
+if (localAiUrl) {
+  const customInput = document.getElementById('s-local-ai-custom');
+  if (customInput) customInput.value = localAiUrl;
+}
 
 // ── SYSTEM HEALTH PANEL ───────────────────────────────────────────────────
 async function runHealthCheck(){
@@ -325,6 +399,34 @@ document.getElementById('del-ok')?.addEventListener('click', async () => {
   }
 });
 
+// ── ADD PHOTO ─────────────────────────────────────────────────────────────
+document.getElementById('d-add-photo-file')?.addEventListener('click', () => {
+  document.getElementById('d-photo-input')?.click();
+});
+document.getElementById('d-photo-input')?.addEventListener('change', async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (!files.length) return;
+  if (getIsReadOnly() || (isAuthEnabled() && !getUser())) {
+    toast('Sign in to add photos', 'warn');
+    return;
+  }
+  const id = document.getElementById('d-id').value;
+  const t = inventory.find(x => x.id === id);
+  if (!t) { toast('Save this tape before adding photos', 'warn'); return; }
+  try {
+    const thumbs = await Promise.all(files.map(f => fileToThumb(f)));
+    const photos = [...(t.photos || []), ...thumbs];
+    const updated = { ...t, photos, photo_thumbnail: t.photo_thumbnail || photos[0] };
+    await dbPut(updated); // persist before mutating shared state, so a failure leaves `t` untouched
+    Object.assign(t, updated);
+    renderDetailPhotos(t);
+    renderInv();
+  } catch (err) {
+    toast('Add photo failed: ' + err.message, 'err');
+  }
+});
+
 document.getElementById('d-lookup')?.addEventListener('click', async () => {
   const title = document.getElementById('d-title').value.trim();
   if (!title) return;
@@ -340,7 +442,7 @@ document.getElementById('d-lookup')?.addEventListener('click', async () => {
       if (result.value_low) document.getElementById('d-value-low').value = result.value_low;
       if (result.value_high) document.getElementById('d-value-high').value = result.value_high;
     } else {
-      toast('No metadata found for this title', 'warn');
+      toast(getLastLookupFailure() || 'No metadata found for this title', 'warn', 5000);
     }
   } catch (e) {
     toast('Lookup failed: ' + e.message, 'err');
@@ -673,39 +775,36 @@ if(Math.random()<1/50)setTimeout(()=>toast('📼 Be Kind, Rewind!','vhs-sticker'
   }
 })();
 
-// ── MOBILE FILTER TRAY ───────────────────────────────────────────────────
-const btnFilterTray=document.getElementById('btn-filter-tray');
-const invCtrl=document.getElementById('inv-ctrl');
-let trayOpen=false;
-btnFilterTray?.addEventListener('click',()=>{
-  trayOpen=!trayOpen;
-  invCtrl.classList.toggle('tray-open',trayOpen);
-  btnFilterTray.textContent=trayOpen?'✕ Close':'⚙ Filter';
-  if(trayOpen){
-    const backdrop=document.createElement('div');
-    backdrop.id='filter-backdrop';
-    backdrop.style.cssText='position:fixed;inset:0;z-index:149;';
-    backdrop.addEventListener('click',()=>{trayOpen=false;invCtrl.classList.remove('tray-open');btnFilterTray.textContent='⚙ Filter';backdrop.remove();});
-    document.body.appendChild(backdrop);
-  }else{
-    document.getElementById('filter-backdrop')?.remove();
-  }
-});
-
 // ── COLLECT TAB: SEARCH / SORT / ZOOM / BULK ─────────────────────────────────
 document.getElementById('search')?.addEventListener('input', () => renderInv());
 document.getElementById('btn-search')?.addEventListener('click', () => { document.getElementById('search')?.focus(); renderInv(); });
-document.getElementById('sort-sel')?.addEventListener('change', () => renderInv());
+(function initSort() {
+  const sel = document.getElementById('sort-sel');
+  if (!sel) return;
+  const saved = getSortValue();
+  if ([...sel.options].some(o => o.value === saved)) sel.value = saved;
+  sel.addEventListener('change', () => {
+    setSortValue(sel.value);
+    renderInv();
+    updateSortIndicators();
+  });
+})();
+initTableUX();
 
 (function initZoom() {
+  // Shared across every collection view (Table + StacksUp/Spines/Covers) — a
+  // single persisted value drives both CSS vars so zoom carries across
+  // view switches with no per-view state to reconcile.
   const slider = document.getElementById('zoom-slider');
   if (!slider) return;
-  const saved = localStorage.getItem('vhs-tbl-zoom') || '1';
+  const saved = localStorage.getItem('vhs-collection-zoom') || '1';
   document.documentElement.style.setProperty('--tbl-zoom', saved);
+  document.documentElement.style.setProperty('--inv-zoom', saved);
   slider.value = saved;
   slider.addEventListener('input', () => {
-    localStorage.setItem('vhs-tbl-zoom', slider.value);
+    localStorage.setItem('vhs-collection-zoom', slider.value);
     document.documentElement.style.setProperty('--tbl-zoom', slider.value);
+    document.documentElement.style.setProperty('--inv-zoom', slider.value);
   });
 })();
 
@@ -720,15 +819,12 @@ document.getElementById('bulk-del')?.addEventListener('click', async () => { awa
 (function(){
   const btn = document.getElementById('btn-wall');
   // Mode 0=Table, 1=StacksUp (upright spines), 2=Spines (landscape), 3=Covers (face art)
-  const labels = ['⊞ Wall', '📚 StacksUp', '⊠ Spines', '⊟ Covers'];
+  const labels = ['📋 Table', '📚 StacksUp', '⊠ Spines', '⊟ Covers'];
   if (!btn) return;
   function updateWallBtn() {
     const m = getWallMode();
     btn.textContent = labels[m];
     btn.classList.toggle('active', m > 0);
-    // Zoom bar only relevant in table view
-    const zb = document.getElementById('zoom-bar');
-    if (zb) zb.style.display = m === 0 ? '' : 'none';
   }
   btn.addEventListener('click', () => {
     setWallMode((getWallMode() + 1) % 4);

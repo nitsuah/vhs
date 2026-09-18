@@ -2,10 +2,10 @@
 import { inventory, renderInv, updateCount } from './inventory.js';
 import { dbAdd, nextId } from './db.js';
 import { findDup } from './utils.js';
-import { lookupBarcode, callAI } from './ai.js';
+import { lookupBarcode, callAI, getLastLookupFailure } from './ai.js';
 import { addCard, showRevPanel, renderCards, setRevLoading, setRevMsg, showRevErr, cards, _seenAdd, _seenDel, seenJobIds } from './review.js';
 import { captureQueue, setCaptureQueue, nextUidSeq } from './state.js';
-import { apiKey } from './state.js';
+import { apiKey, localAiUrl } from './state.js';
 import { fileToB64, fileToThumb } from './utils.js';
 import { isCapturing, barcodeMode, cropEl, vidWrap, btnCap, video, cropFrac } from './camera.js';
 import { toast, flashInvRow } from './utils.js';
@@ -122,7 +122,7 @@ async function addBarcodeCard(code) {
     cards.push(card);
     showRevPanel();
     renderCards();
-    toast(`No match for ${code} — enter title manually`, 'warn', 4000);
+    toast(getLastLookupFailure() || `No match for ${code} — enter title manually`, 'warn', 4500);
   }
 }
 
@@ -140,7 +140,7 @@ async function processQueue() {
 
   if (!imageItems.length) return;
 
-  if (apiKey) {
+  if (apiKey || localAiUrl) {
     showRevPanel(); setRevLoading(true);
     for (let i = 0; i < imageItems.length; i++) {
       setRevMsg(`Analyzing image ${i + 1} of ${imageItems.length}…`);
@@ -176,6 +176,9 @@ async function processQueue() {
   }
 }
 window.processQueue = processQueue;
+// camera.js calls this via window (not a direct import) to avoid a circular
+// module dependency — see the comment above camera.js's own imports.
+window.addBarcodeCard = addBarcodeCard;
 
 // ── JOB POLLING ──────────────────────────────────────────────────────────
 let jobPollTimer = null;

@@ -1,5 +1,5 @@
 // ── VHS INVENTORY MODULE ENTRY POINT ──────────────────────────────────────────
-import { getInventory, setInventory, getSelectedId, setSelectedId, getIsNewTape, setIsNewTape, getSelectedIds, getWallMode, setWallMode } from './modules/inventory-state.js';
+import { getInventory, setInventory, getSelectedId, setSelectedId, getIsNewTape, setIsNewTape, getSelectedIds, getWallMode, setWallMode, setIsReadOnly } from './modules/inventory-state.js';
 import { getFiltered } from './modules/filtering.js';
 import { renderList, renderInv as renderListView, openDetail, updateBulkBar, updateCount } from './modules/list-view.js';
 import { dbPut } from './db.js';
@@ -45,37 +45,28 @@ export {
   renderPublicCollection,
 };
 
-// Read-only renderer for public collection share pages (/c/:slug).
-// Targets #inv-tbl so the existing table CSS applies without edit controls.
+// Read-only renderer for public collection share pages (/c/:slug). Reuses the
+// normal table/wall renderers (gated by the isReadOnly flag, which skips
+// attaching row/card click handlers and lets loadPublicCollection hide only
+// the mutating toolbar controls) so column/view changes never need to be
+// maintained in two places.
 function renderPublicCollection(tapes) {
-  const tbl = document.getElementById('inv-tbl');
-  if (!tbl) return;
+  setIsReadOnly(true);
+  _syncInventory(tapes);
   // Re-show the main layout (loadPublicCollection hides it) and activate the
   // collect tab so the CSS rule `body[data-tab="collect"] #right{display:flex}`
   // makes #right visible.
   const main = document.getElementById('main');
   if (main) main.style.display = '';
   document.body.dataset.tab = 'collect';
-  // Hide editing controls that don't belong in a read-only view.
-  ['collect-subhdr', 'bulk-bar'].forEach(id => {
+  // Hide only the mutating controls — search, sort, and the view picker stay
+  // live so a share visitor can still browse the collection their own way.
+  ['btn-fill-data', 'btn-revalidate', 'btn-add-tape', 'btn-import', 'bulk-bar'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  // Render rows using the same column structure as renderList(), but with no
-  // click handlers so the view remains read-only.
-  tbl.innerHTML = tapes.length
-    ? tapes.map(t => `<tr class="tape-row" data-id="${esc(t.id || '')}">
-        <td class="mc-2">${t.photo_thumbnail ? `<img class="tbl-thumb" src="${esc(t.photo_thumbnail)}" alt="">` : `<div class="tbl-thumb-ph">📼</div>`}</td>
-        <td class="cell-title mc-3">${esc(t.title || '')}</td>
-        <td class="cell-year mc-4">${esc(t.year || '')}</td>
-        <td class="cell-label mc-5">${esc(t.label || '')}</td>
-        <td class="cell-format mc-6">${esc(t.format || 'VHS')}</td>
-        <td class="cell-cond mc-7"><span class="cond-${t.condition || 'good'}">${esc(t.condition || 'good')}</span></td>
-        <td class="cell-status mc-8">${esc(statusLabel(t.status))}</td>
-        <td class="cell-val mc-9">${esc(t.value_low || t.value_high ? `$${t.value_low || '?'}–$${t.value_high || '?'}` : '')}</td>
-        <td class="cell-tags mc-10">${(t.tags || []).map(g => `<span class="tag-chip small">${esc(g)}</span>`).join('')}</td>
-      </tr>`).join('')
-    : `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text2)">This collection is empty.</td></tr>`;
+  renderListView();
+  updateCount();
 }
 
 // Global functions for inline event handlers in HTML

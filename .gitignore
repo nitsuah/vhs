@@ -6,5 +6,8 @@ npm-debug.log*
 test-results/
 playwright-report/
 
+# scripts/audit-metadata.js apply log (local record of DB changes, not source)
+data/audit-metadata-log.jsonl
+
 # Local Netlify folder
 .netlify

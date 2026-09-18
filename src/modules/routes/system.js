@@ -12,6 +12,7 @@ const limiter = rateLimit({
 });
 
 const { OLLAMA } = require('../config');
+const { resolveOllamaUrl } = require('../ollama');
 const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
 
 function registerStaticAndProxy(app) {
@@ -20,11 +21,15 @@ function registerStaticAndProxy(app) {
   const publicDir = path.join(__dirname, '..', '..', '..', 'public');
   app.use(express.static(publicDir, { index: false }));
 
-  // Proxy for Ollama — must be before the SPA catch-all
+  // Proxy for Ollama — must be before the SPA catch-all. `router` is
+  // resolved per-request (and resolveOllamaUrl caches its own result after
+  // the first successful probe) so this picks up the auto-detected upstream
+  // instead of being pinned to the static config default at startup.
   app.use(
     '/api/ollama',
     createProxyMiddleware({
       target: OLLAMA,
+      router: () => resolveOllamaUrl(),
       changeOrigin: true,
       pathRewrite: { '^/api/ollama': '' },
       proxyTimeout: 300000,

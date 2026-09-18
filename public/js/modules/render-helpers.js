@@ -1,15 +1,30 @@
 // ── RENDER HELPERS ────────────────────────────────────────────────────────────
 export const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
+// includeRotate: pass true only when this image is also getting the
+// StacksUp-mode sideways layout rotation (.su-img-spine's CSS class) —
+// an inline crop-adjustment style overrides that CSS transform outright,
+// so it must replicate the same rotation there or the image would render
+// upright-in-a-sideways-card. Every other context (table thumbnail, plain
+// Spine-landscape view, cover art) must pass false/omit it, since those
+// never apply a layout rotation and stacking one on top of a crop
+// adjustment would visibly rotate the image incorrectly.
 export function _cropStyle(t, role, includeRotate) {
   const c = (t.photo_crop || {})[role];
   if (!c) return '';
-  const x = c.x ?? 50, y = c.y ?? 50, s = c.s ?? 1;
-  if (x === 50 && y === 50 && s <= 1) return '';
+  // photo_crop comes from stored tape data, which a JSON/CSV import can set
+  // to arbitrary values — coerce to numbers and reject anything non-finite
+  // before it reaches the HTML string below (this is later assigned via
+  // innerHTML by callers), then clamp to the same ranges the crop editor
+  // itself enforces (0-100 for position, 1-4 for zoom).
+  const x = Number(c.x ?? 50), y = Number(c.y ?? 50), s = Number(c.s ?? 1);
+  if (![x, y, s].every(Number.isFinite)) return '';
+  const cx = Math.max(0, Math.min(100, x)), cy = Math.max(0, Math.min(100, y)), cs = Math.max(1, Math.min(4, s));
+  if (cx === 50 && cy === 50 && cs <= 1) return '';
   const parts = [];
   if (includeRotate) parts.push('rotate(90deg)');
-  if (s > 1) parts.push(`scale(${s})`);
-  return ` style="object-position:${x}% ${y}%${parts.length ? `;transform:${parts.join(' ')}` : ''}"`;
+  if (cs > 1) parts.push(`scale(${cs})`);
+  return ` style="object-position:${cx}% ${cy}%${parts.length ? `;transform:${parts.join(' ')}` : ''}"`;
 }
 
 export function _eggAttrs(t) {
@@ -19,6 +34,21 @@ export function _eggAttrs(t) {
   if (/night of the living dead/i.test(t.title)) attrs.push('data-notld');
   if (/speed racer/i.test(t.title)) attrs.push('data-speedracer');
   return attrs.length ? ' ' + attrs.join(' ') : '';
+}
+
+// Drives the genre easter-egg CSS ([data-genres~="horror"] etc., app.css) —
+// tags ARE this app's genre vocabulary, so any tag (predefined or a custom
+// one the user typed) that normalizes to a supported CSS key triggers its
+// effect. A couple of tag labels don't literally match their CSS key
+// (plural "Sports" vs. singular "sport" in the CSS) — aliased explicitly.
+const GENRE_ALIASES = { sports: 'sport' };
+export function _genresAttr(t) {
+  const norm = (t.tags || [])
+    .map(g => String(g).toLowerCase().replace(/[^a-z0-9]/g, ''))
+    .map(g => GENRE_ALIASES[g] || g)
+    .filter(Boolean);
+  const uniq = [...new Set(norm)];
+  return uniq.length ? ` data-genres="${esc(uniq.join(' '))}"` : '';
 }
 
 export function statusLabel(s) {

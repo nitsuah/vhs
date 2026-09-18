@@ -52,7 +52,7 @@ function loadScript(src){
 }
 
 // ── AUDIO BEEP ───────────────────────────────────────────────────────────
-function beep(){
+export function beep(){
   if(!soundEnabled)return;
   try{
     const ctx=new AudioContext(),osc=ctx.createOscillator(),g=ctx.createGain();
@@ -74,7 +74,7 @@ async function _loadAkiraAudio(){
     await tmp.close();
   }catch(e){console.warn('Akira audio:',e);}
 }
-function playAkiraDing(){
+export function playAkiraDing(){
   if(!soundEnabled)return;
   const now=Date.now();
   if(now-_akiraLastDing<5000)return;
@@ -100,7 +100,7 @@ function playAkiraDing(){
 }
 _loadAkiraAudio();
 
-function buzz(){
+export function buzz(){
   if(!soundEnabled)return;
   try{
     const ctx=new AudioContext(),g=ctx.createGain();
@@ -144,7 +144,7 @@ export function playRewindSound(){
 
 // ── JAWS THEME ────────────────────────────────────────────────────────────
 let _jawsTimer=null,_jawsTempo=2000,_jawsNote=false;
-function startJawsTheme(){
+export function startJawsTheme(){
   if(!soundEnabled)return;
   stopJawsTheme();
   _jawsTempo=2000;_jawsNote=false;
@@ -165,7 +165,7 @@ function startJawsTheme(){
   };
   tick();
 }
-function stopJawsTheme(){
+export function stopJawsTheme(){
   if(_jawsTimer){clearTimeout(_jawsTimer);_jawsTimer=null;}
   _jawsTempo=2000;_jawsNote=false;
 }
@@ -247,7 +247,7 @@ export function fileToThumb(f){
 
 // ── GHOSTBUSTERS DING ─────────────────────────────────────────────────────
 let _gbLastDing=0;
-function playGhostbustersDing(el){
+export function playGhostbustersDing(el){
   if(!soundEnabled)return;
   const now=Date.now();if(now-_gbLastDing<5000)return;_gbLastDing=now;
   if(el){el.classList.add('gb-flash');setTimeout(()=>el.classList.remove('gb-flash'),600);}
@@ -281,7 +281,7 @@ function _playNotldGroan(){
     setTimeout(()=>ctx.close(),(dur+0.3)*1000);
   }catch{}
 }
-function startNotldEffect(el){
+export function startNotldEffect(el){
   if(_notldFlickerTimer){clearTimeout(_notldFlickerTimer);_notldFlickerTimer=null;}
   _playNotldGroan();let step=0;
   const flicker=()=>{
@@ -291,14 +291,14 @@ function startNotldEffect(el){
   };
   flicker();
 }
-function stopNotldEffect(el){
+export function stopNotldEffect(el){
   if(_notldFlickerTimer){clearTimeout(_notldFlickerTimer);_notldFlickerTimer=null;}
   if(el)el.style.opacity='';
 }
 
 // ── SPEED RACER ENGINE REV ────────────────────────────────────────────────
 let _revTimer=null,_revFreq=110,_revTempo=520;
-function startRevSound(){
+export function startRevSound(){
   if(!soundEnabled)return;
   stopRevSound();_revFreq=110;_revTempo=520;
   const tick=()=>{
@@ -313,7 +313,7 @@ function startRevSound(){
   };
   tick();
 }
-function stopRevSound(){
+export function stopRevSound(){
   if(_revTimer){clearTimeout(_revTimer);_revTimer=null;}
   _revFreq=110;_revTempo=520;
 }

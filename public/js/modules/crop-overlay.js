@@ -14,9 +14,11 @@ export function openCropOverlay(role) {
 
   const modal = document.getElementById('m-crop');
   const img = document.getElementById('crop-img');
+  const frame = document.getElementById('crop-frame');
   const hint = document.getElementById('crop-role-hint');
   if (!modal || !img) return;
 
+  if (frame) frame.classList.toggle('crop-frame-spine', role === 'spine');
   img.src = src;
   if (hint) hint.textContent = role === 'spine'
     ? 'Positioning the spine image — drag to reposition, scroll/pinch to zoom. This sets how the spine appears in the shelf view.'
@@ -41,8 +43,12 @@ function updateCropPreview() {
   const zoomLbl = document.getElementById('crop-zoom-lbl');
   if (!img) return;
 
+  // Previews the natural (unrotated) orientation — the same one used by the
+  // Spine-landscape view and by photo_thumbnail. StacksUp's sideways "tape
+  // on a shelf" look is a separate, always-on CSS layout rotation (see
+  // .su-img-spine) applied uniformly regardless of crop state, so it isn't
+  // (and doesn't need to be) simulated here.
   const parts = [];
-  if (_cropRole === 'spine') parts.push('rotate(90deg)');
   if (_cropS > 1) parts.push(`scale(${_cropS.toFixed(2)})`);
   img.style.transform = parts.join(' ') || 'none';
   img.style.objectPosition = `${_cropX}% ${_cropY}%`;

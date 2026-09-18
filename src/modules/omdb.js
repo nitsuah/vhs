@@ -73,7 +73,7 @@ async function enhancedLookup({ title, imdbId }, apiKey = OMDB_API_KEY) {
         result = {
           title:   d.Title,
           year:    (d.Year || '').match(/\d{4}/)?.[0] || '',
-          label:   d.Production || '',
+          label:   d.Production && d.Production !== 'N/A' ? d.Production : '',
           imdb_id: d.imdbID || '',
           poster:  d.Poster && d.Poster !== 'N/A' ? d.Poster : '',
           genres:  d.Genre ? d.Genre.split(',').map(g => g.trim()).filter(Boolean) : [],
@@ -179,7 +179,7 @@ async function tryVHSVariations(originalTitle, apiKey) {
         return {
           title:   d.Title,
           year:    (d.Year || '').match(/\d{4}/)?.[0] || '',
-          label:   d.Production || '',
+          label:   d.Production && d.Production !== 'N/A' ? d.Production : '',
           imdb_id: d.imdbID || '',
           poster:  d.Poster && d.Poster !== 'N/A' ? d.Poster : '',
           genres:  d.Genre ? d.Genre.split(',').map(g => g.trim()).filter(Boolean) : [],
@@ -221,7 +221,7 @@ async function callOmdb({ title, imdbId }, apiKey = OMDB_API_KEY) {
   return {
     title:   d.Title,
     year:    (d.Year || '').match(/\d{4}/)?.[0] || '',
-    label:   d.Production || '',
+    label:   d.Production && d.Production !== 'N/A' ? d.Production : '',
     imdb_id: d.imdbID || '',
     poster:  d.Poster && d.Poster !== 'N/A' ? d.Poster : '',
     genres:  d.Genre ? d.Genre.split(',').map(g => g.trim()).filter(Boolean) : [],
