@@ -8,7 +8,8 @@ import { barcodeMode } from './camera.js';
 import { checkOllama, updateAiBadge, callAI, lookupMetadata, getLastLookupFailure, findLocalAI } from './ai.js';
 import { setDbDot } from './db.js';
 import { initTableUX, updateSortIndicators } from './modules/table-ux.js';
-import { setSortValue, getSortValue } from './modules/inventory-state.js';
+import { setSortValue, getSortValue, getIsReadOnly } from './modules/inventory-state.js';
+import { isAuthEnabled, getUser } from './auth.js';
 
 function csvCell(v) {
   const s = String(v ?? '');
@@ -150,18 +151,28 @@ document.getElementById('btn-find-local-ai')?.addEventListener('click', async ()
   resultsEl.innerHTML = 'Checking known local endpoints…';
   try {
     const results = await findLocalAI(customUrl);
+    const rejected = results.find(r => r.rejected);
     const found = results.filter(r => r.found);
+    resultsEl.innerHTML = '';
+    if (rejected) {
+      const warn = document.createElement('div');
+      warn.style.cssText = 'color:var(--yellow);margin-bottom:6px';
+      warn.textContent = `"${rejected.url}" was not checked — custom URLs must be a loopback address (localhost/127.0.0.1). Captured photos are sent to whatever this connects to, so non-local hosts are refused.`;
+      resultsEl.appendChild(warn);
+    }
     if (!found.length) {
-      resultsEl.innerHTML = `No local AI responded. Either nothing is running on these ports, or your browser blocked the connection for security ` +
-        `(Chrome enforces Private Network Access checks that most local AI servers don't yet answer — Firefox does not enforce this, so it's worth trying there). ` +
-        `You can also enter a custom URL above and try again.`;
+      const msg = document.createElement('div');
+      msg.textContent = 'No local AI responded. Either nothing is running on these ports, or your browser blocked the connection for security ' +
+        "(Chrome enforces Private Network Access checks that most local AI servers don't yet answer — Firefox does not enforce this, so it's worth trying there). " +
+        'You can also enter a custom URL above and try again.';
+      resultsEl.appendChild(msg);
       return;
     }
-    resultsEl.innerHTML = '';
     found.forEach(r => {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:4px';
-      row.innerHTML = `<span style="color:var(--green)">✓ ${esc(r.label)} found at ${esc(r.url)}</span>`;
+      const modelPart = r.model ? ` (${esc(r.model)})` : '';
+      row.innerHTML = `<span style="color:var(--green)">✓ ${esc(r.label)} found at ${esc(r.url)}${modelPart}</span>`;
       const connectBtn = document.createElement('button');
       connectBtn.className = 'hbtn';
       connectBtn.style.cssText = 'font-size:11px;padding:4px 9px';
@@ -174,9 +185,9 @@ document.getElementById('btn-find-local-ai')?.addEventListener('click', async ()
           checkOllama();
         } else {
           setLocalAiUrl(r.url);
-          setLocalAiModel('');
+          setLocalAiModel(r.model || '');
           localStorage.setItem('vhs-local-ai-url', r.url);
-          localStorage.setItem('vhs-local-ai-model', '');
+          localStorage.setItem('vhs-local-ai-model', r.model || '');
         }
         updateAiBadge();
         connectBtn.textContent = '✓ Connected';
@@ -396,16 +407,21 @@ document.getElementById('d-photo-input')?.addEventListener('change', async e => 
   const files = [...e.target.files];
   e.target.value = '';
   if (!files.length) return;
+  if (getIsReadOnly() || (isAuthEnabled() && !getUser())) {
+    toast('Sign in to add photos', 'warn');
+    return;
+  }
   const id = document.getElementById('d-id').value;
   const t = inventory.find(x => x.id === id);
   if (!t) { toast('Save this tape before adding photos', 'warn'); return; }
   try {
     const thumbs = await Promise.all(files.map(f => fileToThumb(f)));
-    t.photos = [...(t.photos || []), ...thumbs];
-    if (!t.photo_thumbnail) t.photo_thumbnail = t.photos[0];
+    const photos = [...(t.photos || []), ...thumbs];
+    const updated = { ...t, photos, photo_thumbnail: t.photo_thumbnail || photos[0] };
+    await dbPut(updated); // persist before mutating shared state, so a failure leaves `t` untouched
+    Object.assign(t, updated);
     renderDetailPhotos(t);
     renderInv();
-    await dbPut(t);
   } catch (err) {
     toast('Add photo failed: ' + err.message, 'err');
   }

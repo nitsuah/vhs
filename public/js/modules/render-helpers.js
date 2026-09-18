@@ -12,12 +12,19 @@ export const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 export function _cropStyle(t, role, includeRotate) {
   const c = (t.photo_crop || {})[role];
   if (!c) return '';
-  const x = c.x ?? 50, y = c.y ?? 50, s = c.s ?? 1;
-  if (x === 50 && y === 50 && s <= 1) return '';
+  // photo_crop comes from stored tape data, which a JSON/CSV import can set
+  // to arbitrary values — coerce to numbers and reject anything non-finite
+  // before it reaches the HTML string below (this is later assigned via
+  // innerHTML by callers), then clamp to the same ranges the crop editor
+  // itself enforces (0-100 for position, 1-4 for zoom).
+  const x = Number(c.x ?? 50), y = Number(c.y ?? 50), s = Number(c.s ?? 1);
+  if (![x, y, s].every(Number.isFinite)) return '';
+  const cx = Math.max(0, Math.min(100, x)), cy = Math.max(0, Math.min(100, y)), cs = Math.max(1, Math.min(4, s));
+  if (cx === 50 && cy === 50 && cs <= 1) return '';
   const parts = [];
   if (includeRotate) parts.push('rotate(90deg)');
-  if (s > 1) parts.push(`scale(${s})`);
-  return ` style="object-position:${x}% ${y}%${parts.length ? `;transform:${parts.join(' ')}` : ''}"`;
+  if (cs > 1) parts.push(`scale(${cs})`);
+  return ` style="object-position:${cx}% ${cy}%${parts.length ? `;transform:${parts.join(' ')}` : ''}"`;
 }
 
 export function _eggAttrs(t) {

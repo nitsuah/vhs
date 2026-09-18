@@ -74,7 +74,12 @@ async function fetchTapes({ ids, limit }) {
   sql += ' ORDER BY id';
   if (limit) sql += ` LIMIT ${Math.max(1, parseInt(limit, 10))}`;
   const { rows } = await pool.query(sql, params);
-  return rows.map(r => r.data);
+  // Trust the relational id column over data.id — they're normally the same
+  // (tapesPostHandler inserts the whole client-sent object as `data`,
+  // including its own id) but the column is the authoritative key for
+  // UPDATE/WHERE, so this guarantees the audit never targets a row by a
+  // stale or mismatched id embedded in the JSONB.
+  return rows.map(r => ({ ...r.data, id: r.id }));
 }
 
 // Barcode format/duplicate checks are done locally against the DB itself —
@@ -140,13 +145,14 @@ async function auditTape(tape) {
     if (!tape.year) {
       discrepancies.push({ field: 'year', issue: `missing — OMDb says ${omdb.year}`, confidence: 'high', suggested: omdb.year });
     } else if (String(tape.year).trim() !== String(omdb.year).trim()) {
-      // A ±1 year mismatch is common (region/re-release dates) — lower
-      // confidence than an outright miss, so it's reported but not auto-applied.
-      const diff = Math.abs(parseInt(tape.year, 10) - parseInt(omdb.year, 10));
+      // A stored year that merely disagrees with OMDb is never auto-applied
+      // (only a *missing* year is, above) — an existing value is a human
+      // decision (region/re-release dates are a common, legitimate reason
+      // to disagree), so this is always reported at 'medium', never 'high'.
       discrepancies.push({
         field: 'year',
         issue: `stored ${tape.year} vs OMDb ${omdb.year}`,
-        confidence: Number.isFinite(diff) && diff <= 1 ? 'medium' : 'high',
+        confidence: 'medium',
         suggested: omdb.year,
       });
     }
@@ -224,7 +230,11 @@ async function applyCorrections(results) {
       if (d.field === 'imdb_id') patch.imdb_id = d.suggested;
     }
     if (!Object.keys(patch).length) continue;
-    await pool.query('UPDATE tapes SET data = data || $1::jsonb WHERE id = $2', [JSON.stringify(patch), r.id]);
+    const res = await pool.query('UPDATE tapes SET data = data || $1::jsonb WHERE id = $2', [JSON.stringify(patch), r.id]);
+    if (res.rowCount !== 1) {
+      console.error(`  [${r.id}] update matched ${res.rowCount} row(s) — skipped`);
+      continue;
+    }
     applied.push({ id: r.id, title: r.title, patch, source: 'omdb' });
   }
   appendLog(applied);
@@ -249,27 +259,32 @@ async function main() {
     return;
   }
 
-  const tapes = await fetchTapes({ ids: args.ids, limit: args.limit });
-  if (!tapes.length) { console.log('No tapes matched.'); await pool.end(); return; }
+  // try/finally so a thrown error (a bad OMDb response, a DB hiccup, etc.)
+  // still closes the pool — otherwise this CLI can hang open after
+  // reporting "Audit failed" instead of exiting.
+  try {
+    const tapes = await fetchTapes({ ids: args.ids, limit: args.limit });
+    if (!tapes.length) { console.log('No tapes matched.'); return; }
 
-  console.log(`Auditing ${tapes.length} tape(s) against OMDb${OMDB_API_KEY ? '' : ' (no OMDB_API_KEY set — lookups will fail)'}...`);
+    console.log(`Auditing ${tapes.length} tape(s) against OMDb${OMDB_API_KEY ? '' : ' (no OMDB_API_KEY set — lookups will fail)'}...`);
 
-  const results = [];
-  for (const t of tapes) {
-    results.push(await auditTape(t));
-    await new Promise(r => setTimeout(r, OMDB_DELAY_MS));
+    const results = [];
+    for (const t of tapes) {
+      results.push(await auditTape(t));
+      await new Promise(r => setTimeout(r, OMDB_DELAY_MS));
+    }
+    const barcodeIssues = auditBarcodesLocally(tapes);
+
+    printReport(results, barcodeIssues);
+
+    if (args.apply) {
+      await applyCorrections(results);
+    } else {
+      console.log('\nDry run only — no changes written. Re-run with --apply --ids=<comma-list> to apply corrections to specific tapes.');
+    }
+  } finally {
+    await pool.end();
   }
-  const barcodeIssues = auditBarcodesLocally(tapes);
-
-  printReport(results, barcodeIssues);
-
-  if (args.apply) {
-    await applyCorrections(results);
-  } else {
-    console.log('\nDry run only — no changes written. Re-run with --apply --ids=<comma-list> to apply corrections to specific tapes.');
-  }
-
-  await pool.end();
 }
 
 main().catch(e => { console.error('Audit failed:', e); process.exitCode = 1; });

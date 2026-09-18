@@ -34,6 +34,7 @@ window.addEventListener('mousemove', e => moveHold(e.clientX, e.clientY));
 window.addEventListener('touchmove', e => moveHold(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
 window.addEventListener('mouseup', endHold);
 window.addEventListener('touchend', endHold);
+window.addEventListener('touchcancel', endHold);
 
 /**
  * @param {HTMLElement} el - the row/card element

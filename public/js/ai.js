@@ -142,6 +142,7 @@ async function pingOllama(){
 async function callLocalAI(base64){
   const res=await fetch(`${localAiUrl.replace(/\/$/,'')}/v1/chat/completions`,{
     method:'POST',headers:{'content-type':'application/json'},
+    signal:AbortSignal.timeout(30000),
     body:JSON.stringify({
       model:localAiModel||'local-model',
       messages:[{role:'user',content:[
@@ -154,6 +155,17 @@ async function callLocalAI(base64){
   if(!res.ok)throw new Error(`Local AI ${res.status}`);
   const d=await res.json();
   return parseJson(d.choices?.[0]?.message?.content||'[]');
+}
+
+// Every captured tape photo gets sent to whatever URL is connected here, so
+// a custom URL is restricted to loopback addresses — otherwise a mistaken or
+// malicious non-local URL would silently become a standing exfiltration
+// destination for the user's own photos once persisted.
+function isLoopbackHost(urlStr){
+  try{
+    const host=new URL(urlStr).hostname.toLowerCase();
+    return host==='localhost'||host==='127.0.0.1'||host==='::1'||host==='[::1]'||/^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
+  }catch{return false;}
 }
 
 // ── LOCAL AI DISCOVERY (Priority 3b) ────────────────────────────────────────
@@ -169,16 +181,25 @@ const LOCAL_AI_CANDIDATES=[
 
 export async function findLocalAI(customUrl){
   const candidates=LOCAL_AI_CANDIDATES.map(c=>({...c}));
+  const results=[];
   if(customUrl){
     const u=customUrl.trim().replace(/\/$/,'');
-    if(u)candidates.push({kind:'openai',label:'Custom',url:u},{kind:'ollama',label:'Custom (Ollama)',url:u});
+    if(u&&isLoopbackHost(u)){
+      candidates.push({kind:'openai',label:'Custom',url:u},{kind:'ollama',label:'Custom (Ollama)',url:u});
+    }else if(u){
+      results.push({kind:'custom-rejected',label:'Custom',url:u,found:false,rejected:true});
+    }
   }
-  const results=[];
   for(const c of candidates){
     const probeUrl=c.kind==='ollama'?`${c.url}/api/tags`:`${c.url}/v1/models`;
     try{
       const res=await fetch(probeUrl,{signal:AbortSignal.timeout(2500)});
-      results.push({...c,found:res.ok});
+      // For OpenAI-compatible providers, also capture a real model id from
+      // /v1/models — callLocalAI's fallback 'local-model' placeholder is
+      // rejected by some providers (LM Studio included), so a discovered
+      // connection needs an actual id to be usable after Connect.
+      const model=c.kind==='openai'&&res.ok?await res.json().then(d=>d?.data?.find(m=>typeof m?.id==='string')?.id||'').catch(()=>''):'';
+      results.push({...c,found:res.ok&&(c.kind!=='openai'||!!model),model});
     }catch{
       // fetch() deliberately does not expose *why* a request failed (plain
       // connection-refused, CORS rejection, and a Chrome Private Network

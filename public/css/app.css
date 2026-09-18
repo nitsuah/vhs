@@ -615,107 +615,107 @@ body.crt-on #crt-overlay{display:block}
 /* Card-level animations (shake, bounce) stay on the card element     */
 
 /* HORROR — red inset glow on cover + zombie hand rising from bottom */
-[data-genres~="horror"]:hover .cover-wrap{box-shadow:inset 0 0 0 2px rgba(180,0,0,.6),inset 0 0 28px rgba(180,0,0,.25)}
+[data-genres~="horror"]:hover .cover-wrap, [data-genres~="horror"].egg-active .cover-wrap{box-shadow:inset 0 0 0 2px rgba(180,0,0,.6),inset 0 0 28px rgba(180,0,0,.25)}
 [data-genres~="horror"] .cover-wrap::after{content:'🧟';position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);font-size:22px;line-height:1;transition:bottom .35s ease;pointer-events:none;z-index:3}
-[data-genres~="horror"]:hover .cover-wrap::after{bottom:3px}
+[data-genres~="horror"]:hover .cover-wrap::after, [data-genres~="horror"].egg-active .cover-wrap::after{bottom:3px}
 
 /* THRILLER — darken cover + knife drops from top */
-[data-genres~="thriller"]:hover .cover-wrap{filter:contrast(1.1) brightness(.82)}
+[data-genres~="thriller"]:hover .cover-wrap, [data-genres~="thriller"].egg-active .cover-wrap{filter:contrast(1.1) brightness(.82)}
 [data-genres~="thriller"] .cover-wrap::after{content:'🔪';position:absolute;top:-24px;right:7px;font-size:16px;transition:top .35s ease;pointer-events:none;z-index:3;opacity:.85;transform:rotate(20deg)}
-[data-genres~="thriller"]:hover .cover-wrap::after{top:5px}
+[data-genres~="thriller"]:hover .cover-wrap::after, [data-genres~="thriller"].egg-active .cover-wrap::after{top:5px}
 
 /* SCI-FI — cyan border on cover + alien slides in from right */
-[data-genres~="scifi"]:hover .cover-wrap{box-shadow:inset 0 0 0 2px rgba(0,200,255,.55)}
+[data-genres~="scifi"]:hover .cover-wrap, [data-genres~="scifi"].egg-active .cover-wrap{box-shadow:inset 0 0 0 2px rgba(0,200,255,.55)}
 [data-genres~="scifi"] .cover-wrap::after{content:'👾';position:absolute;top:50%;right:-26px;transform:translateY(-50%);font-size:18px;transition:right .3s ease;pointer-events:none;z-index:3}
-[data-genres~="scifi"]:hover .cover-wrap::after{right:5px}
+[data-genres~="scifi"]:hover .cover-wrap::after, [data-genres~="scifi"].egg-active .cover-wrap::after{right:5px}
 @keyframes scifi-glitch{0%,90%{transform:none}92%{transform:translateX(-3px) skewX(-2deg)}95%{transform:translateX(3px) skewX(2deg)}100%{transform:none}}
-[data-genres~="scifi"]:hover{animation:scifi-glitch .35s ease}
+[data-genres~="scifi"]:hover, [data-genres~="scifi"].egg-active{animation:scifi-glitch .35s ease}
 
 /* FANTASY — gold shimmer on cover + fairy floats in from right */
 @keyframes fantasy-pulse{0%,100%{box-shadow:0 0 6px rgba(255,215,0,.3),inset 0 0 0 1px rgba(255,215,0,.15)}50%{box-shadow:0 0 16px rgba(255,215,0,.55),inset 0 0 0 1px rgba(255,215,0,.4)}}
 [data-genres~="fantasy"] .cover-wrap{animation:fantasy-pulse 2.8s ease-in-out infinite}
 [data-genres~="fantasy"] .cover-wrap::after{content:'🧚';position:absolute;top:50%;right:-26px;transform:translateY(-50%);font-size:18px;transition:right .4s ease;pointer-events:none;z-index:3}
-[data-genres~="fantasy"]:hover .cover-wrap::after{right:5px}
+[data-genres~="fantasy"]:hover .cover-wrap::after, [data-genres~="fantasy"].egg-active .cover-wrap::after{right:5px}
 
 /* ACTION — card shake + explosion appears on cover */
 @keyframes action-shake{0%,100%{transform:none}20%{transform:rotate(-2.5deg) translateX(-3px)}45%{transform:rotate(2deg) translateX(2px)}70%{transform:rotate(-1deg) translateX(-1px)}85%{transform:rotate(.5deg)}}
-[data-genres~="action"]:hover{animation:action-shake .4s ease}
+[data-genres~="action"]:hover, [data-genres~="action"].egg-active{animation:action-shake .4s ease}
 [data-genres~="action"] .cover-wrap::after{content:'💥';position:absolute;top:4px;right:4px;font-size:18px;opacity:0;transition:opacity .15s ease;pointer-events:none;z-index:3}
-[data-genres~="action"]:hover .cover-wrap::after{opacity:1}
+[data-genres~="action"]:hover .cover-wrap::after, [data-genres~="action"].egg-active .cover-wrap::after{opacity:1}
 
 /* COMEDY — card bounce + laugh emoji rises into cover from top */
 @keyframes comedy-bounce{0%,100%{transform:translateY(0)}25%{transform:translateY(-7px)}55%{transform:translateY(-2px)}75%{transform:translateY(-4px)}}
-[data-genres~="comedy"]:hover{animation:comedy-bounce .5s ease}
+[data-genres~="comedy"]:hover, [data-genres~="comedy"].egg-active{animation:comedy-bounce .5s ease}
 [data-genres~="comedy"] .cover-wrap::after{content:'😂';position:absolute;top:-26px;left:50%;transform:translateX(-50%);font-size:18px;transition:top .3s ease;pointer-events:none;z-index:3}
-[data-genres~="comedy"]:hover .cover-wrap::after{top:4px}
+[data-genres~="comedy"]:hover .cover-wrap::after, [data-genres~="comedy"].egg-active .cover-wrap::after{top:4px}
 
 /* ROMANCE — pink glow on cover + heart rises from bottom */
 @keyframes heart-float{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.25)}}
-[data-genres~="romance"]:hover .cover-wrap{box-shadow:inset 0 0 0 2px rgba(255,100,150,.5),inset 0 0 20px rgba(255,100,150,.12)}
+[data-genres~="romance"]:hover .cover-wrap, [data-genres~="romance"].egg-active .cover-wrap{box-shadow:inset 0 0 0 2px rgba(255,100,150,.5),inset 0 0 20px rgba(255,100,150,.12)}
 [data-genres~="romance"] .cover-wrap::after{content:'❤️';position:absolute;bottom:-26px;left:50%;transform:translateX(-50%);font-size:18px;transition:bottom .3s ease;pointer-events:none;z-index:3}
-[data-genres~="romance"]:hover .cover-wrap::after{bottom:4px;animation:heart-float .7s ease-in-out infinite}
+[data-genres~="romance"]:hover .cover-wrap::after, [data-genres~="romance"].egg-active .cover-wrap::after{bottom:4px;animation:heart-float .7s ease-in-out infinite}
 
 /* ANIMATION — rainbow glow on cover cycles + palette drops from top */
 @keyframes rainbow{0%{box-shadow:0 0 0 2px rgba(255,80,80,.5)}16%{box-shadow:0 0 0 2px rgba(255,180,0,.5)}33%{box-shadow:0 0 0 2px rgba(255,230,0,.5)}50%{box-shadow:0 0 0 2px rgba(60,200,60,.5)}66%{box-shadow:0 0 0 2px rgba(60,120,255,.5)}83%{box-shadow:0 0 0 2px rgba(180,60,255,.5)}100%{box-shadow:0 0 0 2px rgba(255,80,80,.5)}}
 [data-genres~="animation"] .cover-wrap{animation:rainbow 2.8s linear infinite}
 [data-genres~="animation"] .cover-wrap::after{content:'🎨';position:absolute;top:-24px;right:5px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
-[data-genres~="animation"]:hover .cover-wrap::after{top:4px}
+[data-genres~="animation"]:hover .cover-wrap::after, [data-genres~="animation"].egg-active .cover-wrap::after{top:4px}
 
 /* WESTERN — sepia filter on cover + cowboy hat drops */
-[data-genres~="western"]:hover .cover-wrap{filter:sepia(.75) contrast(1.1) brightness(.95)}
+[data-genres~="western"]:hover .cover-wrap, [data-genres~="western"].egg-active .cover-wrap{filter:sepia(.75) contrast(1.1) brightness(.95)}
 [data-genres~="western"] .cover-wrap::after{content:'🤠';position:absolute;top:-24px;left:50%;transform:translateX(-50%);font-size:18px;transition:top .3s ease;pointer-events:none;z-index:3}
-[data-genres~="western"]:hover .cover-wrap::after{top:4px}
+[data-genres~="western"]:hover .cover-wrap::after, [data-genres~="western"].egg-active .cover-wrap::after{top:4px}
 
 /* DOCUMENTARY — desaturate cover + film clapper drops */
-[data-genres~="documentary"]:hover .cover-wrap{filter:saturate(.4) contrast(1.15)}
+[data-genres~="documentary"]:hover .cover-wrap, [data-genres~="documentary"].egg-active .cover-wrap{filter:saturate(.4) contrast(1.15)}
 [data-genres~="documentary"] .cover-wrap::after{content:'🎬';position:absolute;top:-24px;left:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
-[data-genres~="documentary"]:hover .cover-wrap::after{top:4px}
+[data-genres~="documentary"]:hover .cover-wrap::after, [data-genres~="documentary"].egg-active .cover-wrap::after{top:4px}
 
 /* MUSICAL / MUSIC — note floats in from right edge */
 [data-genres~="musical"] .cover-wrap::after,[data-genres~="music"] .cover-wrap::after{content:'🎵';position:absolute;top:50%;right:-24px;transform:translateY(-50%);font-size:16px;transition:right .3s ease;pointer-events:none;z-index:3}
-[data-genres~="musical"]:hover .cover-wrap::after,[data-genres~="music"]:hover .cover-wrap::after{right:5px}
+[data-genres~="musical"]:hover .cover-wrap::after,[data-genres~="music"]:hover .cover-wrap::after, [data-genres~="musical"].egg-active .cover-wrap::after,[data-genres~="music"].egg-active .cover-wrap::after{right:5px}
 
 /* ADVENTURE — warm gold ambient glow on cover + map drops */
 @keyframes adventure-glow{0%,100%{box-shadow:0 0 6px rgba(255,200,0,.2)}50%{box-shadow:0 0 14px rgba(255,200,0,.5)}}
 [data-genres~="adventure"] .cover-wrap{animation:adventure-glow 2.5s ease-in-out infinite}
 [data-genres~="adventure"] .cover-wrap::after{content:'🗺️';position:absolute;top:-24px;left:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
-[data-genres~="adventure"]:hover .cover-wrap::after{top:4px}
+[data-genres~="adventure"]:hover .cover-wrap::after, [data-genres~="adventure"].egg-active .cover-wrap::after{top:4px}
 
 /* WAR — desaturate cover + medal drops */
-[data-genres~="war"]:hover .cover-wrap{filter:grayscale(.65) contrast(1.1)}
+[data-genres~="war"]:hover .cover-wrap, [data-genres~="war"].egg-active .cover-wrap{filter:grayscale(.65) contrast(1.1)}
 [data-genres~="war"] .cover-wrap::after{content:'🎖️';position:absolute;top:-24px;right:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
-[data-genres~="war"]:hover .cover-wrap::after{top:4px}
+[data-genres~="war"]:hover .cover-wrap::after, [data-genres~="war"].egg-active .cover-wrap::after{top:4px}
 
 /* CRIME — dark inset on cover + gun drops */
-[data-genres~="crime"]:hover .cover-wrap{box-shadow:inset 0 0 24px rgba(0,0,0,.75)}
+[data-genres~="crime"]:hover .cover-wrap, [data-genres~="crime"].egg-active .cover-wrap{box-shadow:inset 0 0 24px rgba(0,0,0,.75)}
 [data-genres~="crime"] .cover-wrap::after{content:'🔫';position:absolute;top:-24px;right:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3;transform:rotate(-20deg)}
-[data-genres~="crime"]:hover .cover-wrap::after{top:4px}
+[data-genres~="crime"]:hover .cover-wrap::after, [data-genres~="crime"].egg-active .cover-wrap::after{top:4px}
 
 /* DRAMA — brighten cover + masks rise from bottom */
-[data-genres~="drama"]:hover .cover-wrap{filter:brightness(1.12) saturate(1.2)}
+[data-genres~="drama"]:hover .cover-wrap, [data-genres~="drama"].egg-active .cover-wrap{filter:brightness(1.12) saturate(1.2)}
 [data-genres~="drama"] .cover-wrap::after{content:'🎭';position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);font-size:16px;transition:bottom .3s ease;pointer-events:none;z-index:3}
-[data-genres~="drama"]:hover .cover-wrap::after{bottom:4px}
+[data-genres~="drama"]:hover .cover-wrap::after, [data-genres~="drama"].egg-active .cover-wrap::after{bottom:4px}
 
 /* MYSTERY — darken cover + magnifying glass slides up */
-[data-genres~="mystery"]:hover .cover-wrap{filter:brightness(.75) contrast(1.2)}
+[data-genres~="mystery"]:hover .cover-wrap, [data-genres~="mystery"].egg-active .cover-wrap{filter:brightness(.75) contrast(1.2)}
 [data-genres~="mystery"] .cover-wrap::after{content:'🔍';position:absolute;bottom:-24px;right:6px;font-size:16px;transition:bottom .3s ease;pointer-events:none;z-index:3}
-[data-genres~="mystery"]:hover .cover-wrap::after{bottom:4px}
+[data-genres~="mystery"]:hover .cover-wrap::after, [data-genres~="mystery"].egg-active .cover-wrap::after{bottom:4px}
 
 /* SPORT — card bounce + ball pops into cover */
 @keyframes sport-bounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}60%{transform:translateY(-2px)}}
-[data-genres~="sport"]:hover{animation:sport-bounce .4s ease}
+[data-genres~="sport"]:hover, [data-genres~="sport"].egg-active{animation:sport-bounce .4s ease}
 [data-genres~="sport"] .cover-wrap::after{content:'⚽';position:absolute;top:-24px;right:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
-[data-genres~="sport"]:hover .cover-wrap::after{top:4px}
+[data-genres~="sport"]:hover .cover-wrap::after, [data-genres~="sport"].egg-active .cover-wrap::after{top:4px}
 
 /* HISTORY — sepia cover + scroll drops */
-[data-genres~="history"]:hover .cover-wrap{filter:sepia(.5) brightness(.9)}
+[data-genres~="history"]:hover .cover-wrap, [data-genres~="history"].egg-active .cover-wrap{filter:sepia(.5) brightness(.9)}
 [data-genres~="history"] .cover-wrap::after{content:'📜';position:absolute;top:-24px;left:6px;font-size:16px;transition:top .3s ease;pointer-events:none;z-index:3}
-[data-genres~="history"]:hover .cover-wrap::after{top:4px}
+[data-genres~="history"]:hover .cover-wrap::after, [data-genres~="history"].egg-active .cover-wrap::after{top:4px}
 
 /* BIOGRAPHY — gold brightening on cover + trophy drops */
-[data-genres~="biography"]:hover .cover-wrap{filter:brightness(1.08) saturate(.85)}
+[data-genres~="biography"]:hover .cover-wrap, [data-genres~="biography"].egg-active .cover-wrap{filter:brightness(1.08) saturate(.85)}
 [data-genres~="biography"] .cover-wrap::after{content:'🏆';position:absolute;top:-24px;right:6px;font-size:15px;transition:top .3s ease;pointer-events:none;z-index:3}
-[data-genres~="biography"]:hover .cover-wrap::after{top:4px}
+[data-genres~="biography"]:hover .cover-wrap::after, [data-genres~="biography"].egg-active .cover-wrap::after{top:4px}
 
 /* ── AUTH ────────────────────────────────────────────────────────────── */
 #auth-slot{display:flex;align-items:center}

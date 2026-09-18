@@ -15,7 +15,7 @@ function loadWidths() {
   try { return JSON.parse(localStorage.getItem(WIDTHS_KEY) || '{}'); } catch { return {}; }
 }
 function saveWidths(widths) {
-  localStorage.setItem(WIDTHS_KEY, JSON.stringify(widths));
+  try { localStorage.setItem(WIDTHS_KEY, JSON.stringify(widths)); } catch { /* best-effort persistence only */ }
 }
 
 export function updateSortIndicators() {
