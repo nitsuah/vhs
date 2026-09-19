@@ -84,6 +84,15 @@ export function renderWall() {
         renderWall();
         window.updateBulkBar?.();
       },
+      onLongPress: id => {
+        const fbi = document.getElementById('fbi-overlay');
+        const label = document.getElementById('fbi-tape-label');
+        const tape = getInventory().find(t => t.id === id);
+        if (fbi && label && tape) {
+          label.textContent = tape.title || 'Untitled';
+          fbi.style.display = 'flex';
+        }
+      },
       onEggPreview: () => { c.classList.add('egg-active'); startTitleEggPreview(c); },
       onEggPreviewEnd: () => { c.classList.remove('egg-active'); stopTitleEggPreview(c); },
     });

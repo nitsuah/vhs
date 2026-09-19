@@ -51,19 +51,20 @@ window.addEventListener('touchcancel', endHold);
  * @param {() => string} getId - returns this element's tape id (looked up
  *   lazily so a single listener setup survives re-renders of sibling rows)
  * @param {(id: string) => void} onOpen - single click/tap → open detail
- * @param {(id: string) => void} onToggleSelect - dblclick or hold → toggle multi-select
+ * @param {(id: string) => void} onToggleSelect - dblclick → toggle multi-select
+ * @param {(id: string) => void} [onLongPress] - long hold (500ms) → show trailer
  * @param {(id: string, e: Event) => void} [onModifierSelect] - optional
  *   desktop shift/ctrl/meta-click range/toggle-select shortcut (table only)
  * @param {() => void} [onEggPreview] - optional: fires if the hold continues
- *   past EGG_PREVIEW_MS (900ms), i.e. *after* the 500ms multi-select trigger
+ *   past EGG_PREVIEW_MS (900ms), i.e. *after* the 500ms long-press trigger
  *   has already fired — mobile has no :hover, so this is the touch
  *   equivalent of hovering a card to see its easter egg. Deliberately a
- *   longer threshold than multi-select rather than a competing gesture: a
- *   quick hold selects, a held hold also previews.
+ *   longer threshold than long-press rather than a competing gesture: a
+ *   quick hold shows trailer, a held hold also previews.
  * @param {() => void} [onEggPreviewEnd] - cleanup called on release, only if
  *   onEggPreview actually fired
  */
-export function attachCardInteraction(el, { getId, onOpen, onToggleSelect, onModifierSelect, onEggPreview, onEggPreviewEnd }) {
+export function attachCardInteraction(el, { getId, onOpen, onToggleSelect, onLongPress, onModifierSelect, onEggPreview, onEggPreviewEnd }) {
   let clickTimer = null;
   let justLongPressed = false;
 
@@ -71,12 +72,12 @@ export function attachCardInteraction(el, { getId, onOpen, onToggleSelect, onMod
 
   el.addEventListener('mousedown', e => {
     if (e.button !== 0 || isIgnoredTarget(e)) return;
-    startHold(e.clientX, e.clientY, () => { justLongPressed = true; onToggleSelect(getId()); }, onEggPreview, onEggPreviewEnd);
+    startHold(e.clientX, e.clientY, () => { justLongPressed = true; if (onLongPress) onLongPress(getId()); }, onEggPreview, onEggPreviewEnd);
   });
   el.addEventListener('touchstart', e => {
     if (isIgnoredTarget(e)) return;
     const t = e.touches[0];
-    startHold(t.clientX, t.clientY, () => { justLongPressed = true; onToggleSelect(getId()); }, onEggPreview, onEggPreviewEnd);
+    startHold(t.clientX, t.clientY, () => { justLongPressed = true; if (onLongPress) onLongPress(getId()); }, onEggPreview, onEggPreviewEnd);
   }, { passive: true });
 
   el.addEventListener('click', e => {

@@ -85,11 +85,24 @@ export function attachRowEvents(tbl) {
       getId: () => row.dataset.id,
       onOpen: openDetail,
       onToggleSelect: toggleSelected,
+      onLongPress: (id) => showTrailer(id),
       onModifierSelect: (id, e) => modifierSelect(id, e, tbl),
       onEggPreview: () => startTitleEggPreview(row),
       onEggPreviewEnd: () => stopTitleEggPreview(row),
     });
   });
+}
+
+function showTrailer(id) {
+  const tape = getInventory().find(t => t.id === id);
+  if (!tape) return;
+  
+  const fbi = document.getElementById('fbi-overlay');
+  const label = document.getElementById('fbi-tape-label');
+  if (fbi && label) {
+    label.textContent = tape.title || 'Untitled';
+    fbi.style.display = 'flex';
+  }
 }
 
 export function openDetail(id) {
