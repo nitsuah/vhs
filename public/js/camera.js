@@ -60,7 +60,7 @@ async function initCamera(){
     probe.getTracks().forEach(t=>t.stop());
     await populateCameras();
     currentFacing='environment';
-    const defaultDev=isMobile?null:cameraDevices[0]?.deviceId;
+    const defaultDev=isMobile && cameraDevices[camIdx] ? cameraDevices[camIdx].deviceId : (isMobile ? null : cameraDevices[0]?.deviceId);
     await startStream(defaultDev);
     checkTorch();
   }catch(e){
@@ -86,9 +86,11 @@ async function startStream(deviceId){
   try{
     const videoConstraints=deviceId
       ? {deviceId:{exact:deviceId}}
-      : isMobile
-        ? {facingMode:{ideal:currentFacing},width:{ideal:1920},height:{ideal:1080},focusMode:{ideal:'continuous'}}
-        : {width:{ideal:1920},height:{ideal:1080}};
+      : isMobile && cameraDevices[camIdx]
+        ? {deviceId:{exact:cameraDevices[camIdx].deviceId}}
+        : isMobile
+          ? {facingMode:{ideal:currentFacing},width:{ideal:1920},height:{ideal:1080},focusMode:{ideal:'continuous'}}
+          : {width:{ideal:1920},height:{ideal:1080}};
     const constraints={video:videoConstraints,audio:false};
     video.srcObject=await navigator.mediaDevices.getUserMedia(constraints);
     await video.play();
@@ -191,9 +193,11 @@ async function toggleBarcodeMode(){
 async function startBarcodeStream(){
   if(video.srcObject)video.srcObject.getTracks().forEach(t=>t.stop());
   try{
-    const vidConstraint=isMobile
-      ?{facingMode:{ideal:currentFacing},width:{ideal:1920},height:{ideal:1080}}
-      :{width:{ideal:1920},height:{ideal:1080}};
+    const vidConstraint=isMobile && cameraDevices[camIdx]
+      ? {deviceId:{exact:cameraDevices[camIdx].deviceId}}
+      : isMobile
+        ? {facingMode:{ideal:currentFacing},width:{ideal:1920},height:{ideal:1080}}
+        : {width:{ideal:1920},height:{ideal:1080}};
     video.srcObject=await navigator.mediaDevices.getUserMedia({video:vidConstraint,audio:false});
     await video.play();
     document.getElementById('no-cam').style.display='none';
@@ -473,19 +477,21 @@ const btnCamFlip=document.getElementById('btn-cam-flip');
 async function populateCameras(){
   cameraDevices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
   camSel.innerHTML=cameraDevices.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
-  if(cameraDevices.length>1){camIdx=isMobile?Math.max(0,cameraDevices.length-1):0;}
+  // Prefer rear camera on mobile: pick the last device (typically rear/environment)
+  if(cameraDevices.length>1){
+    camIdx=isMobile?cameraDevices.length-1:0;
+  }
+  // Sync dropdown to current selection
+  if(cameraDevices[camIdx]) camSel.value=cameraDevices[camIdx].deviceId;
 }
 btnCamFlip?.addEventListener('click',async()=>{
-  if(isMobile){
-    currentFacing=currentFacing==='environment'?'user':'environment';
-    await startStream(null);
-  }else{
-    if(cameraDevices.length<2)return;
-    camIdx=(camIdx+1)%cameraDevices.length;
-    const id=cameraDevices[camIdx]?.deviceId;
-    camSel.value=id;
-    await startStream(id);
-  }
+  if(cameraDevices.length<2) return;
+  camIdx=(camIdx+1)%cameraDevices.length;
+  const id=cameraDevices[camIdx]?.deviceId;
+  camSel.value=id;
+  await startStream(id);
+  // Keep currentFacing in sync for barcode mode (which reads it)
+  currentFacing = id && cameraDevices[camIdx]?.label?.toLowerCase().includes('front') ? 'user' : 'environment';
 });
 
 // ── CROP PRESETS ─────────────────────────────────────────────────────────
