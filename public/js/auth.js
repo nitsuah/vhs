@@ -39,17 +39,17 @@ function renderAuthChip() {
   }
   if (!headerSlots.length && !sidebarSlot && !toolbarSlot) return;
 
-  // Header: sign-in button (desktop) or Google icon (mobile)
+  // Header: ONLY share button when signed in (no user info)
   const headerHtml = _user
     ? `<button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>`
     : `<a href="/auth/google" class="hbtn auth-signin-btn">Sign in</a>`;
 
-  // Mobile header: Google icon when signed out
+  // Mobile header: ONLY share button when signed in (no user info)
   const mobileHeaderHtml = _user
     ? `<button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>`
     : `<a href="/auth/google" class="hbtn auth-signin-btn" title="Sign in with Google" style="padding:10px 12px">🔐</a>`;
 
-  // Sidebar: full chip when signed in, nothing when signed out
+  // Sidebar: full profile when signed in, nothing when signed out
   const sidebarHtml = _user
     ? `<div class="auth-chip" style="justify-content:flex-start">
         <img src="${escHtml(_user.picture || '')}" class="auth-avatar" referrerpolicy="no-referrer"
