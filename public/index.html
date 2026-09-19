@@ -370,11 +370,26 @@
     </div>
     <div id="local-ai-results" style="display:none;margin-top:8px;font-size:12px;color:var(--text2);line-height:1.6"></div>
     <hr class="ssep">
-    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">OMDb (movie metadata)</div>
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Movie Metadata API</div>
+    <div class="srow">
+      <div class="sfield">
+        <label>OMDb API Key</label>
+        <input id="s-omdb-key" type="password" placeholder="optional — free key at omdbapi.com" autocomplete="off">
+        <span class="shint">Used for authoritative movie year and IMDB ID lookup when filling metadata. Falls back to server env key if not set.</span>
+      </div>
+      <div class="sfield">
+        <label>TMDb API Key</label>
+        <input id="s-tmdb-key" type="password" placeholder="optional — free key at themoviedb.org" autocomplete="off">
+        <span class="shint">Alternative metadata provider. Configure provider below.</span>
+      </div>
+    </div>
     <div class="sfield">
-      <label>OMDb API Key</label>
-      <input id="s-omdb-key" type="password" placeholder="optional — free key at omdbapi.com" autocomplete="off">
-      <span class="shint">Used for authoritative movie year and IMDB ID lookup when filling metadata. Falls back to server env key if not set.</span>
+      <label>Active Provider</label>
+      <select id="s-api-provider">
+        <option value="omdb">OMDb</option>
+        <option value="tmdb">TMDb</option>
+      </select>
+      <span class="shint">Select which API to use for metadata enrichment and trailer lookup.</span>
     </div>
     <hr class="ssep">
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Extraction mode</div>
