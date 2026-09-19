@@ -41,18 +41,12 @@ function renderAuthChip() {
 
   // Header: sign-in button (desktop) or Google icon (mobile)
   const headerHtml = _user
-    ? `<div class="auth-chip">
-        <img src="${escHtml(_user.picture || '')}" class="auth-avatar" referrerpolicy="no-referrer"
-             onerror="this.style.display='none'" alt="">
-        <span class="auth-name">${escHtml(_user.name || _user.email)}</span>
-        <button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>
-        <button class="hbtn auth-out-btn btn-signout" title="Sign out">↩ Sign out</button>
-      </div>`
+    ? `<button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>`
     : `<a href="/auth/google" class="hbtn auth-signin-btn">Sign in</a>`;
 
   // Mobile header: Google icon when signed out
   const mobileHeaderHtml = _user
-    ? headerHtml
+    ? `<button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>`
     : `<a href="/auth/google" class="hbtn auth-signin-btn" title="Sign in with Google" style="padding:10px 12px">🔐</a>`;
 
   // Sidebar: full chip when signed in, nothing when signed out
@@ -66,7 +60,9 @@ function renderAuthChip() {
       </div>`
     : '';
 
+  // Apply header HTML to both header slots (desktop and mobile)
   headerSlots.forEach(s => { s.innerHTML = headerHtml; });
+  // Apply mobile-specific HTML to auth-slot-mob (this overrides the above for mobile)
   document.getElementById('auth-slot-mob').innerHTML = mobileHeaderHtml;
   if (sidebarSlot) sidebarSlot.innerHTML = sidebarHtml;
   if (toolbarSlot) toolbarSlot.innerHTML = '';
