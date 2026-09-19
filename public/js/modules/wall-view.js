@@ -106,8 +106,7 @@ async function searchYoutubeTrailer(title, container) {
   if (loading) loading.style.display = 'block';
   
   try {
-    const query = encodeURIComponent(`${title} trailer`);
-    const res = await fetch(`/api/youtube-search?q=${query}`);
+    const res = await fetch(`/api/trailer?title=${encodeURIComponent(title)}`);
     if (!res.ok) throw new Error('Search failed');
     
     const data = await res.json();

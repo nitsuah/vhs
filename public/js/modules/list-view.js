@@ -26,13 +26,9 @@ export function renderList() {
     const sel = t.id === selectedId;
     const bulk = selectedIds.has(t.id);
     const tagStr = (t.tags || []).map(tag => `<span class="tag-chip small">${esc(tag)}</span>`).join('');
-    // Apply whichever role's crop adjustment matches the thumbnail actually
-    // shown, so pan/zoom edits are visible in Table view too, not just Wall
-    // views. The table thumbnail is a landscape box like .spine-img, so it
-    // never gets the StacksUp rotation (includeRotate=false either way).
-    const thumbCropStyle = t.photo_face && t.photo_thumbnail === t.photo_face ? _cropStyle(t, 'face', false)
-      : t.photo_spine && t.photo_thumbnail === t.photo_spine ? _cropStyle(t, 'spine', false)
-      : '';
+    // Table thumbnails should always be uniform — ignore per-role crop adjustments
+    // (pan/zoom/rotation) so all rows align. Crop edits only affect Wall views.
+    const thumbCropStyle = '';
 
     return `<tr class="tape-row${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${t.id}"${_eggAttrs(t)}>
       <td class="mc-2">${t.photo_thumbnail ? `<img class="tbl-thumb" src="${esc(t.photo_thumbnail)}" alt=""${thumbCropStyle}>` : `<div class="tbl-thumb-ph">📼</div>`}</td>
@@ -115,8 +111,7 @@ async function searchYoutubeTrailer(title, container) {
   if (loading) loading.style.display = 'block';
   
   try {
-    const query = encodeURIComponent(`${title} trailer`);
-    const res = await fetch(`/api/youtube-search?q=${query}`);
+    const res = await fetch(`/api/trailer?title=${encodeURIComponent(title)}`);
     if (!res.ok) throw new Error('Search failed');
     
     const data = await res.json();
