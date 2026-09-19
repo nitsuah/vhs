@@ -40,6 +40,8 @@ export let ollamaUrl   = localStorage.getItem('vhs-ollama-url')   || defaultOlla
 export let ollamaModel = localStorage.getItem('vhs-ollama-model') || 'llava:7b';
 export let fastMode    = localStorage.getItem('vhs-fast-mode') !== 'false';
 export let omdbKey     = localStorage.getItem('vhs-omdb-key')     || '';
+export let tmdbKey     = localStorage.getItem('vhs-tmdb-key')     || '';
+export let apiProvider = localStorage.getItem('vhs-api-provider')  || 'omdb'; // 'omdb' or 'tmdb'
 export let ollamaAvail = false;
 // OpenAI-compatible local AI provider (LM Studio, 9router, llama.cpp server,
 // etc.) — a separate setting from ollamaUrl above since it's a different
@@ -60,6 +62,8 @@ export function setOllamaUrl(v) { ollamaUrl = v; }
 export function setOllamaModel(v) { ollamaModel = v; }
 export function setFastMode(v) { fastMode = v; }
 export function setOmdbKey(v) { omdbKey = v; }
+export function setTmdbKey(v) { tmdbKey = v; }
+export function setApiProvider(v) { apiProvider = v; }
 export function setOllamaAvail(v) { ollamaAvail = v; }
 export function setLocalAiUrl(v) { localAiUrl = v; }
 export function setLocalAiModel(v) { localAiModel = v; }
