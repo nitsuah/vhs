@@ -481,13 +481,30 @@ document.getElementById('d-lookup')?.addEventListener('click', async () => {
   try {
     const result = await lookupMetadata(title);
     if (result) {
-      if (result.year) document.getElementById('d-year').value = result.year;
-      if (result.label) document.getElementById('d-label').value = result.label;
-      if (result.format) document.getElementById('d-format').value = result.format;
-      if (result.value_low) document.getElementById('d-value-low').value = result.value_low;
-      if (result.value_high) document.getElementById('d-value-high').value = result.value_high;
+      // Add to review queue so user can see the result and choose to apply
+      const { addCard, showRevPanel } = await import('./review.js');
+      addCard({
+        title,
+        year: result.year || '',
+        label: result.label || '',
+        format: result.format || 'VHS',
+        value_low: result.value_low || '',
+        value_high: result.value_high || '',
+        imdb_id: result.imdb_id || '',
+        poster: result.poster || '',
+        status: 'in_collection'
+      }, 'lookup', null, true);
+      showRevPanel();
+      toast('Metadata found — added to review queue', 'ok');
     } else {
       toast(getLastLookupFailure() || 'No metadata found for this title', 'warn', 5000);
+    }
+  } catch (e) {
+    toast('Lookup failed: ' + e.message, 'err');
+  } finally {
+    btn.textContent = orig;
+  }
+});
     }
   } catch (e) {
     toast('Lookup failed: ' + e.message, 'err');

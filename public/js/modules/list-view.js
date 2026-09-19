@@ -176,3 +176,17 @@ export function renderInv() {
     }
   }
 }
+
+// FBI trailer close button
+document.getElementById('fbi-youtube-close')?.addEventListener('click', () => {
+  const fbi = document.getElementById('fbi-overlay');
+  const wrap = document.getElementById('fbi-youtube-wrap');
+  if (fbi) {
+    fbi.classList.remove('youtube-mode');
+    fbi.style.display = 'none';
+  }
+  if (wrap) {
+    const iframe = wrap.querySelector('iframe');
+    if (iframe) iframe.remove();
+  }
+});
