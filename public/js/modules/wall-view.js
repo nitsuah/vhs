@@ -91,8 +91,9 @@ export function renderWall() {
         const tape = getInventory().find(t => t.id === id);
         if (fbi && label && youtubeWrap && tape) {
           label.textContent = tape.title || 'Untitled';
+          fbi.classList.remove('youtube-mode');
           fbi.style.display = 'flex';
-          searchYoutubeTrailer(tape.title, youtubeWrap);
+          searchYoutubeTrailer(tape.title, youtubeWrap, fbi);
         }
       },
       onEggPreview: () => { c.classList.add('egg-active'); startTitleEggPreview(c); },
@@ -101,7 +102,7 @@ export function renderWall() {
   });
 }
 
-async function searchYoutubeTrailer(title, container) {
+async function searchYoutubeTrailer(title, container, fbiOverlay) {
   const loading = container.querySelector('#fbi-loading');
   if (loading) loading.style.display = 'block';
   
@@ -126,6 +127,9 @@ async function searchYoutubeTrailer(title, container) {
     
     container.appendChild(iframe);
     if (loading) loading.style.display = 'none';
+    
+    // Switch to youtube mode: hide warning, show video
+    if (fbiOverlay) fbiOverlay.classList.add('youtube-mode');
   } catch (err) {
     console.error('Trailer search failed:', err);
     if (loading) loading.textContent = 'Trailer not found';

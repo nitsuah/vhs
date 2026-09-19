@@ -146,6 +146,45 @@ document.getElementById('s-save').addEventListener('click',()=>{
   document.getElementById('m-settings').style.display='none';
 });
 
+// Test lookup button in settings
+document.getElementById('s-test-lookup')?.addEventListener('click', async () => {
+  const btn = document.getElementById('s-test-lookup');
+  const resultEl = document.getElementById('s-test-result');
+  const provider = document.getElementById('s-api-provider').value;
+  const omdbKey = document.getElementById('s-omdb-key').value.trim();
+  const tmdbKey = document.getElementById('s-tmdb-key').value.trim();
+  
+  if ((provider === 'omdb' && !omdbKey) || (provider === 'tmdb' && !tmdbKey)) {
+    resultEl.textContent = `No ${provider.toUpperCase()} key set`;
+    resultEl.style.color = 'var(--yellow)';
+    return;
+  }
+  
+  btn.disabled = true;
+  btn.textContent = '🔍 Testing…';
+  resultEl.textContent = '';
+  
+  try {
+    const res = await fetch(`/api/lookup?title=The%20Matrix&provider=${provider}`, {
+      headers: provider === 'tmdb' ? { 'x-tmdb-key': tmdbKey } : { 'x-omdb-key': omdbKey }
+    });
+    const data = await res.json();
+    if (data.error) {
+      resultEl.textContent = `Failed: ${data.reasons ? JSON.stringify(data.reasons) : data.error}`;
+      resultEl.style.color = 'var(--red)';
+    } else {
+      resultEl.textContent = `OK: ${data.year || '?'} · ${data.label || '?'} · IMDB: ${data.imdb_id || 'none'}`;
+      resultEl.style.color = 'var(--green)';
+    }
+  } catch (e) {
+    resultEl.textContent = `Error: ${e.message}`;
+    resultEl.style.color = 'var(--red)';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 Test Lookup';
+  }
+});
+
 // ── FIND LOCAL AI (Priority 3b) ──────────────────────────────────────────
 document.getElementById('btn-find-local-ai')?.addEventListener('click', async () => {
   const btn = document.getElementById('btn-find-local-ai');

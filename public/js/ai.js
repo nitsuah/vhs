@@ -1,5 +1,5 @@
 // ── AI MODULE ─────────────────────────────────────────────────────────────
-import { apiKey, ollamaUrl, ollamaModel, fastMode, omdbKey, ollamaAvail, setOllamaAvail, localAiUrl, localAiModel, VISION_PROMPT_FAST, VISION_PROMPT_FULL } from './state.js';
+import { apiKey, ollamaUrl, ollamaModel, fastMode, omdbKey, tmdbKey, apiProvider, ollamaAvail, setOllamaAvail, localAiUrl, localAiModel, VISION_PROMPT_FAST, VISION_PROMPT_FULL } from './state.js';
 import { parseJson, parseJsonObj } from './utils.js';
 
 // ── AI BADGE ─────────────────────────────────────────────────────────────
@@ -252,12 +252,17 @@ Return {} if completely unknown.`;
     }catch(e){claudeReason='unreachable';console.warn('Lookup (Claude):',e);}
   }
 
-  // Always call server for OMDb enrichment (imdb_id, poster, authoritative year/label)
+  // Call server for metadata enrichment using selected provider (OMDb or TMDb)
   let serverResult=null;
   let serverReasons=null;
   try{
-    const hdrs={};if(omdbKey)hdrs['x-omdb-key']=omdbKey;
-    const r=await fetch(`/api/lookup?title=${encodeURIComponent(title)}`,{signal:AbortSignal.timeout(35000),headers:hdrs});
+    const hdrs={};
+    if (apiProvider === 'tmdb' && tmdbKey) {
+      hdrs['x-tmdb-key'] = tmdbKey;
+    } else if (apiProvider === 'omdb' && omdbKey) {
+      hdrs['x-omdb-key'] = omdbKey;
+    }
+    const r=await fetch(`/api/lookup?title=${encodeURIComponent(title)}&provider=${apiProvider}`,{signal:AbortSignal.timeout(35000),headers:hdrs});
     if(r.ok){
       const d=await r.json();
       if(d&&!d.error&&Object.keys(d).length)serverResult=d;
