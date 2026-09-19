@@ -26,6 +26,7 @@
   <!-- Mobile-only right side -->
   <div class="hdr-right-mob" id="hdr-right-mob">
     <span id="ai-badge" class="loading"></span>
+    <div id="auth-slot-mob"></div>
     <span id="db-dot-mob"></span>
     <button id="btn-menu">☰</button>
   </div>
@@ -191,9 +192,9 @@
     <div id="inv-panel">
       <div id="collect-subhdr">
         <div class="csh-row1">
+          <button class="hbtn hbtn-view" id="btn-wall">📋 Table</button>
           <input id="search" type="text" placeholder="Search…">
           <button id="btn-search" title="Search">🔍</button>
-          <button class="hbtn hbtn-view" id="btn-wall">📋 Table</button>
           <select id="sort-sel">
             <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
             <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
@@ -201,7 +202,8 @@
             <option value="val_desc">Value ↓</option><option value="val_asc">Value ↑</option>
             <option value="cond_asc">Cond. Best→Worst</option><option value="cond_desc">Cond. Worst→Best</option>
           </select>
-          <span style="flex:1"></span>
+          <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700">+ <span class="btn-txt">Add</span></button>
+          <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ <span class="btn-txt">Import</span></button>
           <div class="exp-wrap">
             <button class="hbtn" id="btn-export" title="Export tapes">↓ <span class="btn-txt">Export</span></button>
             <div class="exp-dd" id="exp-dd">
@@ -213,18 +215,14 @@
               <button id="exp-print">Printable List</button>
             </div>
           </div>
-          <div id="auth-slot-toolbar"></div>
-        </div>
-        <div class="csh-row2">
           <button class="hbtn hbtn-view hbtn-fill" id="btn-fill-data" title="Fill missing data from OMDb">⚡ Fill</button>
+        </div>
           <div id="fill-progress" style="display:none;align-items:center;gap:5px">
             <div style="width:70px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden"><div id="fill-progress-bar" style="height:100%;background:var(--yellow);width:0%;transition:width .25s ease-out"></div></div>
             <button id="fill-cancel-btn" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:0 2px;line-height:1" title="Cancel fill">✕</button>
           </div>
           <button class="hbtn hbtn-view hbtn-check" id="btn-revalidate" title="Check with Ollama — re-analyze photo vs saved data" style="display:none">🦙 Check</button>
           <span style="flex:1"></span>
-          <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700">+ <span class="btn-txt">Add</span></button>
-          <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ <span class="btn-txt">Import</span></button>
           <input type="file" id="import-input" accept=".json" style="display:none">
         </div>
       </div>
