@@ -32,7 +32,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 #main{flex:1;overflow:hidden;position:relative}
 
 /* ── TAB PANELS (all screens) ────────────────────────────────────── */
-#cam-panel,#right{position:absolute;inset:0;display:none;flex-direction:column}
+#cam-panel,#right{position:absolute;inset:0;display:none;flex-direction:column;overflow:auto}
 body[data-tab="capture"] #cam-panel{display:flex}
 body[data-tab="review"] #right,body[data-tab="collect"] #right{display:flex}
 body[data-tab="review"] #inv-panel{display:none}
