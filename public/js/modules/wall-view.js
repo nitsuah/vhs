@@ -87,14 +87,48 @@ export function renderWall() {
       onLongPress: id => {
         const fbi = document.getElementById('fbi-overlay');
         const label = document.getElementById('fbi-tape-label');
+        const youtubeWrap = document.getElementById('fbi-youtube-wrap');
         const tape = getInventory().find(t => t.id === id);
-        if (fbi && label && tape) {
+        if (fbi && label && youtubeWrap && tape) {
           label.textContent = tape.title || 'Untitled';
           fbi.style.display = 'flex';
+          searchYoutubeTrailer(tape.title, youtubeWrap);
         }
       },
       onEggPreview: () => { c.classList.add('egg-active'); startTitleEggPreview(c); },
       onEggPreviewEnd: () => { c.classList.remove('egg-active'); stopTitleEggPreview(c); },
     });
   });
+}
+
+async function searchYoutubeTrailer(title, container) {
+  const loading = container.querySelector('#fbi-loading');
+  if (loading) loading.style.display = 'block';
+  
+  try {
+    const query = encodeURIComponent(`${title} trailer`);
+    const res = await fetch(`/api/youtube-search?q=${query}`);
+    if (!res.ok) throw new Error('Search failed');
+    
+    const data = await res.json();
+    if (!data.videoId) throw new Error('No video found');
+    
+    // Embed YouTube iframe
+    const existing = container.querySelector('iframe');
+    if (existing) existing.remove();
+    
+    const iframe = document.createElement('iframe');
+    iframe.src = `https://www.youtube.com/embed/${data.videoId}?autoplay=1`;
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = 'none';
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    iframe.allowFullscreen = true;
+    
+    container.appendChild(iframe);
+    if (loading) loading.style.display = 'none';
+  } catch (err) {
+    console.error('Trailer search failed:', err);
+    if (loading) loading.textContent = 'Trailer not found';
+  }
 }
