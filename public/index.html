@@ -45,8 +45,6 @@
   <div class="hbr-section">
     <span class="hbr-label">Data</span>
     <button class="hbtn" id="btn-add-tape-mob" title="Add tape manually">+ Add Tape</button>
-    <button class="hbtn hbtn-fill" id="btn-fill-data-mob" title="Fill missing data from OMDb">⚡ Fill</button>
-    <button class="hbtn hbtn-check" id="btn-revalidate-mob" title="Check with Ollama — re-analyze photo vs saved data" style="display:none">🦙 Check</button>
     <button class="hbtn" id="btn-import-mob" title="Import tapes from JSON">↑ Import</button>
     <button class="hbtn" id="btn-export-mob" title="Export tapes">↓ Export</button>
     <div class="exp-dd" id="exp-dd-mob">
@@ -66,6 +64,7 @@
     <button class="hbtn" id="btn-sound">🔊 Sounds</button>
   </div>
   <div class="hbr-section hbr-section-last" id="auth-slot-mob"></div>
+  <div class="hbr-section" id="sidebar-auth"></div>
 </div>
 <div id="crt-overlay"></div>
 <canvas id="static-canvas"></canvas>
@@ -215,16 +214,8 @@
               <button id="exp-print">Printable List</button>
             </div>
           </div>
-          <button class="hbtn hbtn-view hbtn-fill" id="btn-fill-data" title="Fill missing data from OMDb">⚡ Fill</button>
         </div>
-          <div id="fill-progress" style="display:none;align-items:center;gap:5px">
-            <div style="width:70px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden"><div id="fill-progress-bar" style="height:100%;background:var(--yellow);width:0%;transition:width .25s ease-out"></div></div>
-            <button id="fill-cancel-btn" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:0 2px;line-height:1" title="Cancel fill">✕</button>
-          </div>
-          <button class="hbtn hbtn-view hbtn-check" id="btn-revalidate" title="Check with Ollama — re-analyze photo vs saved data" style="display:none">🦙 Check</button>
-          <span style="flex:1"></span>
-          <input type="file" id="import-input" accept=".json" style="display:none">
-        </div>
+        <input type="file" id="import-input" accept=".json" style="display:none">
       </div>
       <div id="bulk-bar">
         <span id="bulk-count" style="font-size:12px;color:var(--blue);font-weight:700"></span>

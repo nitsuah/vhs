@@ -24,20 +24,23 @@ export async function initAuth() {
 // ── Render ─────────────────────────────────────────────────────────────────────
 
 function renderAuthChip() {
-  const slots = [
+  const headerSlots = [
     document.getElementById('auth-slot'),
     document.getElementById('auth-slot-mob'),
   ].filter(Boolean);
+  const sidebarSlot = document.getElementById('sidebar-auth');
   const toolbarSlot = document.getElementById('auth-slot-toolbar');
 
   if (!_authEnabled) {
-    slots.forEach(s => { s.innerHTML = ''; });
+    headerSlots.forEach(s => { s.innerHTML = ''; });
+    if (sidebarSlot) sidebarSlot.innerHTML = '';
     if (toolbarSlot) toolbarSlot.innerHTML = '';
     return;
   }
-  if (!slots.length && !toolbarSlot) return;
+  if (!headerSlots.length && !sidebarSlot && !toolbarSlot) return;
 
-  const html = _user
+  // Header: sign-in button (desktop) or Google icon (mobile)
+  const headerHtml = _user
     ? `<div class="auth-chip">
         <img src="${escHtml(_user.picture || '')}" class="auth-avatar" referrerpolicy="no-referrer"
              onerror="this.style.display='none'" alt="">
@@ -45,13 +48,29 @@ function renderAuthChip() {
         <button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>
         <button class="hbtn auth-out-btn btn-signout" title="Sign out">↩ Sign out</button>
       </div>`
-    : `<a href="/auth/google" class="hbtn auth-signin-btn">Sign in with Google</a>`;
+    : `<a href="/auth/google" class="hbtn auth-signin-btn">Sign in</a>`;
 
-  slots.forEach(s => { s.innerHTML = html; });
-  // The full chip (avatar/share/sign-out) already lives in the header for
-  // signed-in users — the collection toolbar only needs a sign-in prompt for
-  // unauthenticated visitors, not a duplicate of the header chip.
-  if (toolbarSlot) toolbarSlot.innerHTML = _user ? '' : `<a href="/auth/google" class="hbtn auth-signin-btn">Sign in</a>`;
+  // Mobile header: Google icon when signed out
+  const mobileHeaderHtml = _user
+    ? headerHtml
+    : `<a href="/auth/google" class="hbtn auth-signin-btn" title="Sign in with Google" style="padding:10px 12px">🔐</a>`;
+
+  // Sidebar: full chip when signed in, nothing when signed out
+  const sidebarHtml = _user
+    ? `<div class="auth-chip" style="justify-content:flex-start">
+        <img src="${escHtml(_user.picture || '')}" class="auth-avatar" referrerpolicy="no-referrer"
+             onerror="this.style.display='none'" alt="">
+        <span class="auth-name">${escHtml(_user.name || _user.email)}</span>
+        <button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>
+        <button class="hbtn auth-out-btn btn-signout" title="Sign out">↩ Sign out</button>
+      </div>`
+    : '';
+
+  headerSlots.forEach(s => { s.innerHTML = headerHtml; });
+  document.getElementById('auth-slot-mob').innerHTML = mobileHeaderHtml;
+  if (sidebarSlot) sidebarSlot.innerHTML = sidebarHtml;
+  if (toolbarSlot) toolbarSlot.innerHTML = '';
+
   document.querySelectorAll('.btn-share-open').forEach(el => el.addEventListener('click', openSharePanel));
   document.querySelectorAll('.btn-signout').forEach(el => el.addEventListener('click', signOut));
 
