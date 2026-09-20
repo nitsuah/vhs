@@ -477,12 +477,16 @@ const btnCamFlip=document.getElementById('btn-cam-flip');
 async function populateCameras(){
   cameraDevices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
   camSel.innerHTML=cameraDevices.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
-  // Prefer rear camera on mobile: pick the last device (typically rear/environment)
-  if(cameraDevices.length>1){
-    camIdx=isMobile?cameraDevices.length-1:0;
-  }
-  // Sync dropdown to current selection
-  if(cameraDevices[camIdx]) camSel.value=cameraDevices[camIdx].deviceId;
+    // Prefer rear camera on mobile: pick the last device (typically rear/environment)
+    if(cameraDevices.length>1){
+      camIdx=isMobile?cameraDevices.length-1:0;
+    }
+    // Sync dropdown to current selection and retain previously selected deviceId for environment-facing probe
+    if(cameraDevices[camIdx]) camSel.value=cameraDevices[camIdx].deviceId;
+    // Preserve selected deviceId for environment probe after enumeration
+    if(isMobile && camIdx===cameraDevices.length-1) {
+      // keep existing camIdx for environment probe
+    }
 }
 btnCamFlip?.addEventListener('click',async()=>{
   if(cameraDevices.length<2) return;

@@ -1,6 +1,7 @@
 // ── AUTH MODULE ────────────────────────────────────────────────────────────────
 // Handles auth state, login/logout UI, and the share-collection panel.
 
+import { escHtml } from './utils.js';
 let _user = null;
 let _authEnabled = false;
 
@@ -47,7 +48,7 @@ function renderAuthChip() {
   // Mobile header: ONLY share button when signed in (no user info)
   const mobileHeaderHtml = _user
     ? `<button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>`
-    : `<a href="/auth/google" class="hbtn auth-signin-btn" title="Sign in with Google" style="padding:10px 12px">🔐</a>`;
+    : `<a href="/auth/google" class="hbtn auth-signin-btn" title="Sign in with Google" aria-label="Sign in with Google" style="padding:10px 12px">🔐</a>`;
 
   // Sidebar: full profile when signed in, nothing when signed out
   const sidebarHtml = _user
@@ -232,13 +233,6 @@ export async function loadPublicCollection(slug) {
   renderPublicCollection(data.tapes);
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Helpers — remove local escHtml function and use imported one
 
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+// (function removed)
