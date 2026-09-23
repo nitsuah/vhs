@@ -4,15 +4,18 @@
 
 | Metric     | Coverage | Threshold | Status |
 |------------|----------|-----------|--------|
-| Statements | 79.58% (1860/2337) | 82% | ❌ below |
-| Branches   | 79.21% (465/587)   | 77% | ✅ |
-| Functions  | 81.81% (54/66)     | 85% | ❌ below |
-| Lines      | 79.58% (1860/2337) | 82% | ❌ below |
+| Statements | 79.59% (1860/2337) | 82% | ❌ below |
+| Branches   | 79.22% (465/587)   | 77% | ✅ |
+| Functions  | 81.82% (54/66)     | 85% | ❌ below |
+| Lines      | 79.59% (1860/2337) | 82% | ❌ below |
 
-Down from the 2026-09-18 baseline (85.40 / 79.78 / 88.33 / 85.40). The main cause
-is `src/modules/tmdb.js`, added in #55, at **7.6%** statements / **0%** functions:
-it has no tests yet. Because of it, `npx jest --coverage` now exits non-zero on the
-global thresholds in `jest.config.js`.
+Percentages are rounded from the counts. Jest's text reporter truncates instead,
+so it prints 79.58% for statements.
+
+Down from the 2026-09-02 baseline in `jest.config.js` (85.40 / 79.78 / 88.33 / 85.40,
+re-confirmed 2026-09-18). The main cause is `src/modules/tmdb.js`, added in #55,
+at **7.6%** statements / **0%** functions: it has no tests yet. Because of it,
+`npx jest --coverage` now exits non-zero on the global thresholds in `jest.config.js`.
 
 ### Lowest-covered files
 
