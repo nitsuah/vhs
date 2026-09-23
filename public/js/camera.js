@@ -57,8 +57,9 @@ async function initCamera(){
     const probe=await navigator.mediaDevices.getUserMedia({
       video: isMobile ? {facingMode:{ideal:'environment'}} : true
     });
+    const probeDeviceId=probe.getVideoTracks()[0]?.getSettings()?.deviceId||null;
     probe.getTracks().forEach(t=>t.stop());
-    await populateCameras();
+    await populateCameras(probeDeviceId);
     currentFacing='environment';
     const defaultDev=isMobile && cameraDevices[camIdx] ? cameraDevices[camIdx].deviceId : (isMobile ? null : cameraDevices[0]?.deviceId);
     await startStream(defaultDev);
@@ -474,19 +475,20 @@ function checkTorch(){
 let cameraDevices=[];
 let camIdx=0;
 const btnCamFlip=document.getElementById('btn-cam-flip');
-async function populateCameras(){
+async function populateCameras(probeDeviceId){
   cameraDevices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
   camSel.innerHTML=cameraDevices.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
-    // Prefer rear camera on mobile: pick the last device (typically rear/environment)
-    if(cameraDevices.length>1){
+    // Prefer the device the environment-facing probe actually selected — enumeration
+    // order doesn't reliably correlate with facing direction across browsers/devices.
+    const probeIdx=probeDeviceId?cameraDevices.findIndex(d=>d.deviceId===probeDeviceId):-1;
+    if(probeIdx>=0){
+      camIdx=probeIdx;
+    }else if(cameraDevices.length>1){
+      // Fallback heuristic: pick the last device (typically rear/environment on mobile)
       camIdx=isMobile?cameraDevices.length-1:0;
     }
-    // Sync dropdown to current selection and retain previously selected deviceId for environment-facing probe
+    // Sync dropdown to current selection
     if(cameraDevices[camIdx]) camSel.value=cameraDevices[camIdx].deviceId;
-    // Preserve selected deviceId for environment probe after enumeration
-    if(isMobile && camIdx===cameraDevices.length-1) {
-      // keep existing camIdx for environment probe
-    }
 }
 btnCamFlip?.addEventListener('click',async()=>{
   if(cameraDevices.length<2) return;
