@@ -5,13 +5,17 @@
 | Metric     | Coverage | Threshold | Status |
 |------------|----------|-----------|--------|
 | Statements | 86.86% (2030/2337) | 82% | ✅ |
-| Branches   | 81.81% (549/671)   | 77% | ✅ |
-| Functions  | 87.87% (58/66)     | 85% | ✅ |
+| Branches   | 81.82% (549/671)   | 77% | ✅ |
+| Functions  | 87.88% (58/66)     | 85% | ✅ |
 | Lines      | 86.86% (2030/2337) | 82% | ✅ |
+
+Percentages are rounded from the counts. Jest's text reporter truncates instead,
+so it prints 81.81% for branches and 87.87% for functions.
 
 Back above the thresholds after adding `tests/tmdb.test.js`. `src/modules/tmdb.js`
 (added in #55) went from 7.6% to 100% on all four metrics. Before those tests, the
-2026-09-23 run was 79.58 / 79.21 / 81.81 / 79.58.
+2026-09-23 run was 79.59 / 79.22 / 81.82 / 79.59, down from the 2026-09-02 baseline
+in `jest.config.js` (85.40 / 79.78 / 88.33 / 85.40, re-confirmed 2026-09-18).
 
 ### Lowest-covered files
 
