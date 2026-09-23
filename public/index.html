@@ -19,14 +19,14 @@
   <select id="camera-select" style="display:none"></select>
   <div class="hdr-right" id="hdr-right-desktop">
     <span id="count-badge">0 tapes</span><span id="db-dot" title="Neon connection"></span>
-    <div id="auth-slot"></div>
+    <div id="auth-slot"><a href="/auth/google" class="hbtn auth-signin-btn">Sign in</a></div>
     <button class="hbtn" id="btn-settings">⚙ Settings</button>
     <button class="hbtn" id="btn-help" title="Keyboard shortcuts (?)">?</button>
   </div>
   <!-- Mobile-only right side -->
   <div class="hdr-right-mob" id="hdr-right-mob">
     <span id="ai-badge" class="loading"></span>
-    <span id="db-dot-mob"></span>
+    <div id="auth-slot-mob"></div>
     <button id="btn-menu">☰</button>
   </div>
 </header>
@@ -44,8 +44,6 @@
   <div class="hbr-section">
     <span class="hbr-label">Data</span>
     <button class="hbtn" id="btn-add-tape-mob" title="Add tape manually">+ Add Tape</button>
-    <button class="hbtn hbtn-fill" id="btn-fill-data-mob" title="Fill missing data from OMDb">⚡ Fill</button>
-    <button class="hbtn hbtn-check" id="btn-revalidate-mob" title="Check with Ollama — re-analyze photo vs saved data" style="display:none">🦙 Check</button>
     <button class="hbtn" id="btn-import-mob" title="Import tapes from JSON">↑ Import</button>
     <button class="hbtn" id="btn-export-mob" title="Export tapes">↓ Export</button>
     <div class="exp-dd" id="exp-dd-mob">
@@ -64,7 +62,8 @@
     <span class="hbr-label">Audio</span>
     <button class="hbtn" id="btn-sound">🔊 Sounds</button>
   </div>
-  <div class="hbr-section hbr-section-last" id="auth-slot-mob"></div>
+
+  <div class="hbr-section" id="sidebar-auth"></div>
 </div>
 <div id="crt-overlay"></div>
 <canvas id="static-canvas"></canvas>
@@ -191,9 +190,9 @@
     <div id="inv-panel">
       <div id="collect-subhdr">
         <div class="csh-row1">
+          <button class="hbtn hbtn-view" id="btn-wall">📋 Table</button>
           <input id="search" type="text" placeholder="Search…">
           <button id="btn-search" title="Search">🔍</button>
-          <button class="hbtn hbtn-view" id="btn-wall">📋 Table</button>
           <select id="sort-sel">
             <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
             <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
@@ -201,7 +200,8 @@
             <option value="val_desc">Value ↓</option><option value="val_asc">Value ↑</option>
             <option value="cond_asc">Cond. Best→Worst</option><option value="cond_desc">Cond. Worst→Best</option>
           </select>
-          <span style="flex:1"></span>
+          <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700">+ <span class="btn-txt">Add</span></button>
+          <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ <span class="btn-txt">Import</span></button>
           <div class="exp-wrap">
             <button class="hbtn" id="btn-export" title="Export tapes">↓ <span class="btn-txt">Export</span></button>
             <div class="exp-dd" id="exp-dd">
@@ -213,20 +213,8 @@
               <button id="exp-print">Printable List</button>
             </div>
           </div>
-          <div id="auth-slot-toolbar"></div>
         </div>
-        <div class="csh-row2">
-          <button class="hbtn hbtn-view hbtn-fill" id="btn-fill-data" title="Fill missing data from OMDb">⚡ Fill</button>
-          <div id="fill-progress" style="display:none;align-items:center;gap:5px">
-            <div style="width:70px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden"><div id="fill-progress-bar" style="height:100%;background:var(--yellow);width:0%;transition:width .25s ease-out"></div></div>
-            <button id="fill-cancel-btn" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:0 2px;line-height:1" title="Cancel fill">✕</button>
-          </div>
-          <button class="hbtn hbtn-view hbtn-check" id="btn-revalidate" title="Check with Ollama — re-analyze photo vs saved data" style="display:none">🦙 Check</button>
-          <span style="flex:1"></span>
-          <button class="hbtn" id="btn-add-tape" title="Add tape manually (N)" style="font-weight:700">+ <span class="btn-txt">Add</span></button>
-          <button class="hbtn" id="btn-import" title="Import tapes from JSON">↑ <span class="btn-txt">Import</span></button>
-          <input type="file" id="import-input" accept=".json" style="display:none">
-        </div>
+        <input type="file" id="import-input" accept=".json" style="display:none">
       </div>
       <div id="bulk-bar">
         <span id="bulk-count" style="font-size:12px;color:var(--blue);font-weight:700"></span>
@@ -256,22 +244,12 @@
         </tr></thead>
         <tbody id="inv-tbl"></tbody>
       </table></div>
+      <div id="wall-view"></div>
       <div id="zoom-bar">
         <span style="color:var(--text3);font-size:13px;cursor:default;user-select:none" title="Zoom out">⊖</span>
         <input type="range" id="zoom-slider" min="0.5" max="2.5" step="0.1" value="1" title="Collection zoom">
         <span style="color:var(--text3);font-size:13px;cursor:default;user-select:none" title="Zoom in">⊕</span>
       </div>
-      <div class="empty" id="empty-state" style="flex-direction:column;gap:10px;padding:40px 20px;display:none">
-        <div style="font-size:36px">📼</div>
-        <div style="font-size:14px;font-weight:700;color:var(--text)">No tapes yet</div>
-        <div style="font-size:12px;color:var(--text3);text-align:center;max-width:260px;line-height:1.6">Point the camera at a shelf and press <strong>Capture</strong>, scan a barcode, or press <kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:10px">N</kbd> to add manually.</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px">
-          <button class="hbtn" onclick="document.getElementById('btn-cap').click()" style="font-size:12px">⬤ Capture</button>
-          <button class="hbtn" onclick="openNewTapeModal()" style="font-size:12px">+ Add Manually</button>
-          <button class="hbtn" onclick="document.getElementById('btn-upload').click()" style="font-size:12px">⬆ Upload Photo</button>
-        </div>
-      </div>
-      <div id="wall-view"></div>
     </div>
   </section>
 </main>
@@ -391,11 +369,30 @@
     </div>
     <div id="local-ai-results" style="display:none;margin-top:8px;font-size:12px;color:var(--text2);line-height:1.6"></div>
     <hr class="ssep">
-    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">OMDb (movie metadata)</div>
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Movie Metadata API</div>
+    <div class="srow">
+      <div class="sfield">
+        <label>OMDb API Key</label>
+        <input id="s-omdb-key" type="password" placeholder="optional — free key at omdbapi.com" autocomplete="off">
+        <span class="shint">Used for authoritative movie year and IMDB ID lookup when filling metadata. Falls back to server env key if not set.</span>
+      </div>
+      <div class="sfield">
+        <label>TMDb API Key</label>
+        <input id="s-tmdb-key" type="password" placeholder="optional — free key at themoviedb.org" autocomplete="off">
+        <span class="shint">Alternative metadata provider. Configure provider below.</span>
+      </div>
+    </div>
     <div class="sfield">
-      <label>OMDb API Key</label>
-      <input id="s-omdb-key" type="password" placeholder="optional — free key at omdbapi.com" autocomplete="off">
-      <span class="shint">Used for authoritative movie year and IMDB ID lookup when filling metadata. Falls back to server env key if not set.</span>
+      <label>Active Provider</label>
+      <select id="s-api-provider">
+        <option value="omdb">OMDb</option>
+        <option value="tmdb">TMDb</option>
+      </select>
+      <span class="shint">Select which API to use for metadata enrichment and trailer lookup.</span>
+    </div>
+    <div class="srow" style="margin-top:8px;align-items:center">
+      <button class="hbtn" id="s-test-lookup" style="white-space:nowrap">🔍 Test Lookup</button>
+      <span id="s-test-result" style="font-size:11px;color:var(--text3);flex:1"></span>
     </div>
     <hr class="ssep">
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Extraction mode</div>
@@ -528,7 +525,7 @@
     <p id="crop-role-hint" style="font-size:12px;color:var(--text2);margin:0 0 12px;line-height:1.4"></p>
     <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
       <div id="crop-frame" style="position:relative;overflow:hidden;border:2px solid var(--accent);border-radius:6px;cursor:grab;touch-action:none;user-select:none;flex-shrink:0;margin:0 auto">
-        <img id="crop-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none">
+        <img id="crop-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;transform-origin:center">
       </div>
       <div style="font-size:11px;color:var(--text3)" id="crop-pct">50% × 50%</div>
       <div style="font-size:11px;color:var(--text3);text-align:center">Drag to reposition · Scroll or pinch to zoom</div>
@@ -536,6 +533,14 @@
         <span style="font-size:11px;color:var(--text3)">Zoom</span>
         <input type="range" id="crop-zoom" min="100" max="300" step="5" value="100" style="flex:1">
         <span style="font-size:11px;color:var(--text3);min-width:28px;text-align:right" id="crop-zoom-lbl">1.0×</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;width:100%;max-width:260px">
+        <span style="font-size:11px;color:var(--text3)">Rotate</span>
+        <button id="crop-rotate" class="btn btn-x" style="flex:1" title="Rotate 90° clockwise">⟳ Rotate</button>
+        <span style="font-size:11px;color:var(--text3);min-width:40px;text-align:right" id="crop-rot-lbl">0°</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;width:100%;max-width:260px">
+        <button id="crop-role-btn" class="btn btn-x" style="flex:1;display:none" title="Switch between spine/cover adjustment for this image"></button>
       </div>
     </div>
     <div class="modal-acts" style="margin-top:16px">

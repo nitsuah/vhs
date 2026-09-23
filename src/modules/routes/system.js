@@ -16,7 +16,7 @@ const { resolveOllamaUrl } = require('../ollama');
 const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
 
 function registerStaticAndProxy(app) {
-  app.use('/', limiter);
+  app.use('/api', limiter);
 
   const publicDir = path.join(__dirname, '..', '..', '..', 'public');
   app.use(express.static(publicDir, { index: false }));

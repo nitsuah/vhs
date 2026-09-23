@@ -1,6 +1,7 @@
 // ── AUTH MODULE ────────────────────────────────────────────────────────────────
 // Handles auth state, login/logout UI, and the share-collection panel.
 
+import { escHtml } from './utils.js';
 let _user = null;
 let _authEnabled = false;
 
@@ -10,11 +11,13 @@ export function isAuthEnabled() { return _authEnabled; }
 // ── Bootstrap ──────────────────────────────────────────────────────────────────
 
 export async function initAuth() {
+  console.log('initAuth called');
   try {
     const res = await fetch('/auth/me');
     const data = await res.json();
-    _user        = data.user   || null;
+    _user = data.user || null;
     _authEnabled = data.enabled || false;
+    console.log('auth data', data);
   } catch {
     _user = null; _authEnabled = false;
   }
@@ -24,34 +27,45 @@ export async function initAuth() {
 // ── Render ─────────────────────────────────────────────────────────────────────
 
 function renderAuthChip() {
-  const slots = [
+  console.log('renderAuthChip executed, enabled:', _authEnabled, 'user:', _user);
+  const headerSlots = [
     document.getElementById('auth-slot'),
     document.getElementById('auth-slot-mob'),
   ].filter(Boolean);
+  const sidebarSlot = document.getElementById('sidebar-auth');
   const toolbarSlot = document.getElementById('auth-slot-toolbar');
 
   if (!_authEnabled) {
-    slots.forEach(s => { s.innerHTML = ''; });
+    headerSlots.forEach(s => { s.innerHTML = ''; });
+    if (sidebarSlot) sidebarSlot.innerHTML = '';
     if (toolbarSlot) toolbarSlot.innerHTML = '';
     return;
   }
-  if (!slots.length && !toolbarSlot) return;
+  if (!headerSlots.length && !sidebarSlot && !toolbarSlot) return;
 
-  const html = _user
-    ? `<div class="auth-chip">
+  const headerHtml = _user
+    ? `<button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>`
+    : `<a href="/auth/google" class="hbtn auth-signin-btn">Sign in</a>`;
+
+  const mobileHeaderHtml = _user
+    ? `<button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>`
+    : `<a href="/auth/google" class="hbtn auth-signin-btn" title="Sign in with Google" aria-label="Sign in with Google" style="padding:10px 12px">🔐</a>`;
+
+  const sidebarHtml = _user
+    ? `<div class="auth-chip" style="justify-content:flex-start">
         <img src="${escHtml(_user.picture || '')}" class="auth-avatar" referrerpolicy="no-referrer"
              onerror="this.style.display='none'" alt="">
         <span class="auth-name">${escHtml(_user.name || _user.email)}</span>
         <button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>
         <button class="hbtn auth-out-btn btn-signout" title="Sign out">↩ Sign out</button>
       </div>`
-    : `<a href="/auth/google" class="hbtn auth-signin-btn">Sign in with Google</a>`;
+    : '';
 
-  slots.forEach(s => { s.innerHTML = html; });
-  // The full chip (avatar/share/sign-out) already lives in the header for
-  // signed-in users — the collection toolbar only needs a sign-in prompt for
-  // unauthenticated visitors, not a duplicate of the header chip.
-  if (toolbarSlot) toolbarSlot.innerHTML = _user ? '' : `<a href="/auth/google" class="hbtn auth-signin-btn">Sign in</a>`;
+  headerSlots.forEach(s => { s.innerHTML = headerHtml; });
+  document.getElementById('auth-slot-mob').innerHTML = mobileHeaderHtml;
+  if (sidebarSlot) sidebarSlot.innerHTML = sidebarHtml;
+  if (toolbarSlot) toolbarSlot.innerHTML = '';
+
   document.querySelectorAll('.btn-share-open').forEach(el => el.addEventListener('click', openSharePanel));
   document.querySelectorAll('.btn-signout').forEach(el => el.addEventListener('click', signOut));
 
@@ -61,11 +75,12 @@ function renderAuthChip() {
     if (el) el.style.display = canWrite ? '' : 'none';
   });
 
-  // Show auth error from OAuth redirect if present
   if (new URLSearchParams(location.search).get('auth') === 'error') {
     import('./utils.js').then(({ toast }) => toast('Google sign-in failed. Please try again.', 'err', 5000));
     history.replaceState(null, '', location.pathname);
   }
+
+
 }
 
 async function signOut() {
@@ -217,13 +232,6 @@ export async function loadPublicCollection(slug) {
   renderPublicCollection(data.tapes);
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Helpers — remove local escHtml function and use imported one
 
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+// (function removed)

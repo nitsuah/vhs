@@ -176,6 +176,7 @@ describe('auth enabled (Google client + JWT_SECRET configured)', () => {
 
   it('requireAuth rejects with 401 when req.user is absent', () => {
     const auth = enable();
+    process.env.NODE_ENV = 'production'; // requireAuth only enforces in production
     const next = jest.fn();
     const res = { status: jest.fn(() => res), json: jest.fn() };
     auth.requireAuth({}, res, next);
@@ -186,6 +187,7 @@ describe('auth enabled (Google client + JWT_SECRET configured)', () => {
 
   it('requireAuth calls next() when req.user is present', () => {
     const auth = enable();
+    process.env.NODE_ENV = 'production'; // requireAuth only enforces in production
     const next = jest.fn();
     const res = { status: jest.fn(() => res), json: jest.fn() };
     auth.requireAuth({ user: { sub: 'u1' } }, res, next);

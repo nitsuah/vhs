@@ -26,13 +26,9 @@ export function renderList() {
     const sel = t.id === selectedId;
     const bulk = selectedIds.has(t.id);
     const tagStr = (t.tags || []).map(tag => `<span class="tag-chip small">${esc(tag)}</span>`).join('');
-    // Apply whichever role's crop adjustment matches the thumbnail actually
-    // shown, so pan/zoom edits are visible in Table view too, not just Wall
-    // views. The table thumbnail is a landscape box like .spine-img, so it
-    // never gets the StacksUp rotation (includeRotate=false either way).
-    const thumbCropStyle = t.photo_face && t.photo_thumbnail === t.photo_face ? _cropStyle(t, 'face', false)
-      : t.photo_spine && t.photo_thumbnail === t.photo_spine ? _cropStyle(t, 'spine', false)
-      : '';
+    // Table thumbnails should always be uniform — ignore per-role crop adjustments
+    // (pan/zoom/rotation) so all rows align. Crop edits only affect Wall views.
+    const thumbCropStyle = '';
 
     return `<tr class="tape-row${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${t.id}"${_eggAttrs(t)}>
       <td class="mc-2">${t.photo_thumbnail ? `<img class="tbl-thumb" src="${esc(t.photo_thumbnail)}" alt=""${thumbCropStyle}>` : `<div class="tbl-thumb-ph">📼</div>`}</td>
@@ -85,11 +81,64 @@ export function attachRowEvents(tbl) {
       getId: () => row.dataset.id,
       onOpen: openDetail,
       onToggleSelect: toggleSelected,
+      onLongPress: (id) => showTrailer(id),
       onModifierSelect: (id, e) => modifierSelect(id, e, tbl),
       onEggPreview: () => startTitleEggPreview(row),
       onEggPreviewEnd: () => stopTitleEggPreview(row),
     });
   });
+}
+
+function showTrailer(id) {
+  const tape = getInventory().find(t => t.id === id);
+  if (!tape) return;
+  
+  const fbi = document.getElementById('fbi-overlay');
+  const label = document.getElementById('fbi-tape-label');
+  const youtubeWrap = document.getElementById('fbi-youtube-wrap');
+  
+  if (!fbi || !label || !youtubeWrap) return;
+  
+  label.textContent = tape.title || 'Untitled';
+  fbi.classList.remove('youtube-mode');
+  fbi.style.display = 'flex';
+  
+  // Search YouTube for trailer
+  searchYoutubeTrailer(tape.title, youtubeWrap, fbi);
+}
+
+async function searchYoutubeTrailer(title, container, fbiOverlay) {
+  const loading = container.querySelector('#fbi-loading');
+  if (loading) loading.style.display = 'block';
+  
+  try {
+    const res = await fetch(`/api/trailer?title=${encodeURIComponent(title)}`);
+    if (!res.ok) throw new Error('Search failed');
+    
+    const data = await res.json();
+    if (!data.videoId) throw new Error('No video found');
+    
+    // Embed YouTube iframe
+    const existing = container.querySelector('iframe');
+    if (existing) existing.remove();
+    
+    const iframe = document.createElement('iframe');
+    iframe.src = `https://www.youtube.com/embed/${data.videoId}?autoplay=1`;
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = 'none';
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    iframe.allowFullscreen = true;
+    
+    container.appendChild(iframe);
+    if (loading) loading.style.display = 'none';
+    
+    // Switch to youtube mode: hide warning, show video
+    if (fbiOverlay) fbiOverlay.classList.add('youtube-mode');
+  } catch (err) {
+    console.error('Trailer search failed:', err);
+    if (loading) loading.textContent = 'Trailer not found';
+  }
 }
 
 export function openDetail(id) {
@@ -127,3 +176,17 @@ export function renderInv() {
     }
   }
 }
+
+// FBI trailer close button
+document.getElementById('fbi-youtube-close')?.addEventListener('click', () => {
+  const fbi = document.getElementById('fbi-overlay');
+  const wrap = document.getElementById('fbi-youtube-wrap');
+  if (fbi) {
+    fbi.classList.remove('youtube-mode');
+    fbi.style.display = 'none';
+  }
+  if (wrap) {
+    const iframe = wrap.querySelector('iframe');
+    if (iframe) iframe.remove();
+  }
+});

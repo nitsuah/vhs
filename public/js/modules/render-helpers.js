@@ -16,13 +16,14 @@ export function _cropStyle(t, role, includeRotate) {
   // to arbitrary values — coerce to numbers and reject anything non-finite
   // before it reaches the HTML string below (this is later assigned via
   // innerHTML by callers), then clamp to the same ranges the crop editor
-  // itself enforces (0-100 for position, 1-4 for zoom).
-  const x = Number(c.x ?? 50), y = Number(c.y ?? 50), s = Number(c.s ?? 1);
-  if (![x, y, s].every(Number.isFinite)) return '';
-  const cx = Math.max(0, Math.min(100, x)), cy = Math.max(0, Math.min(100, y)), cs = Math.max(1, Math.min(4, s));
-  if (cx === 50 && cy === 50 && cs <= 1) return '';
+  // itself enforces (0-100 for position, 1-4 for zoom, 0-3 for rotation).
+  const x = Number(c.x ?? 50), y = Number(c.y ?? 50), s = Number(c.s ?? 1), r = Number(c.r ?? 0);
+  if (![x, y, s, r].every(Number.isFinite)) return '';
+  const cx = Math.max(0, Math.min(100, x)), cy = Math.max(0, Math.min(100, y)), cs = Math.max(1, Math.min(4, s)), cr = Math.max(0, Math.min(3, r));
+  if (cx === 50 && cy === 50 && cs <= 1 && cr === 0) return '';
   const parts = [];
   if (includeRotate) parts.push('rotate(90deg)');
+  if (cr) parts.push(`rotate(${cr * 90}deg)`);
   if (cs > 1) parts.push(`scale(${cs})`);
   return ` style="object-position:${cx}% ${cy}%${parts.length ? `;transform:${parts.join(' ')}` : ''}"`;
 }

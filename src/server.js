@@ -27,6 +27,7 @@ const { logActivity, getActivityLog, getLogClients } = require('./modules/activi
 const { healthHandler } = require('./modules/routes/health');
 const { jobId, reviewItemId, analyticsId } = require('./modules/ids');
 const { enhancedLookup, callOmdb, normalizeTitleForLookup, levenshteinDistance } = require('./modules/omdb');
+const { tmdbLookup } = require('./modules/tmdb');
 const { logScanAnalytics } = require('./modules/analytics');
 const { processJobs } = require('./modules/worker');
 const { callOllamaServer, pingOllama, resolveOllamaUrl } = require('./modules/ollama');
@@ -347,7 +348,9 @@ app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {
 app.get('/api/lookup', defaultLimiter, async (req, res) => {
   const title = (req.query.title || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
+  const provider = (req.query.provider || 'omdb').toLowerCase(); // 'omdb' or 'tmdb'
   const omdbKey = (req.headers['x-omdb-key'] || OMDB_API_KEY).trim();
+  const tmdbKey = (req.headers['x-tmdb-key'] || process.env.TMDB_KEY || '').trim();
   const noai = req.query.noai === '1';
 
   const safeTitle = title.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -357,49 +360,77 @@ Return ONLY JSON object — no other text:
 Rules: year=4-digit release year, label=VHS distributor/studio, value_low/value_high=USD resale range in good condition.
 Omit fields you're unsure about. Return {} if completely unknown.`;
 
-  // Tracked so a failed lookup can tell the client *why* — "not configured"
-  // vs "reachable but no match" vs "the upstream call itself errored" were
-  // previously indistinguishable (all collapsed into one generic {}).
-  let ollamaReason = noai ? 'skipped' : 'ok';
-  const ollamaPromise = noai ? Promise.resolve({}) : resolveOllamaUrl().then(upstream => fetch(`${upstream}/api/generate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: process.env.OLLAMA_MODEL || 'llava:7b', prompt, stream: false, options: { num_predict: 64 } }),
-    signal: AbortSignal.timeout(30000)
-  })).then(r => {
-    if (!r.ok) { ollamaReason = `error (HTTP ${r.status})`; return {}; }
-    return r.json();
-  }).catch(() => { ollamaReason = 'unreachable'; return {}; });
-
+  // Skip AI for TMDB provider or when the caller explicitly requests noai=1,
+  // otherwise attempt Ollama
+  let ollamaReason;
+  let ollamaPromise;
+  if (provider === 'tmdb' || noai) {
+    ollamaReason = 'skipped';
+    ollamaPromise = Promise.resolve({});
+  } else {
+    ollamaReason = 'ok';
+    ollamaPromise = resolveOllamaUrl()
+      .then(upstream => fetch(`${upstream}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: process.env.OLLAMA_MODEL || 'llava:7b', prompt, stream: false, options: { num_predict: 64 } }),
+        signal: AbortSignal.timeout(30000)
+      }))
+      .then(r => {
+        if (!r.ok) { ollamaReason = `error (HTTP ${r.status})`; return {}; }
+        ollamaReason = 'ok';
+        return r.json();
+      })
+      .catch(() => { ollamaReason = 'unreachable'; return {}; });
+  }
   let omdbReason = omdbKey ? 'ok' : 'not_configured';
-  const omdbPromise = omdbKey
-    ? enhancedLookup({ title }, omdbKey).catch(e => { omdbReason = 'error: ' + e.message; return null; })
-    : Promise.resolve(null);
+  let tmdbReason = tmdbKey ? 'ok' : 'no_match';
+  // No extra override needed; tmdbReason stays 'ok' only when key present
+  let omdb = null;
+  let tmdb = null;
 
-  const [ollamaRes, omdb] = await Promise.all([ollamaPromise, omdbPromise]);
+  if (provider === 'tmdb') {
+    if (tmdbKey) {
+      tmdb = await tmdbLookup({ title }, tmdbKey).catch(e => { tmdbReason = 'error: ' + e.message; return null; });
+    }
+  } else {
+    if (omdbKey) {
+      omdb = await enhancedLookup({ title }, omdbKey).catch(e => { omdbReason = 'error: ' + e.message; return null; });
+    }
+  }
+
+  const [ollamaRes] = await Promise.all([ollamaPromise]);
 
   let ai = {};
   try { ai = JSON.parse(ollamaRes.response || '{}'); } catch {}
   if (ollamaReason === 'ok' && Object.keys(ai).length === 0) ollamaReason = 'no_match';
-  if (omdbReason === 'ok' && !omdb) omdbReason = 'no_match';
-
-  // If both fail, report which backends were attempted and why, instead of
-  // a bare {} that looks identical whether nothing is configured, nothing
-  // matched, or an upstream call errored.
-  if (!omdb && (!ai || Object.keys(ai).length === 0)) {
-    return res.json({ error: 'no_metadata_found', reasons: { ollama: ollamaReason, omdb: omdbReason } });
+  if (provider === 'tmdb') {
+    if (tmdbReason === 'ok' && !tmdb) tmdbReason = 'no_match';
+  } else {
+    if (omdbReason === 'ok' && !omdb) omdbReason = 'no_match';
   }
 
+  // If both fail, report which backends were attempted and why
+  const hasMetadata = provider === 'tmdb' ? tmdb : omdb;
+  if (!hasMetadata && (!ai || Object.keys(ai).length === 0)) {
+    const reasons = {};
+    if (ollamaReason !== 'skipped') reasons.ollama = ollamaReason;
+    if (provider === 'tmdb') reasons.tmdb = tmdbReason;
+    else reasons.omdb = omdbReason;
+    return res.json({ error: 'no_metadata_found', reasons });
+  }
+
+  const metadata = provider === 'tmdb' ? tmdb : omdb;
   const result = {
     title,
-    year: omdb?.year || ai.year || '',
-    label: omdb?.label || ai.label || '',
+    year: metadata?.year || ai.year || '',
+    label: metadata?.label || ai.label || '',
     format: ai.format || 'VHS',
     value_low: ai.value_low || '',
     value_high: ai.value_high || '',
-    imdb_id: omdb?.imdb_id || '',
-    poster: omdb?.poster && omdb.poster !== 'N/A' ? omdb.poster : undefined,
-    source: omdb ? 'omdb_enhanced' : 'ai'
+    imdb_id: metadata?.imdb_id || '',
+    poster: metadata?.poster && metadata.poster !== 'N/A' ? metadata.poster : undefined,
+    source: metadata ? `${provider}_enhanced` : 'ai'
   };
 
   // Remove undefined poster

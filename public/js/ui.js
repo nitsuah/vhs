@@ -3,7 +3,7 @@ import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNew
 import { dbAdd, dbPut, dbDel, nextId } from './db.js';
 import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound, fileToThumb } from './utils.js';
 import { revPanel, showRevPanel, hideRevPanel } from './review.js';
-import { apiKey, omdbKey, ollamaUrl, ollamaModel, fastMode, cards, captureQueue, setApiKey, setOmdbKey, setOllamaUrl, setOllamaModel, setFastMode, localAiUrl, setLocalAiUrl, setLocalAiModel } from './state.js';
+import { apiKey, omdbKey, tmdbKey, apiProvider, ollamaUrl, ollamaModel, fastMode, cards, captureQueue, setApiKey, setOmdbKey, setTmdbKey, setApiProvider, setOllamaUrl, setOllamaModel, setFastMode, localAiUrl, setLocalAiUrl, setLocalAiModel } from './state.js';
 import { barcodeMode } from './camera.js';
 import { checkOllama, updateAiBadge, callAI, lookupMetadata, getLastLookupFailure, findLocalAI } from './ai.js';
 import { setDbDot } from './db.js';
@@ -112,6 +112,8 @@ document.getElementById('btn-fullscreen')?.addEventListener('click',()=>{
 document.getElementById('btn-settings').addEventListener('click',()=>{
   document.getElementById('s-apikey').value=apiKey;
   document.getElementById('s-omdb-key').value=omdbKey;
+  document.getElementById('s-tmdb-key').value=tmdbKey;
+  document.getElementById('s-api-provider').value=apiProvider;
   document.getElementById('s-ollama-url').value=ollamaUrl;
   document.getElementById('s-ollama-model').value=ollamaModel;
   document.getElementById('s-fast-mode').checked=fastMode;
@@ -127,17 +129,60 @@ document.getElementById('s-cancel').addEventListener('click',()=>document.getEle
 document.getElementById('s-save').addEventListener('click',()=>{
   const newKey=document.getElementById('s-apikey').value.trim();
   const newOmdb=document.getElementById('s-omdb-key').value.trim();
+  const newTmdb=document.getElementById('s-tmdb-key').value.trim();
+  const newProvider=document.getElementById('s-api-provider').value;
   const newUrl=document.getElementById('s-ollama-url').value.trim()||(location.protocol==='file:'?'http://localhost:11434':'/api/ollama');
   const newModel=document.getElementById('s-ollama-model').value;
   const newFast=document.getElementById('s-fast-mode').checked;
-  setApiKey(newKey); setOmdbKey(newOmdb); setOllamaUrl(newUrl); setOllamaModel(newModel); setFastMode(newFast);
+  setApiKey(newKey); setOmdbKey(newOmdb); setTmdbKey(newTmdb); setApiProvider(newProvider); setOllamaUrl(newUrl); setOllamaModel(newModel); setFastMode(newFast);
   newKey?localStorage.setItem('vhs-apikey',newKey):localStorage.removeItem('vhs-apikey'); // codeql[js/clear-text-storage-of-sensitive-data]
   newOmdb?localStorage.setItem('vhs-omdb-key',newOmdb):localStorage.removeItem('vhs-omdb-key'); // codeql[js/clear-text-storage-of-sensitive-data]
+  newTmdb?localStorage.setItem('vhs-tmdb-key',newTmdb):localStorage.removeItem('vhs-tmdb-key'); // codeql[js/clear-text-storage-of-sensitive-data]
+  localStorage.setItem('vhs-api-provider',newProvider);
   localStorage.setItem('vhs-ollama-url',newUrl);
   localStorage.setItem('vhs-ollama-model',newModel);
   localStorage.setItem('vhs-fast-mode',String(newFast));
   updateAiBadge();
   document.getElementById('m-settings').style.display='none';
+});
+
+// Test lookup button in settings
+document.getElementById('s-test-lookup')?.addEventListener('click', async () => {
+  const btn = document.getElementById('s-test-lookup');
+  const resultEl = document.getElementById('s-test-result');
+  const provider = document.getElementById('s-api-provider').value;
+  const omdbKey = document.getElementById('s-omdb-key').value.trim();
+  const tmdbKey = document.getElementById('s-tmdb-key').value.trim();
+  
+  if ((provider === 'omdb' && !omdbKey) || (provider === 'tmdb' && !tmdbKey)) {
+    resultEl.textContent = `No ${provider.toUpperCase()} key set`;
+    resultEl.style.color = 'var(--yellow)';
+    return;
+  }
+  
+  btn.disabled = true;
+  btn.textContent = '🔍 Testing…';
+  resultEl.textContent = '';
+  
+  try {
+    const res = await fetch(`/api/lookup?title=The%20Matrix&provider=${provider}`, {
+      headers: provider === 'tmdb' ? { 'x-tmdb-key': tmdbKey } : { 'x-omdb-key': omdbKey }
+    });
+    const data = await res.json();
+    if (data.error) {
+      resultEl.textContent = `Failed: ${data.reasons ? JSON.stringify(data.reasons) : data.error}`;
+      resultEl.style.color = 'var(--red)';
+    } else {
+      resultEl.textContent = `OK: ${data.year || '?'} · ${data.label || '?'} · IMDB: ${data.imdb_id || 'none'}`;
+      resultEl.style.color = 'var(--green)';
+    }
+  } catch (e) {
+    resultEl.textContent = `Error: ${e.message}`;
+    resultEl.style.color = 'var(--red)';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 Test Lookup';
+  }
 });
 
 // ── FIND LOCAL AI (Priority 3b) ──────────────────────────────────────────
@@ -436,11 +481,21 @@ document.getElementById('d-lookup')?.addEventListener('click', async () => {
   try {
     const result = await lookupMetadata(title);
     if (result) {
-      if (result.year) document.getElementById('d-year').value = result.year;
-      if (result.label) document.getElementById('d-label').value = result.label;
-      if (result.format) document.getElementById('d-format').value = result.format;
-      if (result.value_low) document.getElementById('d-value-low').value = result.value_low;
-      if (result.value_high) document.getElementById('d-value-high').value = result.value_high;
+      // Add to review queue so user can see the result and choose to apply
+      const { addCard, showRevPanel } = await import('./review.js');
+      addCard({
+        title,
+        year: result.year || '',
+        label: result.label || '',
+        format: result.format || 'VHS',
+        value_low: result.value_low || '',
+        value_high: result.value_high || '',
+        imdb_id: result.imdb_id || '',
+        poster: result.poster || '',
+        status: 'in_collection'
+      }, 'lookup', null, true);
+      showRevPanel();
+      toast('Metadata found — added to review queue', 'ok');
     } else {
       toast(getLastLookupFailure() || 'No metadata found for this title', 'warn', 5000);
     }
