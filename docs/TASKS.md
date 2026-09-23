@@ -4,6 +4,11 @@ Last Updated: 2026-09-02
 
 ## Todo
 
+## Ideas
+
+- [ ] Add "randomizer" that auto picks a title from the collection.
+- [ ] Add "watch" options in the "trailer" view with buttons to where the movie can be watched (this is a major feature to index and search where videos might be streaming or available online free to watch, tubi or youtube, vimeo, dailymotion, etc)
+
 ### Coverage & Testing
 
 - [ ] **True sold-price valuation (eBay Marketplace Insights)** — the shipped valuation uses the Browse API, which returns **active listings (asking prices), not realized sale prices**; asking prices skew high. The Browse API has no supported sold/completed-item filter (an earlier draft sent `soldItemsOnly:true`, which eBay does not honour). Real sold data needs the Marketplace Insights API, which requires a separate eBay application and approval. Until then the source label is `ebay-browse` / `basis: active-asking` and the UI says "asking". When Insights access lands, add a new source label rather than redefining this one. (Feature work, not a testing gap — miscategorized here historically; see `docs/ROADMAP.md` Future ideas.)

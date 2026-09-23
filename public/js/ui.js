@@ -505,13 +505,6 @@ document.getElementById('d-lookup')?.addEventListener('click', async () => {
     btn.textContent = orig;
   }
 });
-    }
-  } catch (e) {
-    toast('Lookup failed: ' + e.message, 'err');
-  } finally {
-    btn.textContent = orig;
-  }
-});
 
 // ── DETAIL MODAL TABS ────────────────────────────────────────────────────
 (function(){

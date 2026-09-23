@@ -13,6 +13,17 @@ export function toast(msg,type='',ms=3000){
   setTimeout(()=>{el.style.transition='opacity .3s';el.style.opacity='0';setTimeout(()=>el.remove(),300);},ms);
 }
 
+// XSS safe HTML escape
+export function escHtml(str){
+  return String(str).replace(/[&<>"']/g, c=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  }[c]));
+}
+
 // ── JSON PARSERS ─────────────────────────────────────────────────────────
 export function parseJson(txt){const m=txt.trim().match(/\[[\s\S]*\]/);if(!m)return[];try{return JSON.parse(m[0]);}catch{return[];}}
 export function parseJsonObj(txt){const m=txt.trim().match(/\{[\s\S]*\}/);if(!m)return null;try{return JSON.parse(m[0]);}catch{return null;}}

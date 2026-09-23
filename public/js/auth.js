@@ -11,11 +11,13 @@ export function isAuthEnabled() { return _authEnabled; }
 // ── Bootstrap ──────────────────────────────────────────────────────────────────
 
 export async function initAuth() {
+  console.log('initAuth called');
   try {
     const res = await fetch('/auth/me');
     const data = await res.json();
-    _user        = data.user   || null;
+    _user = data.user || null;
     _authEnabled = data.enabled || false;
+    console.log('auth data', data);
   } catch {
     _user = null; _authEnabled = false;
   }
@@ -25,6 +27,7 @@ export async function initAuth() {
 // ── Render ─────────────────────────────────────────────────────────────────────
 
 function renderAuthChip() {
+  console.log('renderAuthChip executed, enabled:', _authEnabled, 'user:', _user);
   const headerSlots = [
     document.getElementById('auth-slot'),
     document.getElementById('auth-slot-mob'),
@@ -40,17 +43,14 @@ function renderAuthChip() {
   }
   if (!headerSlots.length && !sidebarSlot && !toolbarSlot) return;
 
-  // Header: ONLY share button when signed in (no user info)
   const headerHtml = _user
     ? `<button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>`
     : `<a href="/auth/google" class="hbtn auth-signin-btn">Sign in</a>`;
 
-  // Mobile header: ONLY share button when signed in (no user info)
   const mobileHeaderHtml = _user
     ? `<button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>`
     : `<a href="/auth/google" class="hbtn auth-signin-btn" title="Sign in with Google" aria-label="Sign in with Google" style="padding:10px 12px">🔐</a>`;
 
-  // Sidebar: full profile when signed in, nothing when signed out
   const sidebarHtml = _user
     ? `<div class="auth-chip" style="justify-content:flex-start">
         <img src="${escHtml(_user.picture || '')}" class="auth-avatar" referrerpolicy="no-referrer"
@@ -61,9 +61,7 @@ function renderAuthChip() {
       </div>`
     : '';
 
-  // Apply header HTML to both header slots (desktop and mobile)
   headerSlots.forEach(s => { s.innerHTML = headerHtml; });
-  // Apply mobile-specific HTML to auth-slot-mob (this overrides the above for mobile)
   document.getElementById('auth-slot-mob').innerHTML = mobileHeaderHtml;
   if (sidebarSlot) sidebarSlot.innerHTML = sidebarHtml;
   if (toolbarSlot) toolbarSlot.innerHTML = '';
@@ -77,11 +75,12 @@ function renderAuthChip() {
     if (el) el.style.display = canWrite ? '' : 'none';
   });
 
-  // Show auth error from OAuth redirect if present
   if (new URLSearchParams(location.search).get('auth') === 'error') {
     import('./utils.js').then(({ toast }) => toast('Google sign-in failed. Please try again.', 'err', 5000));
     history.replaceState(null, '', location.pathname);
   }
+
+
 }
 
 async function signOut() {
