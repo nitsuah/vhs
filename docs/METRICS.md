@@ -1,5 +1,13 @@
 # Metrics
 
+## Core Metrics
+
+| Metric          | Value      | Notes |
+| --------------- | ---------- | ----- |
+| Code Coverage   | 86.86%     | Whole tree (`src/server.js` + `src/modules/**`), lines. Docker-validated Jest run; breakdown below. |
+| Unit Test Cases | 252        | All passing (9 suites) |
+| Last Updated    | 2026-09-23 |       |
+
 ## Coverage
 
 | Metric     | Coverage | Threshold | Status |
