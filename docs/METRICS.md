@@ -4,35 +4,35 @@
 
 | Metric     | Coverage | Threshold | Status |
 |------------|----------|-----------|--------|
-| Statements | 79.59% (1860/2337) | 82% | ❌ below |
-| Branches   | 79.22% (465/587)   | 77% | ✅ |
-| Functions  | 81.82% (54/66)     | 85% | ❌ below |
-| Lines      | 79.59% (1860/2337) | 82% | ❌ below |
+| Statements | 86.86% (2030/2337) | 82% | ✅ |
+| Branches   | 81.82% (549/671)   | 77% | ✅ |
+| Functions  | 87.88% (58/66)     | 85% | ✅ |
+| Lines      | 86.86% (2030/2337) | 82% | ✅ |
 
 Percentages are rounded from the counts. Jest's text reporter truncates instead,
-so it prints 79.58% for statements.
+so it prints 81.81% for branches and 87.87% for functions.
 
-Down from the 2026-09-02 baseline in `jest.config.js` (85.40 / 79.78 / 88.33 / 85.40,
-re-confirmed 2026-09-18). The main cause is `src/modules/tmdb.js`, added in #55,
-at **7.6%** statements / **0%** functions: it has no tests yet. Because of it,
-`npx jest --coverage` now exits non-zero on the global thresholds in `jest.config.js`.
+Back above the thresholds after adding `tests/tmdb.test.js`. `src/modules/tmdb.js`
+(added in #55) went from 7.6% to 100% on all four metrics. Before those tests, the
+2026-09-23 run was 79.59 / 79.22 / 81.82 / 79.59, down from the 2026-09-02 baseline
+in `jest.config.js` (85.40 / 79.78 / 88.33 / 85.40, re-confirmed 2026-09-18).
 
 ### Lowest-covered files
 
 | File | Stmts | Branch | Funcs |
 |------|-------|--------|-------|
-| src/modules/tmdb.js     | 7.60%  | 100%   | 0%     |
-| src/modules/certs.js    | 48.64% | 50%    | 100%   |
-| src/server.js           | 73.88% | 75.22% | 100%   |
+| src/modules/certs.js       | 48.64% | 50%    | 100%   |
+| src/server.js              | 73.88% | 75.22% | 100%   |
 | src/modules/json-parser.js | 77.41% | 72.22% | 66.66% |
-| src/modules/ollama.js   | 80.00% | 44.44% | 66.66% |
+| src/modules/ollama.js      | 80.00% | 44.44% | 66.66% |
+| src/modules/activity-log.js | 81.81% | 80%   | 66.66% |
 
 ## Tests
 
 | Metric      | Result       |
 |-------------|--------------|
-| Test Suites | 8 passed / 8 |
-| Tests       | 231 passed / 231 |
+| Test Suites | 9 passed / 9 |
+| Tests       | 252 passed / 252 |
 
 ## CI
 
