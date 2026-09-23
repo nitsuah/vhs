@@ -360,10 +360,11 @@ Return ONLY JSON object — no other text:
 Rules: year=4-digit release year, label=VHS distributor/studio, value_low/value_high=USD resale range in good condition.
 Omit fields you're unsure about. Return {} if completely unknown.`;
 
-  // Skip AI for TMDB provider, otherwise attempt Ollama
+  // Skip AI for TMDB provider or when the caller explicitly requests noai=1,
+  // otherwise attempt Ollama
   let ollamaReason;
   let ollamaPromise;
-  if (provider === 'tmdb') {
+  if (provider === 'tmdb' || noai) {
     ollamaReason = 'skipped';
     ollamaPromise = Promise.resolve({});
   } else {
