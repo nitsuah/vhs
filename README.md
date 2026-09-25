@@ -210,7 +210,7 @@ Immutable IDs: once a tape gets a `VHS-XXXX` ID, it keeps it forever. If a barco
 
 ## Docs Index
 
-Every doc at the repo root and under `docs/` (the files mirrored into the Obsidian vault), so none of them is orphaned.
+Every doc at the repo root (other than this README) and under `docs/` (the files mirrored into the Obsidian vault), so none of them is orphaned.
 
 - [Changelog](./docs/CHANGELOG.md) — `docs/CHANGELOG.md`
 - [Easter Eggs](./docs/EASTEREGG.md) — `docs/EASTEREGG.md`
