@@ -16,7 +16,7 @@ Last Updated: 2026-09-24
 
 Shipped: `src/modules/ebay.js` + `src/modules/routes/valuate.js` call the eBay **Browse API** and store low/high/avg from **active listings**, honestly labeled `ebay-browse` / `basis: "active-asking"`. The Browse API's `soldItemsOnly` filter is silently unsupported, so true sold prices need Marketplace Insights.
 
-- [ ] **eBay Marketplace Insights application** — the current valuation is asking-price-based because the Browse API has no real sold-item filter. Marketplace Insights is a separate, limited-release API — different endpoint (`/item_sales/search`), different OAuth scope (`https://api.ebay.com/oauth/api_scope/buy` via client-credentials grant), and a different response schema (`SalesHistoryPagedCollection`/`ItemSales`) than the Browse API used today — so migrating is more than a source-label swap. Worth starting the developer application now since approval lead time is unknown, but scope the work as: new endpoint + OAuth scope, response mapping changes, sold-price semantics, any newly-persisted fields, and UI/export label updates.
+- [ ] **eBay Marketplace Insights application** *(conditional: apply only once an eligible eBay access route is confirmed; the migration below happens in 2027 Q1 only if access is granted)* — the current valuation is asking-price-based because the Browse API has no real sold-item filter. Marketplace Insights is a separate, limited-release API — different endpoint (`/item_sales/search`), different OAuth scope (`https://api.ebay.com/oauth/api_scope/buy` via client-credentials grant), and a different response schema (`SalesHistoryPagedCollection`/`ItemSales`) than the Browse API used today — so migrating is more than a source-label swap. If access is granted, scope the work as: new endpoint + OAuth scope, response mapping changes, sold-price semantics, any newly-persisted fields, and UI/export label updates.
 - [ ] **Valuation confidence badge** — since `basis: "active-asking"` is a real caveat users may not read closely, a small UI badge next to any displayed valuation ("asking price, not sold price") would surface the limitation at the point of decision rather than only in docs.
 - [ ] **Condition grading rubric** — a standard scale so anyone rating tapes uses the same grades *(carried from Phase 3 "future ideas")*.
 
@@ -33,7 +33,11 @@ Shipped: `src/modules/ebay.js` + `src/modules/routes/valuate.js` call the eBay *
 ### Valuation tiers (rough guide)
 
 | Value | What it usually means |
-|
+| --- | --- |
+| $1–5 | Common mainstream releases, ex-rental |
+| $5–20 | OOP titles, cult films, certain genres |
+| $20–100 | Horror, SOV, anime, foreign, sealed |
+| $100+ | Rare SOV, cult horror, sealed big titles |
 
 **Tags to flag for closer research:** horror, SOV (shot-on-video), anime, foreign language, documentary, sealed/shrinkwrapped, small label (not Paramount/Warner/Disney)
 
