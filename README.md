@@ -207,6 +207,7 @@ Immutable IDs: once a tape gets a `VHS-XXXX` ID, it keeps it forever. If a barco
 - **Build incrementally** — don't solve distribution before you've finished cataloging.
 
 <!-- docs-index:start -->
+
 ## Docs Index
 
 Every tracked doc in this repo, so nothing is orphaned (also used by the Obsidian vault mirror).
@@ -218,4 +219,5 @@ Every tracked doc in this repo, so nothing is orphaned (also used by the Obsidia
 - [ROADMAP](./docs/ROADMAP.md) — `docs/ROADMAP.md`
 - [Tasks](./docs/TASKS.md) — `docs/TASKS.md`
 - [VHS Scanner — System Flow Diagrams](./docs/system-flow.md) — `docs/system-flow.md`
+
 <!-- docs-index:end -->
