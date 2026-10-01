@@ -123,7 +123,7 @@ Mobile browsers block camera access on plain HTTP. The app auto-generates a self
 
 1. Set `HOST_IP=<your LAN IP>` in `.env` (e.g. `HOST_IP=192.168.1.171`)
 2. Start the app: `docker compose -f config/docker-compose.yml up -d --build`
-3. On your phone, open: `http://192.168.1.171:8080/ca.crt`
+3. On your phone, open: `http://192.168.1.171:8080/api/ca-cert`
 4. **Android:** tap the downloaded file → Install → name it "VHS Scanner" → OK
    **iOS:** tap Allow → Settings → General → VPN & Device Management → trust it
 5. Use `https://192.168.1.171:8443` on your phone — camera will work
