@@ -11,3 +11,6 @@ data/audit-metadata-log.jsonl
 
 # Local Netlify folder
 .netlify
+
+# /brag video build output (renders, frames, stems)
+brag-output*/

@@ -3,6 +3,7 @@
 > 🧭 **vhs** · [Features](./docs/FEATURES.md) · [Roadmap](./docs/ROADMAP.md) · [Tasks](./docs/TASKS.md) · [Changelog](./docs/CHANGELOG.md) · [Metrics](./docs/METRICS.md) <!-- nav -->
 
 [![CI](https://github.com/nitsuah/vhs/actions/workflows/ci.yml/badge.svg)](https://github.com/nitsuah/vhs/actions/workflows/ci.yml)
+[![Pages](https://github.com/nitsuah/vhs/actions/workflows/pages.yml/badge.svg)](https://nitsuah.github.io/vhs/)
 [![Netlify Status](https://api.netlify.com/api/v1/badges/9cf148ef-31d4-4edc-9862-a72a4ca6e0ff/deploy-status)](https://app.netlify.com/projects/vhsbox/deploys)
 
 A personal tool to catalog a VHS collection — capturing what each tape is, what it might be worth, and building a record you can actually use (sell, store, share). Backed by PostgreSQL, served by Express, containerized with Docker.
@@ -61,6 +62,7 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 - **Playwright E2E Tests** — full coverage of all major features and modals
 - **Jest Unit Tests** — server-side logic; 8 test files, ≥ 85% whole-tree line coverage (`src/server.js` + `src/modules/**`)
 - **CI** — Hadolint, Shellcheck, HTMLHint, ESLint, `node --check` syntax, dep-install check, Jest unit tests, Docker build smoke test
+- **Project Site** — GitHub Pages landing page with a launch video, served from `site/` at [nitsuah.github.io/vhs](https://nitsuah.github.io/vhs/)
 - **Netlify Serverless** — Express app also deployable as a Netlify Function (`netlify/functions/server.js`, `serverless-http`)
 
 ---
