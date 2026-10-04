@@ -17,6 +17,14 @@ brag-output*/
 !brag-output*/
 brag-output*/renders/
 brag-output*/assets/
+brag-output*/chk/
+brag-output*/frames/
+brag-output*/ref/
+brag-output*/brag.mp4
+brag-output*/brag.jpg
+brag-output*/composition/*
+# the one file in composition/ that is authored, not generated
+!brag-output*/composition/index.html
 
 # frame grabs pulled out of renders during iteration
 .scratch/
