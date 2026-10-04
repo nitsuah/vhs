@@ -12,27 +12,11 @@ data/audit-metadata-log.jsonl
 # Local Netlify folder
 .netlify
 
-# /brag video build output (renders, frames, stems, assets)
+# /brag video build output (renders, frames, stems)
 brag-output*/
-# ...but keep the prompt itself. brag-plan.md / composition-brief.md / share-copy.txt /
-# composition/index.html are what gets iterated on; the plan and brief carry the
-# art-direction rules learned by rendering, and the next run starts from them.
-# The `!` must come FIRST and match the directory — git never descends into an
-# excluded directory, so file-level negations underneath it are silently ignored.
 !brag-output*/
-brag-output*/chk/
-brag-output*/frames/
-brag-output*/ref/
-brag-output*/.scratch/
+brag-output*/renders/
 brag-output*/assets/
-brag-output*/brag.mp4
-brag-output*/brag.jpg
-brag-output*/composition/assets/
-brag-output*/composition/chk/
-brag-output*/composition/renders/
-brag-output*/composition/snapshots/
-brag-output*/composition/brag.mp4
-brag-output*/composition/brag.jpg
 
 # frame grabs pulled out of renders during iteration
 .scratch/
