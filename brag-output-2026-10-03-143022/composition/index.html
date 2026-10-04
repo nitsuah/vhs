@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VHS Box — Launch</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<style>
+:root{
+  --bg:#08080a;
+  --ink:#f4f4f6;
+  --ink2:#9a9aa2;
+  --ink3:#6a6a74;
+  --red:#e84040;
+  --red2:#ff5a5a;
+  --green:#3ddc6b;
+  --amber:#f5c542;
+  --gold:#e9c46a;
+  --win:#1c1d22;
+  --edge:#31333b;
+  --ui:'Segoe UI',system-ui,-apple-system,sans-serif;
+  --mono:'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000;font-family:var(--ui);color:var(--ink);overflow:hidden}
+#root{position:relative;width:1280px;height:720px;background:var(--bg);overflow:hidden}
+
+/* ── CRT treatment across the whole frame ─────────────────── */
+.scan{position:absolute;inset:0;pointer-events:none;z-index:40;
+  background:repeating-linear-gradient(180deg,rgba(0,0,0,.15) 0 1px,rgba(0,0,0,0) 1px 3px)}
+.vig{position:absolute;inset:0;pointer-events:none;z-index:41;
+  box-shadow:inset 0 0 200px rgba(0,0,0,.9),inset 0 0 70px rgba(0,0,0,.45)}
+
+.clip{position:absolute;inset:0}
+
+/* ── VCR HUD — present on every frame ─────────────────────── */
+.hud-play,.hud-rew{position:absolute;top:16px;left:24px;display:flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:17px;letter-spacing:.18em;text-transform:uppercase}
+.hud-play{color:var(--green);text-shadow:0 0 14px rgba(61,220,107,.6)}
+.hud-rew{color:var(--amber);text-shadow:0 0 14px rgba(245,197,66,.6);opacity:0}
+.hud-tc{position:absolute;top:16px;right:26px;font-family:var(--mono);font-size:17px;
+  letter-spacing:.14em;color:#fff;text-shadow:0 0 10px rgba(0,0,0,.9)}
+
+/* ── Headline — payoff phrase in red ──────────────────────── */
+.headline{position:absolute;top:12px;left:0;right:0;text-align:center;z-index:20;
+  font-size:36px;font-weight:800;letter-spacing:-.015em;color:var(--ink);
+  text-shadow:0 3px 24px rgba(0,0,0,.96),0 0 60px rgba(0,0,0,.8)}
+.headline em{font-style:normal;color:var(--red2);
+  text-shadow:0 0 28px rgba(232,64,64,.6),0 3px 24px rgba(0,0,0,.9)}
+
+/* ── Browser window wrapper ───────────────────────────────── */
+.browser{position:absolute;left:80px;right:80px;top:66px;bottom:58px;
+  background:var(--win);border-radius:10px;overflow:hidden;border:1px solid var(--edge);
+  box-shadow:0 36px 100px rgba(0,0,0,.92),0 0 0 1px rgba(255,255,255,.04);
+  display:flex;flex-direction:column}
+.bbar{height:32px;flex:none;display:flex;align-items:center;gap:8px;padding:0 13px;
+  background:linear-gradient(180deg,#31333b,#272930);border-bottom:1px solid #14151a}
+.dot{width:11px;height:11px;border-radius:50%}
+.d-r{background:#ff5f57}.d-y{background:#febc2e}.d-g{background:#28c840}
+.url{flex:1;height:20px;border-radius:10px;background:#1a1b20;margin:0 14px;
+  display:flex;align-items:center;padding:0 11px;font-family:var(--mono);font-size:10px;
+  color:var(--ink3);letter-spacing:.02em}
+
+/* ── App header ───────────────────────────────────────────── */
+.hdr{height:40px;flex:none;display:flex;align-items:center;gap:22px;padding:0 18px;
+  background:#141519;border-bottom:1px solid #23242b}
+.logo{font-size:15px;font-weight:800;letter-spacing:.02em;color:var(--red)}
+.logo span{color:var(--ink2);font-weight:500}
+.tabs{display:flex;gap:6px}
+.tab{padding:5px 11px;border-radius:5px;font-size:11.5px;color:var(--ink3);font-weight:600}
+.tab.on{background:#22242b;color:var(--ink)}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:12px}
+.count{font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.hbtn{padding:5px 10px;border-radius:5px;background:#22242b;border:1px solid var(--edge);
+  color:var(--ink2);font-size:10.5px;font-weight:600}
+
+/* ── App body ─────────────────────────────────────────────── */
+.body{flex:1;display:flex;min-height:0}
+.left{flex:1;display:flex;flex-direction:column;min-width:0}
+.cam{flex:1;position:relative;background:#0b0b0e;min-height:0}
+.cam-in{position:absolute;inset:11px;border-radius:6px;background:#08080a;
+  border:1px solid #23242b;overflow:hidden}
+.ctrls{height:36px;flex:none;display:flex;align-items:center;gap:7px;padding:0 14px;
+  background:#141519;border-top:1px solid #23242b}
+.cbtn{width:25px;height:25px;border-radius:5px;background:#22242b;border:1px solid var(--edge);
+  display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink2)}
+.cbtn.hot{background:rgba(232,64,64,.18);border-color:var(--red);color:var(--red2)}
+.preset{display:flex;gap:5px;margin-left:6px}
+.pb{width:23px;height:21px;border-radius:4px;background:#22242b;border:1px solid var(--edge)}
+.pb.on{background:rgba(255,138,61,.18);border-color:rgba(255,138,61,.85)}
+.hint{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.03em}
+
+/* ── Blurred bookshelf strip along the bottom edge ────────── */
+.shelf{position:absolute;left:0;right:0;bottom:0;height:54px;display:flex;align-items:flex-end;
+  gap:3px;padding:0 36px;filter:blur(2.4px);opacity:.92;z-index:2}
+.shelf i{flex:1;min-width:0;border-radius:2px 2px 0 0}
+
+/* ── Crop marks / scan line ───────────────────────────────── */
+.crop{position:absolute;inset:0;pointer-events:none;z-index:3}
+.cc{position:absolute;width:18px;height:18px;border:2.5px solid var(--red2)}
+.cc.tl{top:10px;left:10px;border-right:0;border-bottom:0}
+.cc.tr{top:10px;right:10px;border-left:0;border-bottom:0}
+.cc.bl{bottom:10px;left:10px;border-right:0;border-top:0}
+.cc.br{bottom:10px;right:10px;border-left:0;border-top:0}
+.scanline{position:absolute;left:8%;right:8%;top:50%;margin-top:-1.25px;height:2.5px;border-radius:2px;
+  opacity:0;z-index:4;
+  background:linear-gradient(90deg,transparent,var(--red2),transparent);
+  box-shadow:0 0 22px rgba(232,64,64,.95)}
+.cropbox{position:absolute;left:16%;right:16%;top:20%;bottom:20%;border:2px dashed #ff8a3d;
+  border-radius:4px;opacity:0;z-index:4}
+.crophandle{position:absolute;right:-5px;bottom:-5px;width:11px;height:11px;border-radius:2px;
+  background:#ff8a3d;z-index:5;opacity:1}
+
+/* ── Colourful VHS spines ─────────────────────────────────── */
+.spine{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;
+  border-radius:2px 2px 0 0;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,.55)}
+.sp-band{height:15%;flex:none;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:7.5px;letter-spacing:.09em;color:rgba(255,255,255,.95);
+  text-shadow:0 1px 2px rgba(0,0,0,.65)}
+.sp-id{position:absolute;top:17.5%;left:0;right:0;text-align:center;font-family:var(--mono);
+  font-size:7px;letter-spacing:.06em;color:rgba(0,0,0,.6)}
+.sp-title{flex:1;display:flex;align-items:center;justify-content:center;padding:3px 0;
+  writing-mode:vertical-rl;font-size:15px;font-weight:800;letter-spacing:.03em;
+  overflow:hidden;white-space:nowrap}
+.sp-vhs{height:12%;flex:none;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.66);color:#fff;font-size:8px;font-weight:800;letter-spacing:.14em}
+
+/* ── Shelf stacks in view — rows of tapes on boards ──────── */
+.stackwall{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;gap:5px;
+  padding:11px 13px 9px;background:radial-gradient(ellipse at 50% 40%,#15161c 0%,#08080a 78%)}
+.shbay{flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-height:0}
+.shrow{flex:1;display:flex;gap:2px;align-items:flex-end;min-height:0}
+.shrow i{flex:1;min-width:0;position:relative;border-radius:2px 2px 0 0;overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.55)}
+/* Key-light in ::before — first in the box tree, so it sits behind the title.
+   A smooth 2-stop fill reads as a flat block; real sleeve art has a focal point. */
+.shrow i::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(46% 34% at var(--hx,50%) var(--hy,34%),
+    rgba(255,255,255,.26) 0%,rgba(255,255,255,.05) 44%,rgba(0,0,0,0) 74%)}
+.shrow i::after{content:"";position:absolute;left:0;right:0;top:0;height:17%;
+  background:rgba(0,0,0,.45)}
+/* The name is what makes a spine distinct — an unlabelled colour block is not a tape. */
+.shrow i b{position:absolute;left:0;right:0;top:18%;bottom:4%;display:flex;
+  align-items:center;justify-content:center;writing-mode:vertical-rl;
+  font-size:11px;font-weight:800;letter-spacing:.02em;overflow:hidden;white-space:nowrap}
+.shrow i.sel{box-shadow:inset 0 0 0 2px #ff8a3d,0 0 18px rgba(255,138,61,.55);z-index:1}
+.shboard{height:9px;flex:none;border-radius:1px;
+  background:linear-gradient(180deg,#5a4028 0 32%,#241811 32% 100%)}
+.cb5{position:absolute;inset:0;display:flex}
+.cb5 i{flex:1;border-left:1px dashed rgba(255,138,61,.5)}
+.cb5 i:first-child{border-left:0}
+
+/* ── Capture queue ───────────────────────────────────────── */
+.qstrip{display:flex;gap:6px;margin-bottom:10px}
+.qsnap{flex:1;min-width:0;position:relative;aspect-ratio:1/1.18;border-radius:4px;
+  overflow:hidden;background:#0e0f14;
+  box-shadow:0 4px 14px rgba(0,0,0,.65),inset 0 0 0 1px rgba(0,0,0,.6)}
+.qph{position:absolute;inset:0;border-radius:4px;background:#111218;
+  border:1.5px dashed #3a3d47}
+.qart{position:absolute;inset:0;display:flex;gap:1px;padding:3px 2px 2px}
+.qart i{position:relative;flex:1;border-radius:1px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+.qhit{position:absolute;inset:0;border-radius:1px;background:rgba(61,220,107,.45);
+  opacity:0;box-shadow:inset 0 0 0 1.5px rgba(61,220,107,.95)}
+.qn{position:absolute;left:2px;top:2px;font-family:var(--mono);font-size:7px;color:#fff;
+  background:rgba(0,0,0,.7);border-radius:2px;padding:0 2px;line-height:1.5}
+.qok{position:absolute;right:2px;bottom:2px;width:12px;height:12px;border-radius:50%;
+  background:var(--green);color:#05230f;font-size:8px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;opacity:0}
+.qstrip.still{pointer-events:none}
+.qempty{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:11px;color:var(--ink3);border:1.5px dashed #2a2c34;border-radius:6px;
+  margin:2px 0;min-height:96px}
+.stackwall.dim{opacity:.5}
+.cropbox.on{opacity:1}
+.tab.act{background:#22242b;color:var(--ink)}
+.tab.act{box-shadow:inset 0 -2px 0 var(--red)}
+.dotd{width:8px;height:8px;border-radius:50%;background:var(--amber);align-self:center}
+.dotk{font-size:10px;color:var(--ink3);align-self:center}
+.sec.grow{flex:1;min-height:0}
+.seccount{margin-left:auto;font-size:10px;color:var(--ink3);font-weight:600}
+
+/* ── Extraction: chips fly from the snapshot into the table ── */
+/* Snapshots are 62px wide inside the fixed 440px panel, so the widest title (GHOSTBUSTERS)
+   only fits with tightened tracking and padding. Measured to 0px overflow — don't shrink
+   the font further, it is already at the legibility floor. */
+.tchip{position:absolute;left:2px;bottom:2px;z-index:6;padding:2px 3px;border-radius:4px;
+  font-size:8.5px;font-weight:800;letter-spacing:-0.2px;color:#05230f;background:var(--green);
+  white-space:nowrap;max-width:calc(100% - 4px);overflow:hidden;text-overflow:ellipsis;
+  box-shadow:0 6px 18px rgba(0,0,0,.75)}
+.etab{width:100%;border-collapse:collapse;table-layout:fixed}
+.etab th{font-size:7.5px;padding:3px 4px}
+.etab td{font-size:10px;padding:4px}
+.etab td.ti{position:relative;overflow:hidden}
+.tmini5{flex:none;width:22px;height:15px;display:flex;gap:1px;border-radius:2px;
+  overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+.tmini5 i{flex:1}
+
+/* ── Right panel ──────────────────────────────────────────── */
+.right{width:440px;flex:none;display:flex;flex-direction:column;background:#0d0e11;
+  border-left:1px solid #23242b}
+.sec{padding:11px 15px;border-bottom:1px solid #1e1f25;min-height:0;display:flex;
+  flex-direction:column}
+.sec-h{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.sec-h h3{font-size:12.5px;font-weight:700;color:var(--ink)}
+.bulk{margin-left:auto;display:flex;gap:6px}
+.bs{padding:4px 10px;border-radius:5px;font-size:10.5px;font-weight:700}
+.bs-ok{background:rgba(61,220,107,.15);border:1px solid rgba(61,220,107,.5);color:var(--green)}
+.bs-no{background:#22242b;border:1px solid var(--edge);color:var(--ink3)}
+.stat{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;
+  color:var(--ink2);margin-bottom:9px}
+.spin{width:9px;height:9px;border-radius:50%;background:var(--red);
+  box-shadow:0 0 10px rgba(232,64,64,.85)}
+
+.rrow{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid #191a1f}
+.rthumb{width:34px;height:26px;border-radius:3px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+.rt-main{flex:1;min-width:0}
+.rt-t{font-size:11.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.rt-m{font-family:var(--mono);font-size:9px;color:var(--ink3);letter-spacing:.03em}
+.rt-v{font-family:var(--mono);font-size:10.5px;font-weight:700;color:#5ce07a}
+
+.filter{display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap}
+.fbtn{padding:4px 9px;border-radius:5px;background:#22242b;border:1px solid var(--edge);
+  color:var(--ink2);font-size:10px;font-weight:600}
+.fbtn.on{background:#2d2f38;color:var(--ink)}
+table{width:100%;border-collapse:collapse}
+th{font-size:8px;letter-spacing:.12em;color:var(--ink3);text-align:left;padding:4px 4px;
+  border-bottom:1px solid #23242b;font-weight:700}
+td{font-size:10.5px;padding:4px 4px;border-bottom:1px solid #191a1f;color:var(--ink2)}
+td.ti{color:var(--ink);font-weight:700}
+td.mn{font-family:var(--mono);font-size:9.5px}
+td.vl{font-family:var(--mono);font-weight:700;color:#5ce07a}
+.tcell{display:flex;align-items:center;gap:6px;min-width:0}
+.mtitle{display:block;font-size:10.5px;font-weight:700;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mid{display:block;margin-top:1px}
+.tmini{width:20px;height:15px;border-radius:2px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+.tid{font-family:var(--mono);font-size:8.5px;color:var(--ink3);margin-left:3px}
+.acts{display:flex;gap:4px}
+.abtn{padding:2px 6px;border-radius:4px;font-size:8.5px;font-weight:700}
+.ab-cl{background:rgba(91,140,255,.16);border:1px solid rgba(91,140,255,.45);color:#7fa5ff}
+.ab-it{background:rgba(61,220,107,.14);border:1px solid rgba(61,220,107,.4);color:var(--green)}
+
+/* ── StacksUp wall ────────────────────────────────────────── */
+/* StacksUp wall — dense edge-to-edge spine grid (matches the real app screenshot) */
+.wbar{height:34px;flex:none;display:flex;align-items:center;gap:8px;padding:0 10px;
+  background:#1a1a1c;border-bottom:1px solid #23242b}
+.stkbtn{flex:none;padding:4px 10px;border-radius:5px;border:1.5px solid var(--red);
+  color:var(--red2);font-size:10px;font-weight:700;background:rgba(232,64,64,.08)}
+.sfield{flex:1;min-width:0;height:22px;border-radius:5px;background:#101012;
+  border:1px solid #26272d;display:flex;align-items:center;padding:0 9px;
+  font-size:10.5px;color:var(--ink3)}
+.fbtn2{flex:none;width:22px;height:22px;border-radius:5px;background:#101012;
+  border:1px solid #26272d;display:flex;align-items:center;justify-content:center;
+  font-size:10px;color:var(--ink2)}
+.sdot{position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;
+  background:#4a9bff}
+.ssel{flex:none;height:22px;padding:0 8px;border-radius:5px;background:#101012;
+  border:1px solid #26272d;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--ink2)}
+.wall{flex:1;display:grid;grid-template-columns:repeat(22,1fr);grid-auto-rows:1fr;
+  gap:3px 2px;padding:0;min-height:0;overflow:hidden;background:#08080a}
+.su{min-width:0;position:relative;overflow:hidden;border-radius:1px;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.6)}
+/* Poster key-light — paints FIRST (::before is the first child in the box tree),
+   so it sits behind .su-art and never washes out the title. A smooth 2-stop
+   gradient has no local contrast, which is why these read as flat fills; real
+   VHS sleeve art has a bright focal point. Keep it SMALL and weak — a wide soft
+   radial turns every spine into an airbrushed sphere and bleaches the palette.
+   --hx/--hy/--hs are per-spine. */
+.su::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(var(--hs,30%) var(--hs,30%) at var(--hx,50%) var(--hy,40%),
+    rgba(255,255,255,.30) 0%,rgba(255,255,255,.06) 40%,rgba(0,0,0,0) 72%)}
+/* Printed-sleeve diagonal, over the art. Angle/offsets come from --a/--o. */
+.su::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(var(--a,90deg),rgba(255,255,255,.16) 0 var(--o1,22%),
+    rgba(0,0,0,.22) var(--o1,22%) var(--o2,46%),rgba(255,255,255,.07) var(--o2,46%) 100%)}
+.su-art{position:absolute;inset:0;display:flex;flex-direction:column}
+.su-band{height:15%;flex:none;display:flex;align-items:center;justify-content:center;
+  font-size:5px;font-weight:900;letter-spacing:.04em}
+.su-tt{flex:1;display:flex;align-items:center;justify-content:center;padding:0 1px;
+  writing-mode:vertical-rl;font-size:7.5px;font-weight:800;letter-spacing:.02em;
+  overflow:hidden;white-space:nowrap}
+.su-foot{height:11%;flex:none;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.6);color:#fff;font-size:4.5px;font-weight:900;letter-spacing:.1em}
+.su-code{position:absolute;left:2px;bottom:14%;width:58%;height:5px;border-radius:1px;
+  background:rgba(255,255,255,.88)}
+.su-rot{position:absolute;left:0;right:0;top:22%;height:11%;display:flex;
+  align-items:center;justify-content:center;background:rgba(0,0,0,.45);
+  font-size:5px;font-weight:800;color:#fff;writing-mode:horizontal-tb;overflow:hidden;
+  white-space:nowrap;padding:0 2px}
+/* ── Wordmark card / outro ────────────────────────────────── */
+.center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center}
+.wm{font-size:112px;font-weight:800;letter-spacing:-.025em;line-height:1;color:var(--red)}
+.wm span{color:var(--ink2);font-weight:300}
+.wm-rule{width:104px;height:2px;background:var(--gold);margin:28px 0 0}
+.wm-sub{margin-top:22px;font-family:var(--mono);font-size:13px;letter-spacing:.36em;
+  color:var(--ink2);text-transform:uppercase;text-indent:.36em}
+.bkr{border-radius:8px;margin-top:30px;
+  background:linear-gradient(180deg,#f2c451,#d99b1f);padding:12px 20px;display:flex;
+  align-items:center;gap:11px;
+  box-shadow:0 14px 38px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.5)}
+.bkr b{font-size:20px;font-weight:800;color:#3a2606;letter-spacing:-.01em}
+.bkr i{font-size:18px;font-style:normal}
+.url-mono{position:absolute;left:0;right:0;text-align:center;font-family:var(--mono);font-size:14px;
+  letter-spacing:.1em;color:var(--ink)}
+
+/* ── Barcode overlay ──────────────────────────────────────── */
+.bc-wrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;z-index:3}
+.bc-box{position:relative;width:290px;height:132px;border:2.5px solid var(--red2);border-radius:6px;
+  box-shadow:0 0 34px rgba(232,64,64,.35)}
+.bc-strip{position:absolute;inset:14px;display:flex;align-items:stretch;gap:2px}
+.bc-strip i{flex:1;background:#0a0a0a;border-radius:1px}
+.bc-digits{margin-top:14px;font-family:var(--mono);font-size:19px;letter-spacing:.42em;
+  color:var(--ink);text-indent:.42em;opacity:0}
+.bc-hint{margin-top:18px;font-size:13px;color:var(--ink2);font-weight:600;letter-spacing:.01em}
+.bc-tape{width:118px;height:172px;border-radius:4px;position:relative;overflow:hidden;
+  box-shadow:0 12px 34px rgba(0,0,0,.8),inset 0 0 0 1px rgba(0,0,0,.5)}
+</style>
+</head>
+<body>
+
+<div id="root" data-composition-id="vhsbox" data-width="1280" data-height="720">
+
+  <!-- ═════ SCENE 1 — Wordmark card · 0.00 → 2.40 ═════ -->
+  <div class="clip" id="s1" data-start="0" data-duration="2.4" data-track-index="0">
+    <div class="center">
+      <div class="wm" id="wm1">VHS<span>Box</span></div>
+      <div class="wm-rule" id="rule1"></div>
+      <div class="wm-sub" id="sub1">Catalog every tape you own</div>
+    </div>
+  </div>
+
+  <!-- ═════ SCENE 2 — Capture: the shelf · 2.40 → 4.80 ═════ -->
+  <div class="clip" id="s2" data-start="2.4" data-duration="2.4" data-track-index="1">
+    <div class="headline" id="h2">Snap the shelf. <em>Five spines a shot.</em></div>
+    <div class="browser">
+      <div class="bbar">
+        <div class="dot d-r"></div><div class="dot d-y"></div><div class="dot d-g"></div>
+        <div class="url">nitsuah.github.io/vhs</div>
+      </div>
+      <div class="hdr">
+        <div class="logo">VHS<span>Box</span></div>
+        <div class="tabs">
+          <div class="tab on">📷 Capture</div>
+          <div class="tab">📋 Review</div>
+          <div class="tab">📼 10</div>
+        </div>
+        <div class="hdr-r"><span class="count">10 tapes</span><button class="hbtn">⚙ Settings</button></div>
+      </div>
+      <div class="body">
+        <div class="left">
+          <div class="cam"><div class="cam-in">
+            <div class="stackwall" id="sw2"></div>
+            <div class="cropbox on" id="cb2"><div class="cb5"><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="crophandle" id="ch2"></div>
+          </div></div>
+          <div class="ctrls">
+            <div class="cbtn">⬚</div><div class="cbtn">◐</div>
+            <div class="cbtn hot">▥</div><div class="cbtn">⬆</div>
+            <div class="preset"><div class="pb"></div><div class="pb on"></div><div class="pb"></div></div>
+            <div class="hint">Space to stage · Enter to analyze</div>
+          </div>
+        </div>
+        <div class="right">
+          <div class="sec">
+            <div class="sec-h"><h3>Pending Review</h3>
+              <div class="bulk"><span class="bs bs-ok">✓ All</span><span class="bs bs-no">✕ All</span></div>
+            </div>
+            <div class="stat"><span class="spin"></span><span id="ana2">Camera live</span></div>
+            <div class="qempty" id="qe2">Queue empty — stage a shot to begin</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════ SCENE 3 — Batch: five at once · 4.80 → 7.60 ═════ -->
+  <div class="clip" id="s3" data-start="4.8" data-duration="2.8" data-track-index="2">
+    <div class="headline" id="h3">Five spines. <em>Five into the queue.</em></div>
+    <div class="browser">
+      <div class="bbar">
+        <div class="dot d-r"></div><div class="dot d-y"></div><div class="dot d-g"></div>
+        <div class="url">nitsuah.github.io/vhs</div>
+      </div>
+      <div class="hdr">
+        <div class="logo">VHS<span>Box</span></div>
+        <div class="tabs">
+          <div class="tab on">📷 Capture</div>
+          <div class="tab">📋 Review</div>
+          <div class="tab">📼 10</div>
+        </div>
+        <div class="hdr-r"><span class="count">10 tapes</span><button class="hbtn">⚙ Settings</button></div>
+      </div>
+      <div class="body">
+        <div class="left">
+          <div class="cam"><div class="cam-in">
+            <div class="stackwall dim" id="sw3"></div>
+            <div class="cropbox on" id="cb3"><div class="cb5"><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="scanline" id="sl3"></div>
+          </div></div>
+          <div class="ctrls">
+            <div class="cbtn">⬚</div><div class="cbtn">◐</div>
+            <div class="cbtn hot">▥</div><div class="cbtn">⬆</div>
+            <div class="preset"><div class="pb"></div><div class="pb on"></div><div class="pb"></div></div>
+            <div class="hint">Space to stage · Enter to analyze</div>
+          </div>
+        </div>
+        <div class="right">
+          <div class="sec">
+            <div class="sec-h"><h3>Capture Queue</h3>
+              <div class="bulk"><span class="bs bs-ok">✓ All</span><span class="bs bs-no">✕ All</span></div>
+            </div>
+            <div class="qstrip" id="q3"></div>
+            <div class="stat"><span class="spin"></span><span id="ana3">Analyzing image 1 of 5…</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════ SCENE 4 — Review: it filled itself in · 7.60 → 10.00 ═════ -->
+  <div class="clip" id="s4" data-start="7.6" data-duration="2.4" data-track-index="3">
+    <div class="headline" id="h4">The AI reads each spine. <em>Title pulled out.</em></div>
+    <div class="browser">
+      <div class="bbar">
+        <div class="dot d-r"></div><div class="dot d-y"></div><div class="dot d-g"></div>
+        <div class="url">nitsuah.github.io/vhs</div>
+      </div>
+      <div class="hdr">
+        <div class="logo">VHS<span>Box</span></div>
+        <div class="tabs">
+          <div class="tab on">📷 Capture</div>
+          <div class="tab">📋 Review</div>
+          <div class="tab">📼 10</div>
+        </div>
+        <div class="hdr-r"><span class="count">10 tapes</span><button class="hbtn">⚙ Settings</button></div>
+      </div>
+      <div class="body">
+        <div class="left">
+          <div class="cam"><div class="cam-in">
+            <div class="stackwall dim" id="sw4"></div>
+            <div class="cropbox on" id="cb4"><div class="cb5"><i></i><i></i><i></i><i></i><i></i></div></div>
+          </div></div>
+          <div class="ctrls">
+            <div class="cbtn">⬚</div><div class="cbtn">◐</div>
+            <div class="cbtn hot">▥</div><div class="cbtn">⬆</div>
+            <div class="cbtn">▣</div>
+            <div class="hint">Space to stage · Enter to analyze</div>
+          </div>
+        </div>
+        <div class="right">
+          <div class="sec">
+            <div class="sec-h"><h3>Capture Queue</h3>
+              <div class="bulk"><span class="bs bs-ok" id="okAll">✓ All</span><span class="bs bs-no">✕ All</span></div>
+            </div>
+            <div class="qstrip still" id="q4"></div>
+            <div class="stat"><span class="spin"></span><span id="st4">Reading image 5 of 5…</span></div>
+          </div>
+          <div class="sec grow">
+            <div class="sec-h"><h3>Collection</h3><span class="seccount" id="cc4">10 tapes</span></div>
+            <table class="etab"><thead><tr><th style="width:26px"></th><th>Title</th></tr></thead>
+              <tbody id="et4"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════ SCENE 5 — Single tape: the barcode · 10.00 → 13.40 ═════ -->
+  <div class="clip" id="s5" data-start="10" data-duration="3.4" data-track-index="4">
+    <div class="headline" id="h5">One loose tape. <em>One barcode.</em></div>
+    <div class="browser">
+      <div class="bbar">
+        <div class="dot d-r"></div><div class="dot d-y"></div><div class="dot d-g"></div>
+        <div class="url">nitsuah.github.io/vhs</div>
+      </div>
+      <div class="hdr">
+        <div class="logo">VHS<span>Box</span></div>
+        <div class="tabs">
+          <div class="tab on">📷 Capture</div>
+          <div class="tab">📋 Review</div>
+          <div class="tab">📼 11</div>
+        </div>
+        <div class="hdr-r"><span class="count">11 tapes</span><button class="hbtn">⚙ Settings</button></div>
+      </div>
+      <div class="body">
+        <div class="left">
+          <div class="cam"><div class="cam-in">
+            <div class="crop">
+              <div class="cc tl"></div><div class="cc tr"></div>
+              <div class="cc bl"></div><div class="cc br"></div>
+            </div>
+            <div class="bc-wrap">
+              <div class="bc-tape" id="bcTape"></div>
+              <div class="bc-box" id="bcBox" style="margin-top:22px">
+                <div class="bc-strip" id="bcStrip"></div>
+                <div class="scanline" id="sl5"></div>
+              </div>
+              <div class="bc-digits" id="bcDigits">0 26508 39175 4</div>
+              <div class="bc-hint">Hold barcode in box · tap anywhere to snap</div>
+            </div>
+          </div></div>
+          <div class="ctrls">
+            <div class="cbtn">⬚</div><div class="cbtn hot">▤</div><div class="cbtn">⬆</div>
+            <div class="hint">Hold barcode in box · tap anywhere to snap</div>
+          </div>
+        </div>
+        <div class="right">
+          <div class="sec">
+            <div class="sec-h"><h3>Scanned</h3>
+              <div class="bulk"><span class="bs bs-ok">✓ All</span><span class="bs bs-no">✕ All</span></div>
+            </div>
+            <div id="rev5"></div>
+          </div>
+          <div class="sec">
+            <div class="sec-h"><h3>Collection</h3></div>
+            <div id="mini5"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════ SCENE 6 — Table · 13.40 → 14.73 ═════ -->
+  <div class="clip" id="s6" data-start="13.4" data-duration="1.33" data-track-index="5">
+    <div class="headline" id="h6">An ID, a condition, <em>a price.</em></div>
+    <div class="browser">
+      <div class="bbar">
+        <div class="dot d-r"></div><div class="dot d-y"></div><div class="dot d-g"></div>
+        <div class="url">nitsuah.github.io/vhs</div>
+      </div>
+      <div class="hdr">
+        <div class="logo">VHS<span>Box</span></div>
+        <div class="tabs">
+          <div class="tab">📷 Capture</div>
+          <div class="tab">📋 Review</div>
+          <div class="tab on" id="tabW6">📋 11 tapes</div>
+        </div>
+        <div class="hdr-r"><span class="count">11 tapes</span><button class="hbtn">⚙ Settings</button></div>
+      </div>
+      <div class="body">
+        <div class="left" style="padding:14px 16px">
+          <div class="filter">
+            <span class="fbtn">🔍 Search…</span>
+            <span class="fbtn on">Newest</span>
+            <span class="fbtn">+ Add</span>
+            <span class="fbtn">+ Import</span>
+            <span class="fbtn">+ Export</span>
+          </div>
+          <table id="tbl6"></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════ SCENE 7 — StacksUp: the wall · 14.73 → 18.00 ═════ -->
+  <div class="clip" id="s7" data-start="14.73" data-duration="3.27" data-track-index="6">
+    <div class="browser">
+      <div class="bbar">
+        <div class="dot d-r"></div><div class="dot d-y"></div><div class="dot d-g"></div>
+        <div class="url">nitsuah.github.io/vhs</div>
+      </div>
+      <div class="hdr">
+        <div class="logo">VHS<span>Box</span></div>
+        <div class="tabs">
+          <div class="tab">📷 Capture</div>
+          <div class="tab act">📚 StacksUp</div>
+        </div>
+        <div class="hdr-r"><span class="count" id="cnt7">11 tapes</span><span class="dotd"></span><span class="dotk">🔒</span></div>
+      </div>
+      <div class="body">
+        <div class="left" style="padding:0">
+          <div class="wbar">
+            <div class="stkbtn" id="tabW7">📚 StacksUp</div>
+            <div class="sfield">Search…</div>
+            <div class="fbtn2"><span class="sdot"></span>⚙</div>
+            <div class="ssel">Title A-Z <span style="opacity:.5">▾</span></div>
+          </div>
+          <div class="wall" id="wall7"></div>
+        </div>
+      </div>
+    </div>
+    <div class="shelf" id="shelf7" style="height:44px"></div>
+    <div class="center" id="outro" style="background:radial-gradient(ellipse at 50% 46%,rgba(8,8,10,.52) 0%,rgba(8,8,10,.86) 62%)">
+      <div class="wm" id="wm7" style="font-size:92px">VHS<span>Box</span></div>
+      <div class="bkr" id="bkr7"><i>📼</i><b>Be Kind, Rewind!</b></div>
+      <div class="url-mono" id="url7" style="bottom:112px">github.com/nitsuah/vhs</div>
+    </div>
+  </div>
+
+  <!-- ── Persistent VCR HUD ─────────────────────────────────── -->
+  <div id="hud" style="position:absolute;inset:0;z-index:30;pointer-events:none">
+    <div class="hud-play">▶ PLAY</div>
+    <div class="hud-rew" id="hudRew">◀◀ REW</div>
+    <div class="hud-tc" id="hudTc">SP 0:00:00</div>
+  </div>
+
+  <div class="scan"></div>
+  <div class="vig"></div>
+</div>
+
+<audio id="bg-music" data-start="0" data-duration="18" data-track-index="10"
+  data-volume="0.33" src="assets/music/happy-beats-business-moves-vol-12-by-ende-dot-app.mp3"></audio>
+<audio id="sfx-cards" data-start="7.64" data-duration="1" data-track-index="11"
+  data-volume="0.42" src="assets/sfx/interface/drop_001.ogg"></audio>
+<audio id="sfx-ok" data-start="9.2" data-duration="1" data-track-index="12"
+  data-volume="0.5" src="assets/sfx/interface/click_002.ogg"></audio>
+<audio id="sfx-snap" data-start="12.55" data-duration="1" data-track-index="13"
+  data-volume="0.62" src="assets/sfx/interface/drop_003.ogg"></audio>
+<audio id="sfx-wall" data-start="14.73" data-duration="1" data-track-index="14"
+  data-volume="0.4" src="assets/sfx/impact/impactSoft_medium_000.ogg"></audio>
+
+<script>
+const q = s => document.querySelector(s);
+const qa = s => Array.from(document.querySelectorAll(s));
+
+/* Tape data — full-colour spine art, matching the reference's palette. */
+/* Dense wall data — the real StacksUp view is ~22 columns × 3 rows of spines.
+   Sorted A-Z to match the visible "Title A-Z" sort control.
+   Each spine gets its OWN artwork: a two-stop gradient drawn from the palette at a
+   per-spine angle. With coprime offsets the (from,to,angle) triple does not repeat
+   until i=1980, so all 66 spines are visually distinct — no cycling, no flat fills. */
+/* 29 entries, NOT 22. The grid is 22 columns × 3 rows and a 22-entry palette makes
+   `i % 22` repeat every 22 — so each column painted the same gradient three rows
+   deep. A prime-sized palette indexed by i (not i%22) is immune: 29 divides
+   neither 22 nor 44, so no two spines in a column can collide. Ordered so a dark
+   spine sits between bright ones, matching the reference's black-and-neon rhythm;
+   the old palette had no darks at all, which is why the wall read flat. */
+const WPAL = [
+  '#101014','#c8102e','#18181d','#1f4fa8','#0d1418','#e8b300','#221118','#d94f8a',
+  '#141a16','#1d6b45','#1c1424','#7a2d8f','#0f1014','#d9541e','#2b7d8c','#8c1a3a',
+  '#e0721a','#123a6b','#4a2f6e','#146b6b','#a41f2e','#356a3f','#6b4a1e','#1a2a5e',
+  '#9e2a52','#0f6a5c','#c46a12','#5c2b52','#2f5f8f'];
+const WL = [
+  'A.D.','AFTER MIDNIGHT','ALIENS','AMITYVILLE 3-D','ANGRY RED PLANET','ANNIE HALL',
+  'ASTRONAUTS','ATOMIC MAN','AVENGERS OF BLOOD','BARBARIAN','BEASTMASTER','BETTER OFF DEAD',
+  'BEYOND THE DOOR','BIG DOKE','BLACK CRAWLER','BLADE RUNNER','BLOOD FEAST','BLOOD WARRIOR',
+  'BLOODY VALENTINE','BODY DOUBLE','BRUTE FORCE','CANDYMAN',
+  'CARNIVAL OF SOULS','CASTLE FREAK','CATACOMBS','CAT\'S EYE','CEMETERY MAN','CHILDREN OF THE CORN',
+  'CHILD\'S PLAY 3','CHOPPING MALL','C.H.U.D.','CLASS OF NIGHTMARE','CLOUDS OF SILENCE',
+  'COUNTERMEASURE','CRAWLSPACE','CREEPERS','CRYPT OF THE DEAD','CURSE OF THE BLACK WIDOW',
+  'DANCE OF THE DEAD','DEAD AND BURIED','DEATH WISH 5','DEATHCRAFT','DESTROYER','DEVIL REBORN',
+  'DOLLS','DOOM','EYES OF FIRE','FINAL DESTINATION','FIREBALL XL','FRIDAY THE 13TH',
+  'GINGER SNAPS','GHOSTS OF MARS','GREMLINS','HEARTBREAK HOTEL','HEAVEN HELP US','HIDDEN',
+  'HOLLOW MAN','HOUSE ON HAUNTED HILL','JAWS','JURASSIC PARK','KILLER CLOWN','LA JETEE',
+  'LEPRECHAUN','MOONTRAP','NIGHT OF THE LIVING DEAD','PHANTOM OF THE PARADISE'];
+const WB = ['NAVIGATOR','EMPIRE','CINESTAR','FOX','WB','VALLEY','NEW WORLD','CINEMA','PRISM','VIRGIN'];
+/* Pick readable label text for a spine: dark ink on light spines, cream on dark.
+   check gates on contrast, so this has to be a real luminance test, not a guess. */
+const lum = h => {
+  const c = [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16) / 255)
+    .map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+};
+const ink = h => lum(h) > 0.42 ? '#241a10' : '#f7f4ec';
+const WALL = WL.map((t, i) => {
+  /* Index the palette by i itself, not i % 22. With 66 spines and 29 colours the
+     cycle length is 29, which shares no factor with the 22-wide grid — so the
+     spine directly under spine 0 is index 22, a different colour entirely. Any
+     divisor of the grid width here reintroduces the repeat. */
+  const from = WPAL[i % WPAL.length];
+  const to   = WPAL[(i * 7 + 5) % WPAL.length];   // 7 is coprime with 29 — walks the palette
+  const ang  = (i * 29) % 180;                    // 29 is coprime with 180
+  // the band darkens the spine, so label text reads against the band, not the base
+  const pale = ink(from);
+  return {
+    t,
+    // full name must fit the spine: scale type down for long titles, never clip a name
+    fs: Math.round(Math.min(9.5, 100 / (t.length * 0.62)) * 10) / 10,
+    bg: `linear-gradient(${ang}deg,${from} 0%,${to} 100%)`,
+    band: `linear-gradient(${ang}deg,rgba(0,0,0,.62) 0%,rgba(0,0,0,.42) 100%)`,
+    bandc: pale,
+    tc: pale,
+    b: WB[i % WB.length],
+    code: i % 7 === 0,                      // occasional white UPC sticker
+    rot: i % 13 === 5 ? 'VHS PRO-TAPE' : '',  // occasional printed sub-banner
+    // printed-sleeve geometry — coprime steps, so no two spines share a stripe layout
+    a: 8 + (i * 37) % 170,                  // 37 is coprime with 170
+    o1: 16 + (i * 11) % 26,
+    o2: 52 + (i * 13) % 30,
+    // key-light position/size — 17 and 19 are coprime with the 22-wide grid, so no
+    // two spines in a column light the same corner. This is the focal highlight
+    // that makes a spine read as photographed art instead of a flat gradient.
+    hx: 12 + (i * 17) % 76,
+    hy: 10 + (i * 19) % 74,
+    hs: 46 + (i * 7) % 34
+  };
+});
+
+const TAPES = [
+  {t:'THE GOONIES',        y:1985, b:'WARNER',    bg:'#151519', band:'#2f6fd0', tc:'#e8e8ec', vl:'$12–18'},
+  {t:'GREMLINS',           y:1984, b:'STANLEY',   bg:'#e6e9ef', band:'#1f4fa8', tc:'#16305e', vl:'$14–22'},
+  {t:'AKIRA',              y:1988, b:'TOHO',      bg:'#1b3fa8', band:'#0d1f52', tc:'#ffffff', vl:'$24–35'},
+  {t:'JAWS',               y:1975, b:'UNIVERSAL', bg:'#c0201f', band:'#0d3a6b', tc:'#ffffff', vl:'$9–14'},
+  {t:'GHOSTBUSTERS',       y:1984, b:'COLUMBIA',  bg:'#121216', band:'#e8b300', tc:'#ffffff', vl:'$11–16'},
+  {t:'SPEED RACER',        y:1967, b:'TOEI',      bg:'#f0e6d2', band:'#c8352b', tc:'#2a1c10', vl:'$30–55'},
+  {t:'NIGHT OF THE LIVING DEAD', y:1968, b:'VALLEY', bg:'#5b2a86', band:'#1d0d33', tc:'#f0e2ff', vl:'$18–26'},
+  {t:'THE TERMINATOR',     y:1984, b:'ORION',     bg:'#1e6b45', band:'#0b2a1a', tc:'#ffffff', vl:'$10–16'},
+  {t:'LABYRINTH',          y:1986, b:'EMBASSY',   bg:'#12131a', band:'#8e44ad', tc:'#ffffff', vl:'$8–13'},
+  {t:'PREDATOR',           y:1987, b:'20TH CENT', bg:'#2b2f22', band:'#c8102e', tc:'#e8ffd8', vl:'$15–24'},
+  {t:'BEETLEJUICE',        y:1988, b:'WARNER',    bg:'#2b3f8f', band:'#7fd8c8', tc:'#ffffff', vl:'$9–15'}
+];
+const BARS = [3,1,2,1,4,2,1,3,1,2,4,1,2,3,1,1,4,2,3,1,2,1,3,4,1,2,3,1,2,1,4,2,1,3,2,1];
+
+const spineHTML = (x, i) =>
+  `<div class="spine" style="background:${x.bg}">
+     <div class="sp-band" style="background:${x.band}">${x.b}</div>
+     <div class="sp-id" style="color:${x.bg==='#e6e9ef'||x.bg==='#f0e6d2'?'rgba(0,0,0,.45)':'rgba(255,255,255,.45)'}">VL-${1000+i}</div>
+     <div class="sp-title" style="color:${x.tc}">${x.t}</div>
+     <div class="sp-vhs">VHS</div>
+   </div>`;
+
+const shelfHTML = list => list.map(x =>
+  `<i style="height:${62 + (x.t.length % 5) * 8}%;background:${x.bg}"></i>`).join('');
+
+const reviewRow = x => `
+  <div class="rrow">
+    <div class="rthumb" style="background:linear-gradient(180deg,${x.band} 0 26%,${x.bg} 26%)"></div>
+    <div class="rt-main">
+      <div class="rt-t">${x.t}</div>
+      <div class="rt-m">VHS-${1000+TAPES.indexOf(x)} · ${x.y} · ${x.b} · VHS</div>
+    </div>
+    <div class="rt-v">${x.vl}</div>
+  </div>`;
+
+/* Wall tile — full-bleed spine artwork, no chrome, no label (per the app screenshot).
+   fs is per-spine so a long title shrinks to fit instead of being clipped. */
+const wallCard = x => `
+  <div class="su" style="background:${x.bg};--a:${x.a}deg;--o1:${x.o1}%;--o2:${x.o2}%;--hx:${x.hx}%;--hy:${x.hy}%;--hs:${x.hs}%">
+    <div class="su-art">
+      <div class="su-band" style="background:${x.band};color:${x.bandc}">${x.b}</div>
+      <div class="su-tt" style="color:${x.tc};font-size:${x.fs}px">${x.t}</div>
+      <div class="su-foot">VHS</div>
+    </div>
+    ${x.code ? `<div class="su-code"></div>` : ''}
+    ${x.rot ? `<div class="su-rot">${x.rot}</div>` : ''}
+  </div>`;
+
+/* Stacked shelves for the capture view — rows of tapes on boards, five selected */
+const stackHTML = (rows, sel) => rows.map((r, ri) =>
+  `<div class="shbay"><div class="shrow">${r.map((c, ci) =>
+    `<i class="${sel && sel[ri] && sel[ri].includes(ci) ? 'sel' : ''}"
+        style="height:${c.h}%;background:${c.bg};--hx:${c.hx}%;--hy:${c.hy}%;${c.band ?
+          `background:linear-gradient(180deg,${c.band} 0 18%,${c.bg} 18%)` : ''}"><b style="color:${c.tc};font-size:${c.fs}px">${c.t}</b></i>`
+  ).join('')}</div><div class="shboard"></div></div>`).join('');
+
+/* A shelf spine has to carry its name — an unlabelled colour block reads as a
+   swatch, not a tape, and the five selected ones are the titles scene 4 pulls
+   into the table. Long names scale down rather than clip, same budget as .su-tt. */
+const shelfRow = (list, f) => list.map((x, i) => ({
+  h: f(x, i), bg: x.bg, band: x.band, t: x.t, tc: x.tc,
+  fs: Math.round(Math.min(9.5, 100 / (x.t.length * 0.62)) * 10) / 10,
+  hx: 12 + (i * 17) % 76, hy: 10 + (i * 19) % 60   // coprime with 11 — no repeat in a row
+}));
+
+/* Row 2 is reversed and row 3 is rotated by 4 — two rows in the same order read as
+   a copy-paste bug, not a shelf. Same lesson as the wall: never lay identical
+   runs side by side. */
+const ROT4 = TAPES.slice(4).concat(TAPES.slice(0, 4));
+const SHELF_ROWS = [
+  shelfRow(TAPES, (x) => 74 + (x.y % 7) * 3),
+  shelfRow(TAPES.slice().reverse(), (x) => 80 + (x.b.length % 5) * 4),
+  shelfRow(ROT4, (x, i) => 70 + (i % 6) * 4)
+];
+const SEL5 = [[3, 4, 5, 6, 7]];
+
+/* Capture queue thumbnail — 5 spine snapshots stacked in one frame */
+const qSnap = (i, n, chip) => `
+  <div class="qsnap">
+    <div class="qph"></div>
+    <div class="qart">${SHELF_ROWS[0].slice(3, 8).map((c, k) =>
+      `<i style="background:linear-gradient(180deg,${c.band || '#2a2a30'} 0 18%,${c.bg} 18%)"></i>`
+    ).join('')}</div>
+    <div class="qhit"></div>
+    <span class="qn">${i}/${n}</span>
+    <span class="qok">✓</span>
+    ${chip ? `<span class="tchip" style="opacity:0">${TAPES[i - 1] ? TAPES[i - 1].t : ''}</span>` : ''}
+  </div>`;
+
+const qSnapStatic = () => SHELF_ROWS[0].slice(3, 8).map((c, k) =>
+  `<i style="background:linear-gradient(180deg,${c.band || '#2a2a30'} 0 18%,${c.bg} 18%)"></i>`
+).join('');
+
+/* Column 1 is 26px (the spine thumb); the title needs its own cell — packing both
+   into column 1 lets table-layout:fixed clip the title away. */
+const miniRow = x => `
+  <tr>
+    <td class="ti"><div class="tcell"><span class="tmini5">${qSnapStatic()}</span></div></td>
+    <td class="ti"><span class="mtitle">${x.t}</span>
+      <span class="mid" style="font-family:var(--mono);font-size:9px;color:var(--ink3)">VHS-${1000 + TAPES.indexOf(x)}</span>
+    </td>
+  </tr>`;
+
+const tableRow = x => `
+  <tr>
+    <td class="ti"><div class="tcell">
+      <div class="tmini" style="background:linear-gradient(180deg,${x.band} 0 30%,${x.bg} 30%)"></div>
+      <span>${x.t}</span><span class="tid">VHS-${1000+TAPES.indexOf(x)}</span>
+    </div></td>
+    <td class="mn">${x.y}</td><td class="mn">VHS</td><td class="mn">${TAPES.indexOf(x)%3?'great':'fair'}</td>
+    <td class="vl">${x.vl}</td>
+    <td><div class="acts"><span class="abtn ab-cl">Clone</span><span class="abtn ab-it">Item</span></div></td>
+  </tr>`;
+
+/* ── Populate ─────────────────────────────────────────────── */
+qa('#shelf2, #shelf3, #shelf4, #shelf7').forEach(el => {
+  el.innerHTML = shelfHTML(TAPES.concat(TAPES));
+});
+q('#rev5').innerHTML = `
+  <div class="rrow">
+    <div class="rthumb" style="background:linear-gradient(180deg,#e8b300 0 26%,#121216 26%)"></div>
+    <div class="rt-main">
+      <div class="rt-t">GHOSTBUSTERS</div>
+      <div class="rt-m">0 26508 39175 4 · 1984 · COLUMBIA · VHS</div>
+    </div>
+    <div class="rt-v">$11–16</div>
+  </div>`;
+q('#mini5').innerHTML = TAPES.slice(0,4).map(x =>
+  `<div class="rrow" style="padding:4px 0">
+     <div class="tmini" style="background:linear-gradient(180deg,${x.band} 0 30%,${x.bg} 30%)"></div>
+     <div class="rt-t" style="font-size:10.5px;flex:1">${x.t}</div>
+     <span class="tid">VHS-${1000+TAPES.indexOf(x)}</span>
+   </div>`).join('');
+q('#tbl6').innerHTML =
+  `<thead><tr><th>TITLE</th><th>YEAR</th><th>FORMAT</th><th>COND</th><th>VALUE</th><th>EXPORT_JSON</th></tr></thead>
+   <tbody>${TAPES.map(tableRow).join('')}</tbody>`;
+q('#wall7').innerHTML = WALL.map(wallCard).join('');
+/* capture views: stacked shelves, five selected on the top row */
+q('#sw2').innerHTML = stackHTML(SHELF_ROWS, SEL5);
+q('#sw3').innerHTML = stackHTML(SHELF_ROWS, SEL5);
+q('#sw4').innerHTML = stackHTML(SHELF_ROWS, SEL5);
+q('#q3').innerHTML = [1,2,3,4,5].map(i => qSnap(i, 5)).join('');
+q('#q4').innerHTML = [1,2,3,4,5].map(i => qSnap(i, 5, true)).join('');
+q('#et4').innerHTML = TAPES.slice(0,5).map(miniRow).join('');
+q('#bcTape').innerHTML =
+  `<div style="height:22%;background:#e8b300;display:flex;align-items:center;justify-content:center;
+     font-family:'Courier New',monospace;font-size:9px;letter-spacing:.14em;color:#3a2606">COLUMBIA</div>
+   <div style="flex:1;display:flex;align-items:center;justify-content:center;
+     writing-mode:vertical-rl;font-size:22px;font-weight:800;color:#fff;letter-spacing:.03em">GHOSTBUSTERS</div>
+   <div style="height:14%;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;
+     font-size:9px;font-weight:800;letter-spacing:.16em;color:#fff">VHS</div>`;
+q('#bcStrip').innerHTML = BARS.map(w => `<i style="flex:${w}"></i>`).join('');
+
+/* Frame the crop box around the five selected spines instead of hard-coded percentages —
+   the shelf rows are flex-sized, so a fixed box drifts off the selection. */
+const fitCrop = wallSel => {
+  const cb = document.querySelector(wallSel.replace('#sw', '#cb'));
+  const wall = document.querySelector(wallSel);
+  if (!cb || !wall) return;
+  const wb = wall.getBoundingClientRect();
+  const sels = wall.querySelectorAll('.shrow:first-child i.sel');
+  if (!sels.length) return;
+  const a = sels[0].getBoundingClientRect();
+  const b = sels[sels.length - 1].getBoundingClientRect();
+  cb.style.left = (a.left - wb.left - 5) + 'px';
+  cb.style.right = 'auto';
+  cb.style.width = (b.right - a.left + 10) + 'px';
+  cb.style.top = (a.top - wb.top - 5) + 'px';
+  cb.style.bottom = 'auto';
+  cb.style.height = (b.bottom - a.top + 10) + 'px';
+  const ch = document.querySelector(wallSel.replace('#sw', '#ch'));
+  if (ch) {
+    /* handle is 11px, overhanging the corner by 5px */
+    ch.style.left = (b.right - wb.left - 6) + 'px';
+    ch.style.top = (b.bottom - wb.top - 6) + 'px';
+    ch.style.right = 'auto';
+    ch.style.bottom = 'auto';
+  }
+};
+['#sw2', '#sw3', '#sw4'].forEach(fitCrop);
+
+/* ── VCR timecode + rewind gag ────────────────────────────── */
+const tc = { t: 0 };
+const fmt = t => 'SP 0:00:' + String(Math.max(0, Math.floor(t))).padStart(2, '0');
+const setTc = () => { q('#hudTc').textContent = fmt(tc.t); };
+
+const tl = gsap.timeline({ paused: true });
+
+/* Counter runs forward, then runs *backwards* for the rewind gag. One tween with
+   keyframes so the linter sees no overlapping tweens on the same property. */
+tl.to(tc, {
+  t: 18,
+  duration: 18,
+  ease: 'none',
+  onUpdate: setTc,
+  keyframes: [
+    { t: 18,  duration: 17.05, ease: 'none' },
+    { t: 3,   duration: 0.12,  ease: 'power2.out' },
+    { t: 3,   duration: 0.55,  ease: 'none' },
+    { t: 18,  duration: 0.28,  ease: 'none' }
+  ]
+}, 0);
+
+/* Scene 1 — wordmark settles */
+tl.from('#wm1', { opacity: 0, scale: 1.14, duration: 0.7, ease: 'power3.out' }, 0.12)
+  .from('#rule1', { scaleX: 0, duration: 0.55, ease: 'power2.out' }, 0.5)
+  .from('#sub1', { opacity: 0, y: 14, duration: 0.5, ease: 'power2.out' }, 0.72)
+  .to('#s1', { opacity: 0, duration: 0.4, ease: 'power1.in' }, 2.0);
+
+/* Scene 2 — shelf of stacked tapes comes into view, five spines get selected */
+tl.from('#s2 .browser', { opacity: 0, y: 34, scale: 0.985, duration: 0.62, ease: 'power3.out' }, 2.42)
+  .from('#h2', { opacity: 0, y: -20, duration: 0.45, ease: 'power3.out' }, 2.5)
+  .from('#sw2 .shbay', { opacity: 0, y: 16, duration: 0.5, stagger: 0.12,
+                         ease: 'power2.out' }, 2.62)                                 // beat-grid
+  .from('#cb2', { opacity: 0, duration: 0.4 }, 3.0)
+  .from('#ch2', { opacity: 0, duration: 0.3 }, 3.05)
+  .from('#sw2 .sel', { opacity: 0, duration: 0.3, stagger: 0.07, ease: 'power2.out' }, 3.3)
+  .to('#s2', { opacity: 0, duration: 0.35, ease: 'power1.in' }, 4.45);
+
+/* Scene 3 — five snapshots pull off the shelf into the queue (beat-grid) */
+tl.from('#s3 .browser', { opacity: 0, duration: 0.3 }, 4.8)
+  .from('#h3', { opacity: 0, y: -18, duration: 0.4, ease: 'power3.out' }, 4.84)
+  .from('#q3 .qsnap', { opacity: 0, scale: 0.72, y: 46, duration: 0.42,
+                        stagger: 0.41, ease: 'power3.out' }, 4.91)                 // beat-grid
+  .from('#q3 .qph', { opacity: 0, duration: 0.2 }, 4.91)
+  .from('#q3 .qart', { opacity: 0, duration: 0.3, stagger: 0.41,
+                       ease: 'power2.out' }, 5.06)                                 // beat-grid
+  .to('#ana3', { duration: 0.01,
+     onStart(){ this.targets()[0].textContent = 'Analyzing image 1 of 5…'; } }, 4.91)
+  .to('#ana3', { duration: 0.01,
+     onStart(){ this.targets()[0].textContent = 'Analyzing image 2 of 5…'; } }, 5.34)
+  .to('#ana3', { duration: 0.01,
+     onStart(){ this.targets()[0].textContent = 'Analyzing image 3 of 5…'; } }, 6.00)
+  .to('#ana3', { duration: 0.01,
+     onStart(){ this.targets()[0].textContent = 'Analyzing image 4 of 5…'; } }, 6.56)
+  .to('#ana3', { duration: 0.01,
+     onStart(){ this.targets()[0].textContent = 'Analyzing image 5 of 5…'; } }, 7.09)
+  .to('#sl3', { opacity: 1, duration: 0.12 }, 6.2)
+  .fromTo('#sl3', { y: -170 }, { y: 190, duration: 0.85, ease: 'none' }, 6.2)
+  .to('#sl3', { opacity: 0, duration: 0.12 }, 7.05)
+  .to('#s3', { opacity: 0, duration: 0.32, ease: 'power1.in' }, 7.28);
+
+/* Scene 4 — AI reads each spine, title pulled out into the table (beat-grid)
+   Scene runs 7.60–9.68, so five arrivals must land by ~9.5: stagger ≤ 0.34. */
+tl.from('#s4 .browser', { opacity: 0, duration: 0.28 }, 7.6)
+  .from('#h4', { opacity: 0, y: -18, duration: 0.4, ease: 'power3.out' }, 7.62)
+  .from('#q4 .qsnap', { opacity: 0, scale: 0.8, duration: 0.30,
+                        stagger: 0.34, ease: 'power3.out' }, 7.64)                 // beat-grid
+  .to('#q4 .qhit', { opacity: 1, duration: 0.12, stagger: 0.34,
+                     ease: 'power2.out' }, 7.80)                                  // beat-grid
+  .to('#q4 .qok', { opacity: 1, duration: 0.16, stagger: 0.34,
+                    ease: 'back.out(2)' }, 7.98)                                   // beat-grid
+  /* each green title chip lifts off its own snapshot and lands in the table row */
+  .fromTo('#q4 .tchip', { opacity: 0 },
+    { opacity: 1, duration: 0.20, stagger: 0.24, ease: 'power2.out' }, 8.30)       // beat-grid
+  .from('#et4 tr', { opacity: 0, x: 24, duration: 0.26, stagger: 0.24,
+                     ease: 'power2.out' }, 8.40)                                   // beat-grid
+  .to('#st4', { opacity: 0, duration: 0.3 }, 8.9)
+  .to('#cc4', { duration: 0.01,
+     onStart(){ this.targets()[0].textContent = '15 tapes'; } }, 9.5)
+  .to('#okAll', { scale: 1.14, duration: 0.14, ease: 'power2.out' }, 9.2)
+  .to('#okAll', { scale: 1, duration: 0.3, ease: 'power2.inOut' }, 9.34)
+  .to('#s4', { opacity: 0, duration: 0.32, ease: 'power1.in' }, 9.68);
+
+/* Scene 5 — loose tape barcode scan (beat-locked snap at 12.55) */
+tl.from('#s5 .browser', { opacity: 0, duration: 0.3 }, 10.0)
+  .from('#h5', { opacity: 0, y: -18, duration: 0.4, ease: 'power3.out' }, 10.02)
+  .from('#bcTape', { opacity: 0, y: 26, scale: 0.94, duration: 0.5, ease: 'power3.out' }, 10.2)
+  .from('#bcBox', { opacity: 0, scale: 0.9, duration: 0.4, ease: 'power3.out' }, 10.45)
+  .to('#sl5', { opacity: 1, duration: 0.14 }, 12.1)
+  .fromTo('#sl5', { y: -58 }, { y: 58, duration: 0.95, ease: 'none' }, 12.1)
+  .to('#sl5', { opacity: 0, duration: 0.14 }, 13.05)
+  .to('#bcBox', { borderColor: '#3ddc6b', boxShadow: '0 0 40px rgba(61,220,107,.45)',
+                  duration: 0.35 }, 12.55)                                        // beat-locked
+  .to('#bcDigits', { opacity: 1, duration: 0.3, ease: 'power2.out' }, 12.55)     // beat-locked
+  .from('#rev5 .rrow', { opacity: 0, x: 26, duration: 0.4, ease: 'power2.out' }, 12.6)
+  .from('#mini5 .rrow', { opacity: 0, duration: 0.3, stagger: 0.07, ease: 'power2.out' }, 12.72)
+  .to('#s5', { opacity: 0, duration: 0.3, ease: 'power1.in' }, 13.1);
+
+/* Scene 6 — table */
+tl.from('#s6 .browser', { opacity: 0, duration: 0.28 }, 13.4)
+  .from('#h6', { opacity: 0, y: -18, duration: 0.4, ease: 'power3.out' }, 13.42)
+  .from('#tbl6 tbody tr', { opacity: 0, x: 22, duration: 0.3,
+                            stagger: 0.07, ease: 'power2.out' }, 13.55)
+  .to('#s6', { opacity: 0, duration: 0.26, ease: 'power1.in' }, 14.47);
+
+/* Scene 7 — StacksUp wall fills, then the outro lands */
+tl.from('#s7 .browser', { opacity: 0, duration: 0.3 }, 14.73)                    // beat-locked
+  /* 66 cards must finish by ~15.67 — the outro scrim starts at 15.84, and a row still
+     animating underneath it reads as a dead black shelf rather than a full wall. */
+  .from('#wall7 .su', { opacity: 0, y: 22, scale: 0.86, duration: 0.22,
+                        stagger: 0.011, ease: 'power3.out' }, 14.73)              // ~0.94s to fill
+  .from('#wbar', { opacity: 0, duration: 0.3 }, 14.73)
+  .to('#cnt7', { duration: 0.01,
+     onStart(){ this.targets()[0].textContent = '66 tapes'; } }, 14.73)
+  .from('#outro', { opacity: 0, duration: 0.55, ease: 'power2.inOut' }, 15.84)   // beat-locked
+  .from('#wm7', { opacity: 0, scale: 1.1, duration: 0.6, ease: 'power3.out' }, 15.84)
+  .from('#bkr7', { opacity: 0, y: 22, scale: 0.92, duration: 0.5, ease: 'back.out(1.7)' }, 16.06)
+  .from('#url7', { opacity: 0, duration: 0.4 }, 16.28)
+  .from('#shelf7', { opacity: 0, duration: 0.5 }, 16.3)
+  /* rewind gag — the wall and wordmark hold; only the HUD changes */
+  .to('#hudRew', { opacity: 1, duration: 0.12 }, 17.0)
+  .to('.hud-play, .hud-rew', { opacity: 0, duration: 0.12 }, 17.62)
+  .to('#hudRew', { opacity: 0, duration: 0.12 }, 17.7)
+  .to('.hud-play', { opacity: 1, duration: 0.12 }, 17.82);
+
+setTc();
+window.__timelines = window.__timelines || {};
+window.__timelines['vhsbox'] = tl;
+</script>
+</body>
+</html>

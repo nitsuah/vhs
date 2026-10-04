@@ -8,7 +8,7 @@ All notable changes to this project are documented here.
 
 ### Added
 
-- **GitHub Pages landing site** (`site/`, deployed by `.github/workflows/pages.yml` on pushes to `main` that touch `site/**`): one-page tour of VHS Box with an embedded 20s launch video (FBI-warning cold open → capture → AI review → collection), how-it-works, shipped features, easter eggs, and Docker quickstart. `brag-output*/` build output is gitignored.
+- **GitHub Pages landing site** (`site/`, deployed by `.github/workflows/pages.yml` on pushes to `main` that touch `site/**`): one-page tour of VHS Box with an embedded 20s launch video (FBI-warning cold open → capture → AI review → collection), how-it-works, shipped features, easter eggs, and Docker quickstart. `brag-output*/` build output is gitignored, except the four files the video is authored in — `brag-plan.md`, `composition-brief.md`, `composition/index.html`, `share-copy.txt` — so the plan and brief keep accumulating the art-direction rules learned by rendering.
 - **Collection UX overhaul + local AI discovery + metadata audit tool** (#55): Collections → Stacks default view, unified multi-select, sortable/resizable columns, Add Photo + crop fixes, Ollama auto-probe and "Find Local AI" for OpenAI-compatible backends, `scripts/audit-metadata.js` (dry-run by default).
 - `tmdbLookup` test coverage; coverage thresholds restored (#59). CI and Netlify deploy badges in README (#61).
 

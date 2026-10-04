@@ -1,0 +1,3 @@
+VHS Box — point your camera at a shelf or a single tape, and it fills in the title,
+year, label, and value. Five spines a shot. One barcode for the loose one.
+Then the wall stacks up.
