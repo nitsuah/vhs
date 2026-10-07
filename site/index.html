@@ -18,7 +18,7 @@
 :root{
   --bg:#0a0a0a;--bg2:#111;--bg3:#1a1a1a;--bg4:#222;--border:#2a2a2a;--border2:#333;
   --accent:#e84040;--accent2:#ff6060;--text:#e8e8e8;--text2:#a8a8a8;--text3:#6a6a6a;
-  --green:#3dbb3d;--yellow:#f0c040;--blue:#4488ff;--purple:#9966ff;--fbi:#ffdd80;--fbi-bg:#00003a;
+  --green:#3dbb3d;--yellow:#f0c040;--blue:#4488ff;--purple:#9966ff;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -52,15 +52,14 @@ nav .btn{padding:8px 14px;font-size:13px}
 .video{margin:48px auto 0;max-width:1040px;border-radius:14px;overflow:hidden;border:1px solid var(--border2);box-shadow:0 40px 120px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.03);background:#000;aspect-ratio:16/9}
 .video video{width:100%;height:100%;display:block}
 
-/* FBI warning band */
-.fbi{background:var(--fbi-bg);color:#fff;font-family:'Courier New',monospace;text-align:center;padding:56px 20px;margin:72px 0 0;position:relative;overflow:hidden}
-.fbi::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.6) 100%)}
-.fbi>*{position:relative}
-.fbi .warn{white-space:nowrap;font-size:clamp(28px,5vw,52px);font-weight:900;color:var(--fbi);letter-spacing:.2em;text-shadow:0 0 20px rgba(255,221,128,.45)}
-.fbi .warn strong{letter-spacing:.05em;margin-right:6px}
-.fbi hr{border:0;border-top:2px solid rgba(255,221,128,.45);max-width:640px;margin:20px auto}
-.fbi p{font-size:clamp(15px,2vw,20px);font-weight:700;text-transform:uppercase;letter-spacing:.04em;max-width:720px;margin:0 auto}
-.fbi .cite{margin-top:14px;font-size:13px;color:rgba(255,221,128,.75);letter-spacing:.12em;font-weight:400}
+/* shelf strip: a row of spines between the hero and the tour */
+.shelf{margin:72px 0 0;padding:26px 0 0;background:linear-gradient(180deg,#1d140c,#120c07);border-top:1px solid #2a1d12;overflow:hidden;position:relative}
+.shelf::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,var(--bg) 0,transparent 8%,transparent 92%,var(--bg) 100%)}
+.shelf .row{display:flex;gap:5px;justify-content:center;align-items:flex-end;padding:0 10px}
+.shelf .s{flex:0 0 46px;border-radius:3px 3px 1px 1px;position:relative;overflow:hidden;box-shadow:inset -4px 0 6px rgba(0,0,0,.35),inset 3px 0 4px rgba(255,255,255,.08)}
+.shelf .s::before{content:'';position:absolute;left:0;right:0;top:12px;height:14px;background:var(--band)}
+.shelf .s span{position:absolute;left:0;right:0;top:34px;bottom:12px;writing-mode:vertical-rl;transform:rotate(180deg);font-weight:900;font-size:13px;letter-spacing:.04em;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
+.shelf .plank{height:22px;background:linear-gradient(180deg,#6b4527,#4a2f1a 30%,#2c1b0e)}
 
 /* how it works */
 section.block{padding:88px 0 0}
@@ -124,7 +123,6 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
   nav .btn{margin-left:auto}
   .hero{padding-top:48px}
 }
-@media (max-width:520px){.fbi .warn{font-size:20px;letter-spacing:.12em}}
 </style>
 </head>
 <body>
@@ -156,11 +154,30 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
   </div>
 </header>
 
-<div class="fbi">
-  <div class="warn"><strong>FBI</strong> W A R N I N G</div>
-  <hr>
-  <p>Your VHS collection is undocumented.</p>
-  <div class="cite">Title 17 · Garage · Box 3 of 9</div>
+<div class="shelf" aria-hidden="true">
+  <div class="row">
+    <div class="s" style="height:196px;background:#0d2a5c;--band:#e84040"><span style="color:#f2efe6">JAWS</span></div>
+    <div class="s" style="height:212px;background:#f2efe6;--band:#c22a2a"><span style="color:#111">GHOSTBUSTERS</span></div>
+    <div class="s" style="height:188px;background:#c22a2a;--band:#111"><span style="color:#fff3d6">AKIRA</span></div>
+    <div class="s" style="height:204px;background:#e8b300;--band:#7a1f12"><span style="color:#1a1205">THE GOONIES</span></div>
+    <div class="s" style="height:200px;background:#1f5130;--band:#f0c040"><span style="color:#f2efe6">GREMLINS</span></div>
+    <div class="s" style="height:214px;background:#3a0f12;--band:#e84040"><span style="color:#ffcf6a">BIG TROUBLE</span></div>
+    <div class="s" style="height:206px;background:#191919;--band:#3dbb3d"><span style="color:#e6e6e6;font-size:9.0px">NIGHT OF THE LIVING DEAD</span></div>
+    <div class="s" style="height:198px;background:#123d6b;--band:#c22a2a"><span style="color:#f0f4ff">THE TERMINATOR</span></div>
+    <div class="s" style="height:210px;background:#3b1d5e;--band:#f0c040"><span style="color:#f6e1ff">LABYRINTH</span></div>
+    <div class="s" style="height:192px;background:#2e3b1a;--band:#c22a2a"><span style="color:#e9f0c8">PREDATOR</span></div>
+    <div class="s" style="height:208px;background:#e9e3d0;--band:#5b2a86"><span style="color:#1b1b1b">BEETLEJUICE</span></div>
+    <div class="s" style="height:196px;background:#06131f;--band:#1d8fd6"><span style="color:#5fe6ff">TRON</span></div>
+    <div class="s" style="height:202px;background:#0f1f17;--band:#3dbb3d"><span style="color:#d8f5c8">ALIENS</span></div>
+    <div class="s" style="height:212px;background:#5a6470;--band:#14246b"><span style="color:#fff">ROBOCOP</span></div>
+    <div class="s" style="height:204px;background:#f2efe6;--band:#e8b300"><span style="color:#c22a2a;font-size:11.9px">BACK TO THE FUTURE</span></div>
+    <div class="s" style="height:190px;background:#1b2a5c;--band:#ff6fb5"><span style="color:#ffe9a8">E.T.</span></div>
+    <div class="s" style="height:206px;background:#6b2440;--band:#f0c040"><span style="color:#ffe6ef;font-size:12.0px">THE PRINCESS BRIDE</span></div>
+    <div class="s" style="height:198px;background:#14246b;--band:#e84040"><span style="color:#f0c040">GREMLINS</span></div>
+    <div class="s" style="height:210px;background:#2a1347;--band:#f0c040"><span style="color:#ff6fb5">AKIRA</span></div>
+    <div class="s" style="height:194px;background:#e9e3d0;--band:#e84040"><span style="color:#0d2a5c">JAWS</span></div>
+  </div>
+  <div class="plank"></div>
 </div>
 
 <section class="block" id="how">

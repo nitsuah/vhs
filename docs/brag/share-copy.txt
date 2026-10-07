@@ -1,0 +1,1 @@
+Point a camera at your tape shelf: VHS Box reads five spines a shot and gives every tape an ID, a condition and a price. Self-hosted, open source. Be kind, rewind. https://nitsuah.github.io/vhs/

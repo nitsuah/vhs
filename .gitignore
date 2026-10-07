@@ -1,16 +1,20 @@
+# secrets / deps / logs
 .env
 node_modules/
 *.log
 npm-debug.log*
 
+# test output
 test-results/
 playwright-report/
+.playwright-mcp/
 
 # scripts/audit-metadata.js apply log (local record of DB changes, not source)
 data/audit-metadata-log.jsonl
 
-# Local Netlify folder
+# local Netlify folder
 .netlify
 
-# /brag video build output (renders, frames, stems)
+# launch-video build output (frames, renders, stems). Sources live in docs/brag/;
+# the shipped video is site/brag.mp4.
 brag-output*/
