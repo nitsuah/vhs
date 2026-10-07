@@ -27,21 +27,27 @@ labels are the films' real VHS releases; conditions and values are illustrative.
 
 ## Rebuild
 
-From the repo root (Git Bash on Windows; drop `MSYS_NO_PATHCONV=1` and use `$(pwd)` elsewhere):
+From the repo root (Git Bash on Windows; drop `MSYS_NO_PATHCONV=1` and use `$(pwd)` elsewhere).
+`capture` wraps the Playwright container; its arguments go straight to `capture.mjs`:
 
 ```bash
 mkdir -p brag-output/work
-MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/docs/brag:/src" -v "$(pwd -W)/brag-output/work:/work" -v vhs-brag-npm:/deps -w /deps mcr.microsoft.com/playwright:v1.63.0-noble bash -c "test -d node_modules/playwright || npm i playwright@1.63.0; cp /src/*.html /src/*.mjs /deps/ && node capture.mjs /work/frames all"
-python docs/brag/audio.py brag-output/work/brag.wav
-ffmpeg -y -framerate 30 -i brag-output/work/frames/%04d.png -i brag-output/work/brag.wav -c:v libx264 -preset slow -crf 20 -pix_fmt yuv420p -c:a aac -b:a 160k -movflags +faststart -shortest brag-output/brag.mp4
+capture() { MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/docs/brag:/src" -v "$(pwd -W)/brag-output/work:/work" -v vhs-brag-npm:/deps -w /deps mcr.microsoft.com/playwright:v1.63.0-noble bash -c "test -d node_modules/playwright || npm i playwright@1.63.0; cp /src/*.html /src/*.mjs /deps/ && node capture.mjs $*"; }
 ```
 
-Poster: pick a settled frame (the outro at ~18.5s works), save it as `site/brag.jpg`, and
-replace frame 0 with it rather than adding a frame, so duration and audio sync are unchanged
-(`cp frames/0555.png frames/0000.png` before encoding).
+1. Check stills from every scene and mid-transition before a full render:
+   `capture /work/stills 4.3 9.9 18.5` → `brag-output/work/stills/t4.3.png` …
+2. Render every frame, then make the settled outro (frame 555, 18.5s) the poster and frame 0.
+   Replacing frame 0 instead of adding a frame keeps the duration and audio sync unchanged:
 
-Use stills (`node capture.mjs /work/stills 4.3 9.9 18.5`) to check every scene and
-mid-transition before a full render.
+```bash
+capture /work/frames all
+cp brag-output/work/frames/0555.png brag-output/work/frames/0000.png
+python docs/brag/audio.py brag-output/work/brag.wav
+ffmpeg -y -framerate 30 -i brag-output/work/frames/%04d.png -i brag-output/work/brag.wav -c:v libx264 -preset slow -crf 20 -pix_fmt yuv420p -c:a aac -b:a 160k -movflags +faststart -shortest brag-output/brag.mp4
+ffmpeg -y -i brag-output/work/frames/0555.png -q:v 3 brag-output/brag.jpg
+cp brag-output/brag.mp4 brag-output/brag.jpg site/
+```
 
 ## Rules learned rendering this
 
