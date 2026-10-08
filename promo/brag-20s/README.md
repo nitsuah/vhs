@@ -32,7 +32,7 @@ From the repo root (Git Bash on Windows; drop `MSYS_NO_PATHCONV=1` and use `$(pw
 
 ```bash
 mkdir -p brag-output/work
-capture() { MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/docs/brag:/src" -v "$(pwd -W)/brag-output/work:/work" -v vhs-brag-npm:/deps -w /deps mcr.microsoft.com/playwright:v1.63.0-noble bash -c "test -d node_modules/playwright || npm i playwright@1.63.0; cp /src/*.html /src/*.mjs /deps/ && node capture.mjs $*"; }
+capture() { MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/promo/brag-20s:/src" -v "$(pwd -W)/brag-output/work:/work" -v vhs-brag-npm:/deps -w /deps mcr.microsoft.com/playwright:v1.63.0-noble bash -c "test -d node_modules/playwright || npm i playwright@1.63.0; cp /src/*.html /src/*.mjs /deps/ && node capture.mjs $*"; }
 ```
 
 1. Check stills from every scene and mid-transition before a full render:
@@ -43,7 +43,7 @@ capture() { MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W)/docs/brag:/src" -v 
 ```bash
 capture /work/frames all
 cp brag-output/work/frames/0555.png brag-output/work/frames/0000.png
-python docs/brag/audio.py brag-output/work/brag.wav
+python promo/brag-20s/audio.py brag-output/work/brag.wav
 ffmpeg -y -framerate 30 -i brag-output/work/frames/%04d.png -i brag-output/work/brag.wav -c:v libx264 -preset slow -crf 20 -pix_fmt yuv420p -c:a aac -b:a 160k -movflags +faststart -shortest brag-output/brag.mp4
 ffmpeg -y -i brag-output/work/frames/0555.png -q:v 3 brag-output/brag.jpg
 cp brag-output/brag.mp4 brag-output/brag.jpg site/
