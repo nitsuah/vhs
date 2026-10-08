@@ -1,0 +1,68 @@
+{
+  "product": "vhs",
+  "live": "https://vhsbox.netlify.app/",
+  "page": "https://nitsuah.github.io/vhs/",
+  "pagesDir": "site",
+  "features": [
+    {
+      "id": "collection-first-default-view",
+      "title": "Collection-first Default View",
+      "category": "Collection UX & Local AI (2026-09, PR #55)",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "sortable-resizable-wall-table-columns",
+      "title": "Sortable, Resizable Wall/Table Columns",
+      "category": "Collection UX & Local AI (2026-09, PR #55)",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "local-ai-discovery",
+      "title": "Local AI Discovery",
+      "category": "Collection UX & Local AI (2026-09, PR #55)",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "metadata-audit-tool",
+      "title": "Metadata Audit Tool",
+      "category": "Collection UX & Local AI (2026-09, PR #55)",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "photo-upload-crop-editor-fixes",
+      "title": "Photo Upload & Crop Editor Fixes",
+      "category": "Collection UX & Local AI (2026-09, PR #55)",
+      "screenshots": [],
+      "spots": []
+    }
+  ],
+  "spots": [
+    {
+      "id": "brag-20s",
+      "seconds": 20,
+      "format": "landscape",
+      "tool": "docs/brag (composition.html + audio.py)",
+      "features": [],
+      "published": "site/brag.mp4",
+      "rendered": "2026-10-07"
+    }
+  ],
+  "reels": [
+    {
+      "id": "hero",
+      "spots": [
+        "brag-20s"
+      ],
+      "published": "site/brag.mp4"
+    }
+  ],
+  "brand": {
+    "source": null,
+    "derived": [],
+    "manual": []
+  }
+}
