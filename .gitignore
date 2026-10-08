@@ -15,6 +15,6 @@ data/audit-metadata-log.jsonl
 # local Netlify folder
 .netlify
 
-# launch-video build output (frames, renders, stems). Sources live in docs/brag/;
+# launch-video build output (frames, renders, stems). Sources live in promo/brag-20s/;
 # the shipped video is site/brag.mp4.
 brag-output*/

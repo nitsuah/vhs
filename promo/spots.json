@@ -351,7 +351,7 @@
       "id": "brag-20s",
       "seconds": 20,
       "format": "landscape",
-      "tool": "docs/brag (composition.html + audio.py)",
+      "tool": "promo/brag-20s (composition.html + audio.py)",
       "features": [
         "vhs-shelf-scanner",
         "capture-queue",
