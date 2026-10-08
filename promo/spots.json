@@ -1,0 +1,381 @@
+{
+  "product": "vhs",
+  "live": "https://vhsbox.netlify.app/",
+  "page": "https://nitsuah.github.io/vhs/",
+  "pagesDir": "site",
+  "features": [
+    {
+      "id": "vhs-shelf-scanner",
+      "title": "VHS Shelf Scanner",
+      "category": "Browser App",
+      "screenshots": [],
+      "spots": [
+        "brag-20s"
+      ]
+    },
+    {
+      "id": "mobile-ui",
+      "title": "Mobile UI",
+      "category": "Browser App",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "https-mobile-support",
+      "title": "HTTPS / Mobile Support",
+      "category": "Browser App",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "zoom-slider",
+      "title": "Zoom Slider",
+      "category": "Browser App",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "hamburger-drawer",
+      "title": "Hamburger Drawer",
+      "category": "Browser App",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "project-site",
+      "title": "Project Site",
+      "category": "Browser App",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "google-oauth",
+      "title": "Google OAuth",
+      "category": "Auth & Sharing",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "public-collection-sharing",
+      "title": "Public Collection Sharing",
+      "category": "Auth & Sharing",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "write-gate-ui",
+      "title": "Write-gate UI",
+      "category": "Auth & Sharing",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "legacy-tape-migration",
+      "title": "Legacy tape migration",
+      "category": "Auth & Sharing",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "barcode-scanning",
+      "title": "Barcode Scanning",
+      "category": "Scanning",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "ai-photo-scanning",
+      "title": "AI Photo Scanning",
+      "category": "Scanning",
+      "screenshots": [],
+      "spots": [
+        "brag-20s"
+      ]
+    },
+    {
+      "id": "capture-queue",
+      "title": "Capture Queue",
+      "category": "Scanning",
+      "screenshots": [],
+      "spots": [
+        "brag-20s"
+      ]
+    },
+    {
+      "id": "upc-lookup",
+      "title": "UPC Lookup",
+      "category": "Scanning",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "tape-registry",
+      "title": "Tape Registry",
+      "category": "Data & Registry",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "status-tracking",
+      "title": "Status Tracking",
+      "category": "Data & Registry",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "condition-tracking",
+      "title": "Condition Tracking",
+      "category": "Data & Registry",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "sold-price-tracking",
+      "title": "Sold Price Tracking",
+      "category": "Data & Registry",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "tags-genres",
+      "title": "Tags / Genres",
+      "category": "Data & Registry",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "tabbed-edit-form",
+      "title": "Tabbed Edit Form",
+      "category": "UI & Editing",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "bulk-selection",
+      "title": "Bulk Selection",
+      "category": "UI & Editing",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "wall-view",
+      "title": "Wall View",
+      "category": "UI & Editing",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "full-text-search",
+      "title": "Full-text Search",
+      "category": "UI & Editing",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "filter-bar",
+      "title": "Filter Bar",
+      "category": "UI & Editing",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "sort",
+      "title": "Sort",
+      "category": "UI & Editing",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "clickable-stats-bar",
+      "title": "Clickable Stats Bar",
+      "category": "UI & Editing",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "stacksup-integration",
+      "title": "StacksUp Integration",
+      "category": "Enrichment & Verification",
+      "screenshots": [],
+      "spots": [
+        "brag-20s"
+      ]
+    },
+    {
+      "id": "omdb-verification",
+      "title": "OMDb Verification",
+      "category": "Enrichment & Verification",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "batch-ai-metadata-fill",
+      "title": "Batch AI Metadata Fill",
+      "category": "Enrichment & Verification",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "analytics",
+      "title": "Analytics",
+      "category": "Enrichment & Verification",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "csv-export",
+      "title": "CSV Export",
+      "category": "Exports & Imports",
+      "screenshots": [],
+      "spots": [
+        "brag-20s"
+      ]
+    },
+    {
+      "id": "for-sale-csv",
+      "title": "For-Sale CSV",
+      "category": "Exports & Imports",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "sell-drafts-ebay-mercari",
+      "title": "Sell Drafts (eBay/Mercari)",
+      "category": "Exports & Imports",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "json-export-import",
+      "title": "JSON Export / Import",
+      "category": "Exports & Imports",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "csv-import",
+      "title": "CSV Import",
+      "category": "Exports & Imports",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "print-price-tags",
+      "title": "Print Price Tags",
+      "category": "Exports & Imports",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "printable-html-list",
+      "title": "Printable HTML List",
+      "category": "Exports & Imports",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "easter-eggs",
+      "title": "Easter Eggs",
+      "category": "Fun",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "jest-unit-tests",
+      "title": "Jest Unit Tests",
+      "category": "Quality",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "playwright-e2e-tests",
+      "title": "Playwright E2E Tests",
+      "category": "Quality",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "ci",
+      "title": "CI",
+      "category": "Quality",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "ebay-valuation",
+      "title": "eBay Valuation",
+      "category": "Enrichment",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "collection-first-default-view",
+      "title": "Collection-first Default View",
+      "category": "Collection UX & Local AI (2026-09, PR #55)",
+      "screenshots": [],
+      "spots": [
+        "brag-20s"
+      ]
+    },
+    {
+      "id": "sortable-resizable-wall-table-columns",
+      "title": "Sortable, Resizable Wall/Table Columns",
+      "category": "Collection UX & Local AI (2026-09, PR #55)",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "local-ai-discovery",
+      "title": "Local AI Discovery",
+      "category": "Collection UX & Local AI (2026-09, PR #55)",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "metadata-audit-tool",
+      "title": "Metadata Audit Tool",
+      "category": "Collection UX & Local AI (2026-09, PR #55)",
+      "screenshots": [],
+      "spots": []
+    },
+    {
+      "id": "photo-upload-crop-editor-fixes",
+      "title": "Photo Upload & Crop Editor Fixes",
+      "category": "Collection UX & Local AI (2026-09, PR #55)",
+      "screenshots": [],
+      "spots": []
+    }
+  ],
+  "spots": [
+    {
+      "id": "brag-20s",
+      "seconds": 20,
+      "format": "landscape",
+      "tool": "docs/brag (composition.html + audio.py)",
+      "features": [
+        "vhs-shelf-scanner",
+        "capture-queue",
+        "ai-photo-scanning",
+        "collection-first-default-view",
+        "csv-export",
+        "stacksup-integration"
+      ],
+      "published": "site/brag.mp4",
+      "rendered": "2026-10-07"
+    }
+  ],
+  "reels": [
+    {
+      "id": "hero",
+      "spots": [
+        "brag-20s"
+      ],
+      "published": "site/brag.mp4"
+    }
+  ],
+  "brand": {
+    "source": null,
+    "derived": [],
+    "manual": []
+  }
+}
