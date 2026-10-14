@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>VHS Box — vertical short shell</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=VT323&display=block" rel="stylesheet" />
+<style>
+  /* 1080×1920 shell for the vertical short: the locked landscape launch video
+     (../brag-20s/composition.html, read-only) plays full-width in the middle,
+     with the brand above and burned-in captions from spot.json "narration"
+     below. Served over http by build.sh so the iframe is same-origin. */
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0a0a0a; font-family: Inter, sans-serif; color: #f2efe6; }
+  #glow { position: absolute; inset: -300px; background:
+    radial-gradient(640px 520px at 30% 20%, rgba(232,64,64,0.20), transparent 70%),
+    radial-gradient(700px 560px at 75% 85%, rgba(68,136,255,0.14), transparent 70%); }
+  #scan { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 2px, transparent 2px 5px); }
+  #brand { position: absolute; left: 0; right: 0; top: 200px; display: flex; flex-direction: column; align-items: center; gap: 22px; }
+  #brand .word { font-size: 132px; font-weight: 900; letter-spacing: -0.03em; line-height: 1; }
+  #brand .word .v { color: #e84040; } #brand .word .b { color: #9a9a9a; font-weight: 500; }
+  #brand .sub { font-size: 40px; font-weight: 600; color: #b9b4a8; }
+  #frame { position: absolute; left: 0; top: 560px; width: 1080px; height: 607.5px; overflow: hidden; box-shadow: 0 40px 120px rgba(0,0,0,0.7); border-top: 2px solid rgba(232,64,64,0.55); border-bottom: 2px solid rgba(232,64,64,0.55); }
+  #inner { width: 1920px; height: 1080px; border: 0; transform: scale(0.5625); transform-origin: 0 0; display: block; }
+  #cap { position: absolute; left: 70px; right: 70px; top: 1290px; text-align: center; font-size: 72px; font-weight: 800; line-height: 1.18; letter-spacing: -0.02em; }
+  #cap .w { display: inline-block; white-space: pre; }
+  #url { position: absolute; left: 0; right: 0; top: 1700px; display: flex; justify-content: center; }
+  #url div { font-family: VT323, monospace; font-size: 54px; padding: 10px 34px; border-radius: 14px; background: rgba(17,17,17,0.92); border: 2px solid rgba(232,64,64,0.5); color: #f0c040; }
+</style>
+</head>
+<body>
+<div id="glow"></div><div id="scan"></div>
+<div id="brand"><div class="word"><span class="v">VHS</span> <span class="b">Box</span></div><div class="sub" id="tagline"></div></div>
+<div id="frame"><iframe id="inner" src="../brag-20s/composition.html" scrolling="no"></iframe></div>
+<div id="cap"></div>
+<div id="url"><div id="urlTxt"></div></div>
+
+<script>
+// build.sh injects spot.json as window.SPOT before load.
+const S = window.SPOT;
+const $ = (id) => document.getElementById(id);
+$('tagline').textContent = S.tagline;
+$('urlTxt').textContent = S.url;
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const eOut = (x) => 1 - Math.pow(1 - x, 3);
+
+// Captions: one narration line at a time; words light up as they're spoken
+// (spread evenly over the line's measured duration).
+const lines = S.narration.lines.map((l) => ({ ...l, words: l.text.split(' ') }));
+let shown = null;
+function caption(t) {
+  const l = lines.find((x) => t >= x.at - 0.15 && t < x.at + x.dur + 0.45) || null;
+  if (l !== shown) {
+    $('cap').innerHTML = l ? l.words.map((w, i) => `<span class="w">${w}${i < l.words.length - 1 ? ' ' : ''}</span>`).join('') : '';
+    shown = l;
+  }
+  if (!l) return;
+  const k = eOut(prog(t, l.at - 0.15, l.at + 0.1)) * (1 - prog(t, l.at + l.dur + 0.2, l.at + l.dur + 0.45));
+  $('cap').style.opacity = k;
+  $('cap').style.transform = `translateY(${(1 - k) * 18}px)`;
+  const per = l.dur / l.words.length;
+  $('cap').querySelectorAll('.w').forEach((el, i) => {
+    const on = prog(t, l.at + i * per - 0.05, l.at + i * per + 0.12);
+    el.style.color = on > 0 ? `rgba(242,239,230,${0.32 + 0.68 * on})` : 'rgba(242,239,230,0.32)';
+  });
+}
+
+window.render = (t) => {
+  $('glow').style.transform = `translate(${Math.sin(t * 0.21) * 90}px, ${Math.cos(t * 0.17) * 110}px)`;
+  $('inner').contentWindow.render(t);
+  caption(t);
+};
+
+window.ready = (async () => {
+  const f = $('inner');
+  if (!f.contentWindow || !f.contentWindow.__ready) await new Promise((r) => f.addEventListener('load', r, { once: true }));
+  await f.contentWindow.__ready;
+  await Promise.all(['900 20px Inter', '800 20px Inter', '400 20px VT323'].map((x) => document.fonts.load(x)));
+  await document.fonts.ready;
+  window.render(0);
+  return true;
+})();
+</script>
+</body>
+</html>

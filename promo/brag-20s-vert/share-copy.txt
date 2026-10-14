@@ -1,0 +1,1 @@
+Got a shelf of VHS tapes? Point your phone at it: VHS Box reads five spines a shot, and every tape gets an ID, a condition and a price. Self-hosted, open source. #vhs #retro #selfhosted #opensource nitsuah.github.io/vhs
