@@ -13,9 +13,12 @@ const spot = JSON.parse(readFileSync(path.join(promoDir, 'brag-20s-vert/spot.jso
 mkdirSync(outDir, { recursive: true });
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json' };
+const root = path.resolve(promoDir);
 const server = createServer((req, res) => {
-  const file = path.join(promoDir, path.normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)));
-  if (!file.startsWith(path.resolve(promoDir)) || !existsSync(file)) { res.writeHead(404); return res.end(); }
+  let file;
+  try { file = path.join(root, path.normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname))); }
+  catch { res.writeHead(400); return res.end(); }
+  if (!file.startsWith(root + path.sep) || !existsSync(file)) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' });
   createReadStream(file).pipe(res);
 }).listen(0);
