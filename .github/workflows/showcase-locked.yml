@@ -1,0 +1,8 @@
+name: showcase-locked
+on: pull_request
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  locked:
+    uses: nitsuah/.github/.github/workflows/showcase-locked.yml@448da6b665df8804ade2c6c81fbdf855a76f75c7 # main, 2026-10-14 (nitsuah/.github#23)

@@ -361,7 +361,8 @@
         "stacksup-integration"
       ],
       "published": "site/brag.mp4",
-      "rendered": "2026-10-07"
+      "rendered": "2026-10-07",
+      "locked": true
     }
   ],
   "reels": [
@@ -370,7 +371,8 @@
       "spots": [
         "brag-20s"
       ],
-      "published": "site/brag.mp4"
+      "published": "site/brag.mp4",
+      "locked": true
     }
   ],
   "brand": {
