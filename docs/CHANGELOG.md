@@ -8,7 +8,7 @@ All notable changes to this project are documented here.
 
 ### Changed
 
-- Google sign-in no longer requests `access_type=offline`: the app never stores a refresh token (sign-in only, scopes `openid email profile`), so the flag was unused. `.env.example` now documents every auth and API variable the code reads.
+- Google sign-in no longer requests `access_type=offline`: the app never stores a refresh token (sign-in only, scopes `openid email profile`), so the flag was unused. `.env.example` now documents the Google auth, JWT, legacy-owner, and external API (TMDb, OMDb, eBay) variables.
 
 - README phone-camera setup: the iOS steps now include turning on full trust (Settings → General → About → Certificate Trust Settings); installing the profile alone doesn't make iOS trust the local CA for HTTPS.
 - Launch-video sources moved from `docs/brag/` to `promo/brag-20s/` (the showcase standard keeps spot sources in `promo/<spot>/`); README commands and `promo/spots.json` point at the new folder.
