@@ -2,7 +2,7 @@
 module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.js', '**/tests/**/*.spec.js'],
-  testPathIgnorePatterns: ['/node_modules/', '/app/tests/playwright/', '/tests/playwright/'],
+  testPathIgnorePatterns: ['/node_modules/', '/app/tests/playwright/', '/tests/playwright/', '/tests/journeys/'],
   // src/modules/routes/jobs.js and lookup.js are orphaned: server.js implements
   // the /api/jobs* and /api/lookup* routes inline and never requires these two
   // files. Excluded so dead code doesn't distort the coverage signal — tracked

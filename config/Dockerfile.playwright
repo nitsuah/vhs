@@ -1,0 +1,13 @@
+# Journeys + visual-docs screenshots. Keep the tag in step with
+# @playwright/test in package-lock.json (and .github/workflows/journeys.yml).
+#   docker build -f config/Dockerfile.playwright -t vhs-journeys .
+FROM mcr.microsoft.com/playwright:v1.61.0-noble
+WORKDIR /work
+COPY package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY public/ public/
+COPY promo/demo-seed.js promo/demo-mocks.js promo/
+COPY config/playwright.journeys.config.js config/
+COPY playwright.config.js ./
+COPY tests/journeys/ tests/journeys/
+CMD ["npm", "run", "test:journeys"]

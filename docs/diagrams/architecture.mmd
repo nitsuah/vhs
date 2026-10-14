@@ -1,0 +1,32 @@
+%% How VHS Box fits together. Rendered to architecture.svg by
+%% .github/workflows/visual-docs.yml; edit this file, not the .svg.
+flowchart LR
+  subgraph Browser["Browser (phone or desktop)"]
+    UI["VHS Box web app<br/>public/ · vanilla JS modules"]
+    CAM["Camera / photo upload<br/>barcode reader"]
+    IDB[("IndexedDB<br/>offline cache")]
+  end
+
+  subgraph Server["Express server · src/server.js<br/>(Docker, or Netlify Functions)"]
+    API["/api/tapes · /api/review<br/>/api/jobs · /api/lookup"]
+    WORKER["Job worker<br/>polls upload_jobs every 5 s"]
+    AUTH["Google OAuth<br/>optional, multi-user"]
+  end
+
+  PG[("PostgreSQL / Neon<br/>tapes · upload_jobs · review_items")]
+  OLLAMA["Ollama · llava:7b<br/>local vision model"]
+  CLAUDE["Claude Vision API<br/>when a key is set"]
+  LOOKUP["OMDb · TMDb<br/>UPCItemDB · Open Library"]
+  EBAY["eBay<br/>sold-price valuation"]
+
+  CAM --> UI
+  UI <--> IDB
+  UI -- "REST + JSON" --> API
+  UI -. "direct, with your key" .-> CLAUDE
+  API <--> PG
+  API --> LOOKUP
+  API --> EBAY
+  API --> AUTH
+  WORKER <--> PG
+  WORKER --> OLLAMA
+  WORKER --> LOOKUP

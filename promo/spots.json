@@ -10,7 +10,8 @@
       "category": "Browser App",
       "screenshots": [],
       "spots": [
-        "brag-20s"
+        "brag-20s",
+        "brag-20s-vert"
       ]
     },
     {
@@ -89,7 +90,8 @@
       "category": "Scanning",
       "screenshots": [],
       "spots": [
-        "brag-20s"
+        "brag-20s",
+        "brag-20s-vert"
       ]
     },
     {
@@ -98,7 +100,8 @@
       "category": "Scanning",
       "screenshots": [],
       "spots": [
-        "brag-20s"
+        "brag-20s",
+        "brag-20s-vert"
       ]
     },
     {
@@ -228,7 +231,8 @@
       "category": "Exports & Imports",
       "screenshots": [],
       "spots": [
-        "brag-20s"
+        "brag-20s",
+        "brag-20s-vert"
       ]
     },
     {
@@ -363,6 +367,21 @@
       "published": "site/brag.mp4",
       "rendered": "2026-10-07",
       "locked": true
+    },
+    {
+      "id": "brag-20s-vert",
+      "seconds": 20,
+      "format": "vertical",
+      "tool": "promo/brag-20s-vert/build.sh (shell over brag-20s, Kokoro narration)",
+      "features": [
+        "vhs-shelf-scanner",
+        "ai-photo-scanning",
+        "capture-queue",
+        "csv-export"
+      ],
+      "published": "site/brag-vert.mp4",
+      "rendered": "2026-10-14",
+      "base": "brag-20s"
     }
   ],
   "reels": [

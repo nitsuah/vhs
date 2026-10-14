@@ -1,0 +1,13 @@
+%% Server-side scan jobs (upload_jobs). Rendered to job-lifecycle.svg by
+%% .github/workflows/visual-docs.yml. Full notes: docs/system-flow.md.
+stateDiagram-v2
+  [*] --> pending: POST /api/jobs
+  pending --> processing: worker picks oldest (every 5 s)
+  processing --> pending: stuck over 10 min, reset
+  processing --> failed: Ollama error or timeout
+  failed --> pending: retry (under 3 tries, after 60 s)
+  failed --> review_failed: 3rd failure
+  processing --> review_failed: no tapes detected
+  processing --> review_pending: 1+ tapes found, OMDb-enriched
+  review_failed --> [*]: failed card in Review
+  review_pending --> [*]: one card per tape in Review

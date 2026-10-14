@@ -1,0 +1,18 @@
+%% From a shelf photo to a tape in the collection. Rendered to
+%% capture-flow.svg by .github/workflows/visual-docs.yml. The detailed state
+%% machines are in docs/system-flow.md.
+flowchart TD
+  SHOT["📷 Shelf photo<br/>Space stages up to 5 spines a shot"] --> QUEUE["Capture queue"]
+  UPLOAD["📁 Photo upload"] --> QUEUE
+  BARCODE["🔲 Barcode scan"] --> LOOKUP["UPC lookup<br/>UPCItemDB → Open Library → OMDb"]
+  QUEUE -- "Enter: analyze all" --> KEY{"Claude API key set?"}
+  KEY -- yes --> CLAUDE["Claude Vision<br/>in the browser"]
+  KEY -- no --> JOBS["POST /api/jobs<br/>server queue"]
+  JOBS --> OLLAMA["Worker → Ollama llava:7b<br/>+ OMDb enrichment"]
+  CLAUDE --> REVIEW["Review tab<br/>one card per tape"]
+  OLLAMA --> REVIEW
+  LOOKUP -- "match, not a duplicate" --> SHELF
+  LOOKUP -- "no match" --> REVIEW
+  REVIEW -- "✓ or ✓ All" --> SHELF[("Collection<br/>VHS-XXXX id, condition, status, value")]
+  MANUAL["✏️ + Add"] --> SHELF
+  SHELF --> OUT["Export CSV · Sell drafts<br/>price tags · printable list"]

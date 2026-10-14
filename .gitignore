@@ -7,6 +7,7 @@ npm-debug.log*
 # test output
 test-results/
 playwright-report/
+journeys-report/
 .playwright-mcp/
 
 # scripts/audit-metadata.js apply log (local record of DB changes, not source)
@@ -18,3 +19,6 @@ data/audit-metadata-log.jsonl
 # launch-video build output (frames, renders, stems). Sources live in promo/brag-20s/;
 # the shipped video is site/brag.mp4.
 brag-output*/
+
+# promo spot renders (frames, stems, mp4s); sources live in promo/<spot>/
+promo/out/
