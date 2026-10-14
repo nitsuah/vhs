@@ -89,6 +89,8 @@ describe('auth enabled (Google client + JWT_SECRET configured)', () => {
     expect(mockGenerateAuthUrl).toHaveBeenCalledWith(
       expect.objectContaining({ state: 'state-123', scope: ['openid', 'email', 'profile'] })
     );
+    // Sign-in only: no refresh token is stored, so offline access must not be requested.
+    expect(mockGenerateAuthUrl.mock.calls[0][0]).not.toHaveProperty('access_type');
   });
 
   it('exchangeCode swaps a code for tokens and returns the ID payload', async () => {

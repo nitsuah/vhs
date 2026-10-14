@@ -20,7 +20,6 @@ function makeClient() {
 
 function getAuthUrl(state) {
   return makeClient().generateAuthUrl({
-    access_type: 'offline',
     scope: ['openid', 'email', 'profile'],
     prompt: 'select_account',
     state,
