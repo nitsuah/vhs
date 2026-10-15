@@ -18,7 +18,9 @@
       "id": "mobile-ui",
       "title": "Mobile UI",
       "category": "Browser App",
-      "screenshots": [],
+      "screenshots": [
+        "docs/screenshots/mobile-ui.png"
+      ],
       "spots": []
     },
     {
@@ -26,7 +28,8 @@
       "title": "HTTPS / Mobile Support",
       "category": "Browser App",
       "screenshots": [],
-      "spots": []
+      "spots": [],
+      "visual": "none"
     },
     {
       "id": "zoom-slider",
@@ -39,7 +42,9 @@
       "id": "hamburger-drawer",
       "title": "Hamburger Drawer",
       "category": "Browser App",
-      "screenshots": [],
+      "screenshots": [
+        "docs/screenshots/hamburger-drawer.png"
+      ],
       "spots": []
     },
     {
@@ -47,7 +52,8 @@
       "title": "Project Site",
       "category": "Browser App",
       "screenshots": [],
-      "spots": []
+      "spots": [],
+      "visual": "none"
     },
     {
       "id": "google-oauth",
@@ -75,7 +81,8 @@
       "title": "Legacy tape migration",
       "category": "Auth & Sharing",
       "screenshots": [],
-      "spots": []
+      "spots": [],
+      "visual": "none"
     },
     {
       "id": "barcode-scanning",
@@ -88,7 +95,9 @@
       "id": "ai-photo-scanning",
       "title": "AI Photo Scanning",
       "category": "Scanning",
-      "screenshots": [],
+      "screenshots": [
+        "docs/screenshots/ai-photo-scanning.png"
+      ],
       "spots": [
         "brag-20s",
         "brag-20s-vert"
@@ -129,7 +138,9 @@
       "id": "condition-tracking",
       "title": "Condition Tracking",
       "category": "Data & Registry",
-      "screenshots": [],
+      "screenshots": [
+        "docs/screenshots/condition-tracking.png"
+      ],
       "spots": []
     },
     {
@@ -150,7 +161,9 @@
       "id": "tabbed-edit-form",
       "title": "Tabbed Edit Form",
       "category": "UI & Editing",
-      "screenshots": [],
+      "screenshots": [
+        "docs/screenshots/tabbed-edit-form.png"
+      ],
       "spots": []
     },
     {
@@ -164,14 +177,18 @@
       "id": "wall-view",
       "title": "Wall View",
       "category": "UI & Editing",
-      "screenshots": [],
+      "screenshots": [
+        "docs/screenshots/wall-view.png"
+      ],
       "spots": []
     },
     {
       "id": "full-text-search",
       "title": "Full-text Search",
       "category": "UI & Editing",
-      "screenshots": [],
+      "screenshots": [
+        "docs/screenshots/full-text-search.png"
+      ],
       "spots": []
     },
     {
@@ -185,7 +202,9 @@
       "id": "sort",
       "title": "Sort",
       "category": "UI & Editing",
-      "screenshots": [],
+      "screenshots": [
+        "docs/screenshots/sort.png"
+      ],
       "spots": []
     },
     {
@@ -229,7 +248,9 @@
       "id": "csv-export",
       "title": "CSV Export",
       "category": "Exports & Imports",
-      "screenshots": [],
+      "screenshots": [
+        "docs/screenshots/csv-export.png"
+      ],
       "spots": [
         "brag-20s",
         "brag-20s-vert"
@@ -240,7 +261,8 @@
       "title": "For-Sale CSV",
       "category": "Exports & Imports",
       "screenshots": [],
-      "spots": []
+      "spots": [],
+      "visual": "none"
     },
     {
       "id": "sell-drafts-ebay-mercari",
@@ -289,21 +311,24 @@
       "title": "Jest Unit Tests",
       "category": "Quality",
       "screenshots": [],
-      "spots": []
+      "spots": [],
+      "visual": "none"
     },
     {
       "id": "playwright-e2e-tests",
       "title": "Playwright E2E Tests",
       "category": "Quality",
       "screenshots": [],
-      "spots": []
+      "spots": [],
+      "visual": "none"
     },
     {
       "id": "ci",
       "title": "CI",
       "category": "Quality",
       "screenshots": [],
-      "spots": []
+      "spots": [],
+      "visual": "none"
     },
     {
       "id": "ebay-valuation",
@@ -316,7 +341,9 @@
       "id": "collection-first-default-view",
       "title": "Collection-first Default View",
       "category": "Collection UX & Local AI (2026-09, PR #55)",
-      "screenshots": [],
+      "screenshots": [
+        "docs/screenshots/collection-first-default-view.png"
+      ],
       "spots": [
         "brag-20s"
       ]
@@ -325,7 +352,9 @@
       "id": "sortable-resizable-wall-table-columns",
       "title": "Sortable, Resizable Wall/Table Columns",
       "category": "Collection UX & Local AI (2026-09, PR #55)",
-      "screenshots": [],
+      "screenshots": [
+        "docs/screenshots/sortable-resizable-wall-table-columns.png"
+      ],
       "spots": []
     },
     {
