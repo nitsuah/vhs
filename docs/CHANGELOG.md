@@ -15,6 +15,7 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- Showcase board: `promo/spots.json` links 8 more visible features to their existing screenshots (`docs/screenshots/<feature-id>.png`) and marks 7 non-visual entries `visual: none` (TLS plumbing, the Pages site, env-var migration, the For-Sale CSV variant, Jest, Playwright and CI). Linked 6/47 → 14/40; the remaining visible gaps need captures.
 - **Nightly journeys** (`tests/journeys/`, `.github/workflows/journeys.yml`): four journeys (browse and search the shelf, open a tape and the export menu, confirm AI review cards, phone menu) against a fictional demo collection (`promo/demo-seed.js`, the launch video's tapes) with every API call mocked (`promo/demo-mocks.js`), a frozen clock and a seeded `Math.random`. Soaked 36/36 runs at 0 px noise; `maxDiffPixels: 20` (one changed letter is 137 px). The one-time review pass filed #77, #78 and #79.
 - **Visual docs CI** (`.github/workflows/visual-docs.yml`): the journeys write `docs/screenshots/<feature-id>.png` (11 features), `docs/diagrams/` holds architecture, capture-flow and job-lifecycle Mermaid sources, and the README's visual-docs block embeds both. Changes arrive as a `bot/visual-docs` PR.
 - **Vertical short `brag-20s-vert`** (1080×1920, 20 s, narrated with burned-in captions) for Shorts/Reels/TikTok, built by `promo/brag-20s-vert/build.sh` around the locked `brag-20s` (read-only); published as `site/brag-vert.mp4` in a new "20-second short" section of the Pages site.
