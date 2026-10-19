@@ -1,6 +1,6 @@
 # Bugs
 
-> Generated from open `bot:journey` / `bot:review` issues in [nitsuah/vhs](https://github.com/nitsuah/vhs/issues). Don’t edit this file by hand: fix or close the issue. Updated 2026-10-18 by [the nightly journey run](https://github.com/nitsuah/vhs/actions/runs/39108881004).
+> Generated from open `bot:journey` / `bot:review` issues in [nitsuah/vhs](https://github.com/nitsuah/vhs/issues). Don’t edit this file by hand: fix or close the issue. Updated 2026-10-19 by [the nightly journey run](https://github.com/nitsuah/vhs/actions/runs/39219435119).
 
 ## app
 
