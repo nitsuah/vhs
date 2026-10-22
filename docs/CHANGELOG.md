@@ -8,6 +8,7 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- **Changed:** `netlify.toml` gains a production-only `ignore` command, so a push to `main` deploys only when something outside docs, tests, CI config or promo assets changed. Each production deploy costs 15 Netlify credits, and docs/test-only merges no longer spend them. Deploy previews are unaffected, and a missing `CACHED_COMMIT_REF` makes the check fail open so the build still runs.
 - Google sign-in no longer requests `access_type=offline`: the app never stores a refresh token (sign-in only, scopes `openid email profile`), so the flag was unused. `.env.example` now documents the Google auth, JWT, legacy-owner, and external API (TMDb, OMDb, eBay) variables.
 
 - README phone-camera setup: the iOS steps now include turning on full trust (Settings → General → About → Certificate Trust Settings); installing the profile alone doesn't make iOS trust the local CA for HTTPS.
