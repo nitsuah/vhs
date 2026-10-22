@@ -37,6 +37,7 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- **Fixed:** the production `ignore` command now returns 1 (build) when `CACHED_COMMIT_REF` or `COMMIT_REF` is empty, and quotes both. Unquoted, an empty `CACHED_COMMIT_REF` made the shell drop the argument, so `git diff --quiet` compared a commit to the working tree and could exit 0, skipping a production deploy instead of failing open.
 - Mobile export menu and activity-log SSE endpoint dead wiring (#54).
 
 ## [Unreleased] — 2026 roadmap completion + docs refresh
