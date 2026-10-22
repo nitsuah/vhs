@@ -19,6 +19,7 @@ function csvCell(v) {
 // ── TAB NAV ──────────────────────────────────────────────────────────────
 export function setActiveTab(tab) {
   document.body.dataset.tab = tab;
+  renderInv();
   ['capture', 'review', 'collect'].forEach(t => document.getElementById(`tab-${t}`)?.classList.toggle('active', t === tab));
   const onCapture = tab === 'capture';
   const btnCapEl = document.getElementById('btn-cap');
