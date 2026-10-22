@@ -15,6 +15,10 @@ All notable changes to this project are documented here.
 - Launch-video sources moved from `docs/brag/` to `promo/brag-20s/` (the showcase standard keeps spot sources in `promo/<spot>/`); README commands and `promo/spots.json` point at the new folder.
 - Collection toolbar stays on one row on phones; the search box shrinks instead of pushing Export to a second row (#78).
 
+### Fixed
+
+- Confirmed review tapes now show in the Collection immediately: switching tabs calls `renderInv()` (#79).
+
 ### Added
 
 - Showcase board: `promo/spots.json` links 8 more visible features to their existing screenshots (`docs/screenshots/<feature-id>.png`) and marks 7 non-visual entries `visual: none` (TLS plumbing, the Pages site, env-var migration, the For-Sale CSV variant, Jest, Playwright and CI). Linked 6/47 → 14/40; the remaining visible gaps need captures.
