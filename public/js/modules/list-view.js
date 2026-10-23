@@ -1,5 +1,5 @@
 // ── LIST VIEW RENDER ──────────────────────────────────────────────────────────
-import { getInventory, getSelectedId, getSelectedIds, getWallMode, getIsReadOnly } from './inventory-state.js';
+import { getInventory, getSelectedId, getSelectedIds, getWallMode, getIsReadOnly, getColFilters } from './inventory-state.js';
 import { getFiltered } from './filtering.js';
 import { esc, _cropStyle, _eggAttrs, statusLabel, renderTagChips } from './render-helpers.js';
 import { openDetail as openDetailModal, renderDetailPhotos, initTagChips } from './detail-modal.js';
@@ -158,9 +158,33 @@ export function updateBulkBar() {
 }
 
 export function updateCount() {
-  const el = document.getElementById('count');
-  if (el) el.textContent = getInventory().length;
+  const all = getInventory().length;
+  const filtered = getFiltered();
+  const n = filtered.length;
+  const isFiltered = n < all;
+  let lo = 0, hi = 0, valCount = 0;
+  for (const t of filtered) {
+    if (t.value_low || t.value_high) {
+      lo += parseFloat(t.value_low) || 0;
+      hi += parseFloat(t.value_high) || 0;
+      valCount++;
+    }
+  }
+  const valStr = valCount ? ` <span style="color:var(--green);font-size:10px">$${Math.round(lo)}–$${Math.round(hi)}</span>` : '';
+  const cnt = isFiltered ? `${n}<span style="color:var(--text3);font-size:10px">/${all}</span>` : String(all);
+  const badge = document.getElementById('count-badge');
+  if (badge) badge.innerHTML = `📼 ${cnt}${valStr}`;
+  const lbl = document.getElementById('collect-count');
+  if (lbl) lbl.textContent = isFiltered ? `${n}/${all}` : String(all);
 }
+
+window.quickFilter = function (status, cond) {
+  const f = getColFilters();
+  if (status !== undefined && status !== null) f.status = status;
+  if (cond !== undefined && cond !== null) f.condition = cond;
+  renderInv();
+  updateCount();
+};
 
 export function renderInv() {
   if (document.body.dataset.tab === 'collect') {
