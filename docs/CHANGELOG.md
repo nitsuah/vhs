@@ -18,6 +18,7 @@ All notable changes to this project are documented here.
 ### Fixed
 
 - Confirmed review tapes now show in the Collection immediately: switching tabs calls `renderInv()` (#79).
+- Collection count and value range show again; `window.quickFilter` restored (#77)
 
 ### Added
 
