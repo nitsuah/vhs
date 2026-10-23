@@ -85,6 +85,7 @@ window.pinDetailPhoto = async (idx, role) => {
 window.removeDetailPhoto = async (idx) => {
   const t = inventory.find(x => x.id === getSelectedId());
   if (!t) return;
+  if (!confirm('Remove this photo? This cannot be undone.')) return;
   const old = t.photos[idx];
   t.photos = (t.photos || []).filter((_, i) => i !== idx);
   if (t.photo_thumbnail === old) t.photo_thumbnail = t.photos[0] || '';
