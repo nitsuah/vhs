@@ -30,6 +30,11 @@ describe('missingFields', () => {
     const tape = { photo_thumbnail: 'x' };
     expect(missingFields(tape)).not.toContain('cover');
   });
+
+  test('blank photo values count as missing artwork', () => {
+    expect(missingFields({ photo_face: '   ', photo_thumbnail: '   ' })).toContain('cover');
+    expect(missingFields({ photo_spine: '   ' })).toContain('spine');
+  });
 });
 
 describe('suspiciousFields', () => {

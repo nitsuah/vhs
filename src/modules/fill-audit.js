@@ -12,8 +12,8 @@ function blank(v) {
 /** Fields Fill should try to complete, including cover and spine art. */
 function missingFields(tape = {}) {
   const missing = REQUIRED_FIELDS.filter((f) => blank(tape[f]));
-  if (!tape.photo_face && !tape.photo_thumbnail) missing.push('cover');
-  if (!tape.photo_spine) missing.push('spine');
+  if (blank(tape.photo_face) && blank(tape.photo_thumbnail)) missing.push('cover');
+  if (blank(tape.photo_spine)) missing.push('spine');
   return missing;
 }
 
