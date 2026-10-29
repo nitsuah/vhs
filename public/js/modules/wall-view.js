@@ -63,7 +63,7 @@ export function renderWall() {
   // sound, not just CSS.
   wall.querySelectorAll('.su-card, .spine-card, .cover-card').forEach(c => attachTitleEggHover(c));
 
-  if (getIsReadOnly()) return;
+  const readOnly = getIsReadOnly();
 
   // Single click/tap opens detail; dblclick or hold toggles multi-select —
   // same gesture as the table view (selection.js), so wall/stacks/spine/cover
@@ -75,10 +75,12 @@ export function renderWall() {
     attachCardInteraction(c, {
       getId: () => c.dataset.id,
       onOpen: id => {
+        if (readOnly) return;
         if (typeof window.openDetail === 'function') window.openDetail(id);
         else window.dispatchEvent(new CustomEvent('open-detail', { detail: id }));
       },
       onToggleSelect: id => {
+        if (readOnly) return;
         const ids = getSelectedIds();
         ids.has(id) ? ids.delete(id) : ids.add(id);
         renderWall();

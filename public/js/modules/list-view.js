@@ -45,7 +45,7 @@ export function renderList() {
 
   tbl.innerHTML = rows;
   tbl.querySelectorAll('.tape-row').forEach(row => attachTitleEggHover(row));
-  if (!getIsReadOnly()) attachRowEvents(tbl);
+  attachRowEvents(tbl);
 }
 
 function toggleSelected(id) {
@@ -76,13 +76,16 @@ function modifierSelect(id, e, tbl) {
 }
 
 export function attachRowEvents(tbl) {
+  // Read-only share pages keep the harmless gestures (long-press trailer,
+  // held-egg preview) but drop open-detail and multi-select (#86).
+  const readOnly = getIsReadOnly();
   tbl.querySelectorAll('.tape-row').forEach(row => {
     attachCardInteraction(row, {
       getId: () => row.dataset.id,
-      onOpen: openDetail,
-      onToggleSelect: toggleSelected,
+      onOpen: id => { if (!readOnly) openDetail(id); },
+      onToggleSelect: id => { if (!readOnly) toggleSelected(id); },
       onLongPress: (id) => showTrailer(id),
-      onModifierSelect: (id, e) => modifierSelect(id, e, tbl),
+      onModifierSelect: readOnly ? undefined : (id, e) => modifierSelect(id, e, tbl),
       onEggPreview: () => startTitleEggPreview(row),
       onEggPreviewEnd: () => stopTitleEggPreview(row),
     });
