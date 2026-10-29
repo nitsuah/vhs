@@ -68,4 +68,12 @@ describe('scoreCandidate', () => {
     expect(res.level).toBe('low');
     expect(res.reasons).toContain('title differs');
   });
+
+  test('edition qualifier mismatch', () => {
+    const tape = { label: 'The Thing (Special Edition)', year: '1982', format: 'VHS' };
+    const candidate = { title: 'The Thing', year: '1982', format: 'VHS' };
+    const res = scoreCandidate(tape, candidate);
+    // Should be low because edition differs
+    expect(res.level).toBe('low');
+  });
 });
