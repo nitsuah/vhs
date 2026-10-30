@@ -179,12 +179,37 @@ export function updateCount() {
   if (badge) badge.innerHTML = `📼 ${cnt}${valStr}`;
   const lbl = document.getElementById('collect-count');
   if (lbl) lbl.textContent = isFiltered ? `${n}/${all}` : String(all);
+  renderCollectionStats();
+}
+
+const STATUS_ORDER = ['in_collection', 'for_sale', 'sold', 'donated', 'missing', 'wanted'];
+const CONDITION_ORDER = ['great', 'good', 'fair', 'poor'];
+
+function renderCollectionStats() {
+  const root = document.getElementById('collection-stats');
+  if (!root) return;
+  const inventory = getInventory();
+  const filters = getColFilters();
+  const statuses = STATUS_ORDER.filter(value => inventory.some(t => t.status === value));
+  const conditions = CONDITION_ORDER.filter(value => inventory.some(t => t.condition === value));
+  const chip = (kind, value, label, count, active) =>
+    `<button type="button" class="collection-stat-chip${active ? ' active' : ''}" data-filter-${kind}="${value}" aria-pressed="${active}" title="Show ${count} tapes with ${label}">${label} <span>${count}</span></button>`;
+  const statusChips = statuses.map(value => chip('status', value, statusLabel(value), inventory.filter(t => t.status === value).length, filters.status === value)).join('');
+  const conditionChips = conditions.map(value => chip('condition', value, value[0].toUpperCase() + value.slice(1), inventory.filter(t => t.condition === value).length, filters.condition === value)).join('');
+  root.innerHTML = statusChips || conditionChips ?
+    `<div class="collection-stat-group" aria-label="Status filters">${statusChips}</div><div class="collection-stat-group" aria-label="Condition filters">${conditionChips}</div>` : '';
+  root.querySelectorAll('[data-filter-status], [data-filter-condition]').forEach(button => {
+    button.addEventListener('click', () => {
+      if (button.dataset.filterStatus) window.quickFilter(button.dataset.filterStatus, null);
+      else window.quickFilter(null, button.dataset.filterCondition);
+    });
+  });
 }
 
 window.quickFilter = function (status, cond) {
   const f = getColFilters();
-  if (status !== undefined && status !== null) f.status = status;
-  if (cond !== undefined && cond !== null) f.condition = cond;
+  if (status !== undefined && status !== null) f.status = f.status === status ? '' : status;
+  if (cond !== undefined && cond !== null) f.condition = f.condition === cond ? '' : cond;
   renderInv();
   updateCount();
 };
