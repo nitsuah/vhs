@@ -5,6 +5,10 @@ function norm(t) {
   return (t || '').toLowerCase().replace(/^(the |a |an )/i, '').trim();
 }
 
+function normCondition(value) {
+  return (value || '').trim().toLowerCase();
+}
+
 export function getFiltered() {
   const inv = getInventory();
   const filters = getColFilters();
@@ -20,7 +24,7 @@ export function getFiltered() {
     if (filters.title && !t.title.toLowerCase().includes(filters.title.toLowerCase())) return false;
     if (filters.label && !(t.label || '').toLowerCase().includes(filters.label.toLowerCase())) return false;
     if (filters.format && t.format !== filters.format) return false;
-    if (filters.condition && t.condition !== filters.condition) return false;
+    if (filters.condition && normCondition(t.condition) !== normCondition(filters.condition)) return false;
     if (filters.status && t.status !== filters.status) return false;
     if (filters.tags && !(t.tags || []).some(tag => tag.toLowerCase().includes(filters.tags.toLowerCase()))) return false;
     if (filters.yrFrom && t.year && +t.year < +filters.yrFrom) return false;
@@ -38,8 +42,8 @@ export function getFiltered() {
     if (sort === 'val_desc') return (parseFloat(b.value_high) || parseFloat(b.value_low) || 0) - (parseFloat(a.value_high) || parseFloat(a.value_low) || 0);
     if (sort === 'val_asc') return (parseFloat(a.value_low) || parseFloat(a.value_high) || 0) - (parseFloat(b.value_low) || parseFloat(b.value_high) || 0);
     const condRank = { great: 0, good: 1, fair: 2, poor: 3 };
-    if (sort === 'cond_asc') return (condRank[a.condition] ?? 1) - (condRank[b.condition] ?? 1);
-    if (sort === 'cond_desc') return (condRank[b.condition] ?? 1) - (condRank[a.condition] ?? 1);
+    if (sort === 'cond_asc') return (condRank[normCondition(a.condition)] ?? 1) - (condRank[normCondition(b.condition)] ?? 1);
+    if (sort === 'cond_desc') return (condRank[normCondition(b.condition)] ?? 1) - (condRank[normCondition(a.condition)] ?? 1);
     // Label/format/status have no dedicated #sort-sel option — only reachable
     // via clicking their column header (see attachSortHeaders in list-view.js).
     if (sort === 'label_asc') return (a.label || '').toLowerCase().localeCompare((b.label || '').toLowerCase());
