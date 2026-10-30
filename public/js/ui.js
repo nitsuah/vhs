@@ -559,7 +559,7 @@ function parseImportCsv(text){
     return {
       id:obj['id']||obj['ID']||'',title:obj['title']||obj['Title']||'',
       year:obj['year']||obj['Year']||'',label:obj['label']||obj['Label']||'',
-      format:obj['format']||obj['Format']||'VHS',condition:obj['condition']||obj['Condition']||'great',
+      format:obj['format']||obj['Format']||'VHS',condition:(obj['condition']||obj['Condition']||'great').trim().toLowerCase(),
       condition_notes:obj['condition_notes']||obj['Notes']||'',
       status:(obj['status']||obj['Status']||'in_collection').toLowerCase().replace(/\s+/g,'_'),
       barcode:obj['barcode']||obj['Barcode']||'',
