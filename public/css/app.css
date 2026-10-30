@@ -750,3 +750,14 @@ body.crt-on #crt-overlay{display:block}
 #auth-slot-mob .auth-avatar{width:32px;height:32px}
 #auth-slot-mob .hbtn{width:100%;text-align:left}
 #auth-slot-mob .auth-signin-btn{width:100%;text-align:center;display:flex;justify-content:center}
+
+
+/* Compact, wrapping collection filters restored in #96. */
+#collection-stats{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:7px 12px;background:var(--bg1);border-bottom:1px solid var(--border);flex-shrink:0}
+.collection-stat-group{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0}
+.collection-stat-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border2);border-radius:999px;background:var(--bg2);color:var(--text2);padding:4px 9px;font-size:11px;line-height:1.2;white-space:nowrap;cursor:pointer}
+.collection-stat-chip span{color:var(--text3);font-variant-numeric:tabular-nums}
+.collection-stat-chip:hover{border-color:var(--blue);color:var(--text)}
+.collection-stat-chip.active{border-color:var(--blue);background:rgba(68,136,255,.14);color:var(--text)}
+.collection-stat-chip.active span{color:var(--blue)}
+@media(max-width:600px){#collection-stats{gap:6px;padding:7px 9px}.collection-stat-group{gap:4px}.collection-stat-chip{padding:5px 8px;font-size:10px}}
