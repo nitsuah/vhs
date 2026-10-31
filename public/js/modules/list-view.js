@@ -186,7 +186,7 @@ const STATUS_ORDER = ['in_collection', 'for_sale', 'sold', 'donated', 'missing',
 const CONDITION_ORDER = ['great', 'good', 'fair', 'poor'];
 
 function normalizeCondition(value) {
-  return (value || '').trim().toLowerCase();
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
 
 function renderCollectionStats() {
