@@ -93,6 +93,29 @@ describe('auth enabled (Google client + JWT_SECRET configured)', () => {
     expect(mockGenerateAuthUrl.mock.calls[0][0]).not.toHaveProperty('access_type');
   });
 
+  it('requires a non-empty state when creating the authorization URL', () => {
+    const auth = enable();
+    expect(() => auth.getAuthUrl()).toThrow('State parameter is required');
+  });
+
+  it('accepts only a present OAuth state matching the browser cookie', () => {
+    const auth = enable();
+    expect(auth.isValidOAuthState('state-123', 'state-123')).toBe(true);
+    expect(auth.isValidOAuthState('', 'state-123')).toBe(false);
+    expect(auth.isValidOAuthState('state-123', '')).toBe(false);
+    expect(auth.isValidOAuthState('other-state', 'state-123')).toBe(false);
+    // The callback clears the cookie before exchanging the code, so a replay
+    // has no cookie state to match.
+    expect(auth.isValidOAuthState('state-123', undefined)).toBe(false);
+  });
+
+  it('exchangeCode rejects a verified ID token without a subject', async () => {
+    const auth = enable();
+    mockGetToken.mockResolvedValue({ tokens: { id_token: 'idtok' } });
+    mockVerifyIdToken.mockResolvedValue({ getPayload: () => ({ email: 'a@b.com' }) });
+    await expect(auth.exchangeCode('authcode')).rejects.toThrow('Invalid ID token payload');
+  });
+
   it('exchangeCode swaps a code for tokens and returns the ID payload', async () => {
     const auth = enable();
     mockGetToken.mockResolvedValue({ tokens: { id_token: 'idtok' } });
@@ -118,14 +141,14 @@ describe('auth enabled (Google client + JWT_SECRET configured)', () => {
     expect(auth.verifyJWT('not-a-real-token')).toBeNull();
   });
 
-  it('setAuthCookie sets vhs_token as HttpOnly/SameSite=lax, non-secure on http:// base URL', () => {
+  it('setAuthCookie sets vhs_token as HttpOnly/SameSite=strict, non-secure on http:// base URL', () => {
     const auth = enable();
     const res = { cookie: jest.fn() };
     auth.setAuthCookie(res, 'jwt-value');
     expect(res.cookie).toHaveBeenCalledWith(
       'vhs_token',
       'jwt-value',
-      expect.objectContaining({ httpOnly: true, sameSite: 'lax', secure: false })
+      expect.objectContaining({ httpOnly: true, sameSite: 'strict', secure: false })
     );
   });
 
@@ -138,7 +161,7 @@ describe('auth enabled (Google client + JWT_SECRET configured)', () => {
     const auth = require('../src/modules/auth');
     const res = { cookie: jest.fn() };
     auth.setAuthCookie(res, 'jwt-value');
-    expect(res.cookie).toHaveBeenCalledWith('vhs_token', 'jwt-value', expect.objectContaining({ secure: true }));
+    expect(res.cookie).toHaveBeenCalledWith('vhs_token', 'jwt-value', expect.objectContaining({ httpOnly: true, sameSite: 'strict', secure: true }));
   });
 
   it('clearAuthCookie clears vhs_token', () => {
