@@ -19,7 +19,7 @@ function makeClient() {
 }
 
 function getAuthUrl(state) {
-  if (!state) {
+  if (typeof state !== 'string' || !state) {
     throw new Error('State parameter is required');
   }
   return makeClient().generateAuthUrl({
@@ -62,7 +62,7 @@ function verifyJWT(token) {
 
 const COOKIE_OPTS = {
   httpOnly: true,
-  sameSite: 'strict',
+  sameSite: 'lax',
   path: '/',
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
