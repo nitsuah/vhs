@@ -76,4 +76,49 @@ describe('scoreCandidate', () => {
     // Should be low because edition differs
     expect(res.level).toBe('low');
   });
+
+  test('matching barcode + conflicting IMDb ID → low', () => {
+    const tape = { label: 'Orion', barcode: '012345678905', imdb_id: 'tt0088763' };
+    const candidate = { title: 'Orion', barcode: '012345678905', imdb_id: 'tt0000001' };
+    const res = scoreCandidate(tape, candidate);
+    expect(res.level).toBe('low');
+    expect(res.score).toBe(0);
+    expect(res.reasons).toContain('imdb_id mismatch');
+  });
+
+  test('matching IMDb ID + conflicting barcode → low', () => {
+    const tape = { label: 'Orion', barcode: '012345678905', imdb_id: 'tt0088763' };
+    const candidate = { title: 'Orion', barcode: '012345678906', imdb_id: 'tt0088763' };
+    const res = scoreCandidate(tape, candidate);
+    expect(res.level).toBe('low');
+    expect(res.score).toBe(0);
+    expect(res.reasons).toContain('barcode mismatch');
+  });
+
+  test('both identifiers match → verified', () => {
+    const tape = { label: 'Orion', barcode: '012345678905', imdb_id: 'tt0088763' };
+    const candidate = { title: 'Orion', barcode: '012345678905', imdb_id: 'tt0088763' };
+    const res = scoreCandidate(tape, candidate);
+    expect(res.level).toBe('verified');
+    expect(res.score).toBe(1);
+    expect(res.reasons).toContain('barcode match');
+    expect(res.reasons).toContain('imdb_id match');
+  });
+
+  test('both identifiers conflict → low with both reasons', () => {
+    const tape = { label: 'Orion', barcode: '012345678905', imdb_id: 'tt0088763' };
+    const candidate = { title: 'Orion', barcode: '012345678906', imdb_id: 'tt0000001' };
+    const res = scoreCandidate(tape, candidate);
+    expect(res.level).toBe('low');
+    expect(res.score).toBe(0);
+    expect(res.reasons).toContain('barcode mismatch');
+    expect(res.reasons).toContain('imdb_id mismatch');
+  });
+
+  test('one identifier supplied on only one side leaves fallback scoring intact', () => {
+    const tape = { label: 'Orion', year: '1989', format: 'VHS', barcode: '012345678905' };
+    const candidate = { title: 'Orion', year: '1989', format: 'VHS' };
+    const res = scoreCandidate(tape, candidate);
+    expect(res.level).toBe('inferred');
+  });
 });

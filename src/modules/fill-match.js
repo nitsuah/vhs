@@ -25,15 +25,24 @@ function extractEdition(title) {
 
 /** Returns { score, level, reasons }; level is verified, inferred or low. */
 function scoreCandidate(tape = {}, candidate = {}) {
+  const matchReasons = [];
+  const mismatchReasons = [];
   for (const f of IDENTIFIERS) {
-    if (clean(tape[f]) && clean(tape[f]) === clean(candidate[f])) {
-      return { score: 1, level: 'verified', reasons: [`${f} match`] };
+    const tv = clean(tape[f]);
+    const cv = clean(candidate[f]);
+    if (tv && cv) {
+      if (tv === cv) {
+        matchReasons.push(`${f} match`);
+      } else {
+        mismatchReasons.push(`${f} mismatch`);
+      }
     }
   }
-  for (const f of IDENTIFIERS) {
-    if (clean(tape[f]) && clean(candidate[f])) {
-      return { score: 0, level: 'low', reasons: [`${f} mismatch`] };
-    }
+  if (mismatchReasons.length > 0) {
+    return { score: 0, level: 'low', reasons: mismatchReasons };
+  }
+  if (matchReasons.length > 0) {
+    return { score: 1, level: 'verified', reasons: matchReasons };
   }
   const sim = titleSimilarity(tape.label, candidate.title);
   const titleOk = sim >= TITLE_THRESHOLD;
