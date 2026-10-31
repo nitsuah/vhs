@@ -148,7 +148,7 @@ describe('auth enabled (Google client + JWT_SECRET configured)', () => {
     expect(res.cookie).toHaveBeenCalledWith(
       'vhs_token',
       'jwt-value',
-      expect.objectContaining({ httpOnly: true, sameSite: 'strict', secure: false })
+      expect.objectContaining({ httpOnly: true, sameSite: 'lax', secure: false })
     );
   });
 
@@ -161,7 +161,7 @@ describe('auth enabled (Google client + JWT_SECRET configured)', () => {
     const auth = require('../src/modules/auth');
     const res = { cookie: jest.fn() };
     auth.setAuthCookie(res, 'jwt-value');
-    expect(res.cookie).toHaveBeenCalledWith('vhs_token', 'jwt-value', expect.objectContaining({ httpOnly: true, sameSite: 'strict', secure: true }));
+    expect(res.cookie).toHaveBeenCalledWith('vhs_token', 'jwt-value', expect.objectContaining({ httpOnly: true, sameSite: 'lax', secure: true }));
   });
 
   it('clearAuthCookie clears vhs_token', () => {
