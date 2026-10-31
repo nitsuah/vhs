@@ -46,7 +46,7 @@ const { serverError } = require('./modules/http-errors');
 // ── App setup ──────────────────────────────────────────────────────────────────
 const app = express();
 app.use(express.json({ limit: '50mb' }));
-// codeql[js/missing-csrf-middleware] SameSite=strict on vhs_token limits cross-site cookie submission for state-changing routes
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token limits cross-site cookie submission for state-changing routes
 // codeql[js/missing-token-validation] SameSite=strict on vhs_token limits cross-site cookie submission for state-changing routes
 app.use(cookieParser());
 // codeql[js/missing-rate-limiting] optionalAuth is read-only middleware; all auth and mutation routes carry explicit per-route limiters
