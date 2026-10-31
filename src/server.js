@@ -17,7 +17,7 @@ const { randomUUID } = require('crypto');
 const { PORT, HTTPS_PORT, OMDB_API_KEY, APP_BASE_URL } = require('./modules/config');
 const {
   ENABLED: AUTH_ENABLED,
-  getAuthUrl, exchangeCode, mintJWT,
+  getAuthUrl, exchangeCode, isValidOAuthState, mintJWT,
   setAuthCookie, clearAuthCookie,
   optionalAuth, requireAuth,
 } = require('./modules/auth');
@@ -46,8 +46,8 @@ const { serverError } = require('./modules/http-errors');
 // ── App setup ──────────────────────────────────────────────────────────────────
 const app = express();
 app.use(express.json({ limit: '50mb' }));
-// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token provides CSRF protection for all state-changing routes
-// codeql[js/missing-token-validation] SameSite=lax on vhs_token provides CSRF protection for all state-changing routes
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token limits cross-site cookie submission for state-changing routes
+// codeql[js/missing-token-validation] SameSite=strict on vhs_token limits cross-site cookie submission for state-changing routes
 app.use(cookieParser());
 // codeql[js/missing-rate-limiting] optionalAuth is read-only middleware; all auth and mutation routes carry explicit per-route limiters
 app.use(optionalAuth); // sets req.user from JWT cookie when auth is enabled
@@ -143,10 +143,11 @@ app.get('/auth/google', defaultLimiter, (_req, res) => {
 app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
   if (!AUTH_ENABLED) return res.status(503).json({ error: 'auth not configured' });
   const { code, error, state } = req.query;
-  if (error || !code) return res.redirect('/?auth=error');
   const cookieState = req.cookies?.oauth_state;
+  // Consume state on every callback, including provider errors and invalid attempts.
   res.clearCookie('oauth_state', { path: '/' });
-  if (!state || !cookieState || state !== cookieState) return res.redirect('/?auth=error');
+  if (error || !code) return res.redirect('/?auth=error');
+  if (!isValidOAuthState(state, cookieState)) return res.redirect('/?auth=error');
   try {
     const payload = await exchangeCode(String(code));
     // Upsert user into DB
