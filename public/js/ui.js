@@ -542,6 +542,12 @@ document.getElementById('btn-export-mob')?.addEventListener('click',e=>{
 // ── IMPORT ────────────────────────────────────────────────────────────────
 document.getElementById('btn-import').addEventListener('click',()=>document.getElementById('import-input').click());
 document.getElementById('import-input').setAttribute('accept','.json,.csv');
+const VALID_CONDITIONS = new Set(['great', 'good', 'fair', 'poor']);
+function normalizeImportedCondition(value) {
+  const condition = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return VALID_CONDITIONS.has(condition) ? condition : 'great';
+}
+
 function parseImportCsv(text){
   const lines=text.trim().split(/\r?\n/);if(lines.length<2)return[];
   const headers=lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
@@ -559,7 +565,7 @@ function parseImportCsv(text){
     return {
       id:obj['id']||obj['ID']||'',title:obj['title']||obj['Title']||'',
       year:obj['year']||obj['Year']||'',label:obj['label']||obj['Label']||'',
-      format:obj['format']||obj['Format']||'VHS',condition:(obj['condition']||obj['Condition']||'great').trim().toLowerCase(),
+      format:obj['format']||obj['Format']||'VHS',condition:normalizeImportedCondition(obj['condition']||obj['Condition']),
       condition_notes:obj['condition_notes']||obj['Notes']||'',
       status:(obj['status']||obj['Status']||'in_collection').toLowerCase().replace(/\s+/g,'_'),
       barcode:obj['barcode']||obj['Barcode']||'',
@@ -589,7 +595,7 @@ document.getElementById('import-input').addEventListener('change',async e=>{
       const rec={
         id:item.id||await nextId(),
         title:item.title||'',year:item.year||'',label:item.label||'',
-        format:item.format||'VHS',condition:item.condition||'great',
+        format:item.format||'VHS',condition:normalizeImportedCondition(item.condition),
         condition_notes:item.condition_notes||'',status:item.status||'in_collection',
         barcode:item.barcode||'',tags:item.tags||[],
         value_low:item.value_low||'',value_high:item.value_high||'',
