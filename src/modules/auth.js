@@ -29,16 +29,22 @@ function getAuthUrl(state) {
   });
 }
 
-async function exchangeCode(code, state) {
+async function exchangeCode(code) {
   const client = makeClient();
   const { tokens } = await client.getToken(code);
   client.setCredentials(tokens);
   const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: CLIENT_ID });
   const payload = ticket.getPayload();
-  if (payload.state !== state) {
-    throw new Error('Invalid state parameter');
+  if (!payload?.sub) {
+    throw new Error('Invalid ID token payload');
   }
   return payload; // { sub, email, name, picture, ... }
+}
+
+function isValidOAuthState(state, cookieState) {
+  return typeof state === 'string' && state.length > 0 &&
+    typeof cookieState === 'string' && cookieState.length > 0 &&
+    state === cookieState;
 }
 
 function mintJWT(payload) {
@@ -56,14 +62,14 @@ function verifyJWT(token) {
 
 const COOKIE_OPTS = {
   httpOnly: true,
-  secure: true,
   sameSite: 'strict',
   path: '/',
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
 function setAuthCookie(res, token) {
-  res.cookie('vhs_token', token, COOKIE_OPTS); // codeql[js/clear-text-storage-of-sensitive-data] JWT stored in HttpOnly cookie — not plain-text storage
+  const secure = APP_BASE_URL.startsWith('https://');
+  res.cookie('vhs_token', token, { ...COOKIE_OPTS, secure }); // codeql[js/clear-text-storage-of-sensitive-data] JWT stored in HttpOnly cookie — not plain-text storage
 }
 
 function clearAuthCookie(res) {
@@ -92,6 +98,7 @@ module.exports = {
   ENABLED,
   getAuthUrl,
   exchangeCode,
+  isValidOAuthState,
   mintJWT,
   verifyJWT,
   setAuthCookie,
