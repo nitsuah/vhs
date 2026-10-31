@@ -6,7 +6,7 @@ function norm(t) {
 }
 
 function normCondition(value) {
-  return (value || '').trim().toLowerCase();
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
 
 export function getFiltered() {
