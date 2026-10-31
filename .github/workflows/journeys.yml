@@ -32,6 +32,9 @@ concurrency:
 jobs:
   journeys:
     uses: nitsuah/.github/.github/workflows/journeys.yml@main
+    permissions:
+      contents: write
+      issues: write
     with:
       # Keep in step with @playwright/test in package-lock.json and
       # config/Dockerfile.playwright.
