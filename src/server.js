@@ -143,9 +143,10 @@ app.get('/auth/google', defaultLimiter, (_req, res) => {
 app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
   if (!AUTH_ENABLED) return res.status(503).json({ error: 'auth not configured' });
   const { code, error, state } = req.query;
-  if (error || !code) return res.redirect('/?auth=error');
   const cookieState = req.cookies?.oauth_state;
+  // Consume state on every callback, including provider errors and invalid attempts.
   res.clearCookie('oauth_state', { path: '/' });
+  if (error || !code) return res.redirect('/?auth=error');
   if (!isValidOAuthState(state, cookieState)) return res.redirect('/?auth=error');
   try {
     const payload = await exchangeCode(String(code));
