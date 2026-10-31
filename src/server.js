@@ -146,7 +146,7 @@ app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
   if (error || !code) return res.redirect('/?auth=error');
   const cookieState = req.cookies?.oauth_state;
   res.clearCookie('oauth_state', { path: '/' });
-  if (!state || !cookieState || state !== cookieState) return res.redirect('/?auth=error');
+  if (!isValidOAuthState(state, cookieState)) return res.redirect('/?auth=error');
   try {
     const payload = await exchangeCode(String(code));
     // Upsert user into DB
