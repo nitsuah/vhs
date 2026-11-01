@@ -72,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m venv /tmp/pillow-env
-          /tmp/pillow-env/bin/pip install --quiet pillow
+          /tmp/pillow-env/bin/pip install --quiet 'Pillow==11.3.0'
           mkdir -p /tmp/unapproved-visual-diffs
           /tmp/pillow-env/bin/python - <<'PY'
           from pathlib import Path
@@ -118,7 +118,10 @@ jobs:
               if left_rgb.size != right_rgb.size:
                   return ("size", left_rgb.size, right_rgb.size)
               # Compare opaque RGB pixels; RGBA getbbox() defaults to alpha-only.
-              return ImageChops.difference(left_rgb, right_rgb).getbbox()
+              diff = ImageChops.difference(left_rgb, right_rgb)
+              # Check every RGB channel explicitly. Avoid alpha-only bbox behavior.
+              extrema = diff.getextrema()
+              return None if all(high == 0 for low, high in extrema) else (diff.getbbox() or ('changed',))
 
           summary = []
           unapproved = []
@@ -208,7 +211,7 @@ jobs:
 
       - name: Upload unapproved visual changes for owner review
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: vhs-unapproved-visual-diffs
           path: |
