@@ -54,15 +54,18 @@ jobs:
           set -euo pipefail
           cp -a tests/journeys/__screenshots__ /tmp/vhs-baselines-before
 
-      - name: Refresh snapshots in the shared CI Playwright image
+      - name: Build the repository-pinned Playwright image
+        run: docker build -f config/Dockerfile.playwright -t vhs-journeys .
+
+      - name: Refresh snapshots with CI settings
         run: |
           set -euo pipefail
           mkdir -p test-results journeys-report
           docker run --rm -e CI=true \
-            -v "$GITHUB_WORKSPACE:/work" \
-            -w /work \
-            mcr.microsoft.com/playwright:v1.63.0-jammy \
-            bash -lc "npm ci --no-audit --no-fund && npm run test:journeys -- --update-snapshots"
+            -v "$GITHUB_WORKSPACE/tests/journeys:/work/tests/journeys" \
+            -v "$GITHUB_WORKSPACE/test-results:/work/test-results" \
+            -v "$GITHUB_WORKSPACE/journeys-report:/work/journeys-report" \
+            vhs-journeys npm run test:journeys -- --update-snapshots
 
       - name: Filter byte-only churn and hold unapproved pixel changes
         id: filter
@@ -164,10 +167,10 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm -e CI=true \
-            -v "$GITHUB_WORKSPACE:/work" \
-            -w /work \
-            mcr.microsoft.com/playwright:v1.63.0-jammy \
-            bash -lc "npm run test:journeys -- --retries 0 --repeat-each 3"
+            -v "$GITHUB_WORKSPACE/tests/journeys:/work/tests/journeys" \
+            -v "$GITHUB_WORKSPACE/test-results:/work/test-results" \
+            -v "$GITHUB_WORKSPACE/journeys-report:/work/journeys-report" \
+            vhs-journeys npm run test:journeys -- --retries 0 --repeat-each 3
 
       - name: Commit only the approved baselines
         if: steps.filter.outputs.baseline_changes == 'true'
