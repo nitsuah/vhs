@@ -26,7 +26,7 @@ async function openFillReview(page) {
     if (url.pathname === '/api/tapes' && method === 'GET') return route.fulfill({ json: [TAPE] });
     if (url.pathname === '/api/fill/proposals' && method === 'POST') {
       payload = request.postDataJSON();
-      return route.fulfill({ json: { proposals: PROPOSALS, partialFailures: { omdb: 'no_match', ollama: 'skipped' } } });
+      return route.fulfill({ json: { proposals: PROPOSALS, partialFailures: { omdb: 'no_match', ollama: 'skipped', evil: 'raw provider message' } } });
     }
     if (url.pathname === '/api/review/pending') return route.fulfill({ json: [] });
     if (url.pathname === '/api/jobs/inflight') return route.fulfill({ json: [] });
@@ -57,6 +57,7 @@ test('Fill proposals show provenance and keep accept/reject/edit decisions per f
   });
   expect(payload().tape.title).toBeUndefined();
   await expect(card.locator('.fill-proposal-status')).toContainText('omdb: no_match');
+  await expect(card.locator('.fill-proposal-status')).not.toContainText('raw provider message');
   const year = card.locator('[data-field="year"]');
   await expect(year.locator('.fill-proposal-original')).toContainText('Unknown');
   await expect(year.locator('.fill-proposal-input')).toHaveValue('1979');

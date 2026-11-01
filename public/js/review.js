@@ -80,7 +80,7 @@ function renderFillProposalCard(card) {
   return '<tr class="rev-card fill-proposal-card" data-uid="' + card.uid + '"><td colspan="3"><div class="fill-proposal-wrap">' +
     '<div class="fill-proposal-header"><div><strong>' + title + '</strong><span class="fill-proposal-tape-id">' + esc(card.data.tape_id) + '</span></div><span>Review only · nothing saved</span>' +
     (bulk ? '<button type="button" class="hbtn fill-proposal-accept-high" data-uid="' + card.uid + '" aria-label="Accept verified and inferred proposals for ' + title + '">Accept verified/inferred</button>' : '') +
-    '<button type="button" class="hbtn fill-proposal-dismiss" data-uid="' + card.uid + '">Dismiss</button></div>' +
+    '<button type="button" class="hbtn fill-proposal-dismiss" data-uid="' + card.uid + '" aria-label="Dismiss proposals for ' + title + '">Dismiss</button></div>' +
     (card.partialFailures ? '<div class="fill-proposal-status" role="status">Provider status: ' + esc(card.partialFailures) + '</div>' : '') +
     '<div class="fill-proposal-fields">' + fields + '</div></div></td></tr>';
 }
@@ -134,7 +134,6 @@ export function renderCards() {
   const readyCount = cards.filter(c => c.processingState === 'ready' && c.source !== 'fill-proposal').length;
   const proposalCount = cards.filter(c => c.processingState === 'ready' && c.source === 'fill-proposal').length;
   const procCount = cards.filter(c => c.processingState === 'processing' || c.processingState === 'queued').length;
-  revBulk.classList.toggle('on', readyCount > 0 || procCount > 0);
   const confirmAllBtn = document.getElementById('btn-confirm-all');
   if (confirmAllBtn) confirmAllBtn.style.display = readyCount ? '' : 'none';
   revBulk.classList.toggle('on', proposalCount > 0 || readyCount > 0 || procCount > 0);
@@ -147,6 +146,8 @@ export function renderCards() {
   if (!totalN) {
     revCardsEl.innerHTML = ''; revBulk.classList.remove('on');
     document.getElementById('rev-title').textContent = 'Pending Review';
+    const fillStatus = document.getElementById('fill-review-status');
+    if (fillStatus) { fillStatus.textContent = ''; fillStatus.style.display = 'none'; }
     if (!revErr.style.display || revErr.style.display === 'none') revPanel.classList.remove('on');
     return;
   }
@@ -320,6 +321,7 @@ function attachFillProposalHandlers() {
     renderCards();
   }));
   revCardsEl.querySelectorAll('.fill-proposal-dismiss').forEach(btn => btn.addEventListener('click', () => discardCard(+btn.dataset.uid)));
+}
 
 export function syncCard(uid) {
   const card = cards.find(c => c.uid === uid); if (!card) return;

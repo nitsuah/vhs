@@ -202,6 +202,7 @@ async function requestFillProposals() {
   fillRequestActive = true;
   fillButton.disabled = true;
   const status = document.getElementById('fill-review-status');
+  if (status) { status.style.display = 'block'; status.textContent = 'Generating proposals…'; }
   showRevPanel(); setRevLoading(true);
   const noProposalNotes = [];
   let proposalCount = 0;
@@ -210,6 +211,7 @@ async function requestFillProposals() {
       const tape = selected[i];
       const title = String(tape.title || '').trim();
       setRevMsg('Generating proposals ' + (i + 1) + ' of ' + selected.length + '…');
+      if (status) { status.style.display = 'block'; status.textContent = 'Generating proposals ' + (i + 1) + ' of ' + selected.length + '…'; }
       if (!title) { noProposalNotes.push('Tape ' + String(tape.id || '') + ': title_required'); continue; }
       const requestTape = {
         label: title, year: tape.year ?? '', format: tape.format ?? '',
@@ -235,7 +237,7 @@ async function requestFillProposals() {
       }
     }
   } finally {
-    setRevLoading(false);
+    setRevLoading(false); setRevMsg('');
     renderCards();
     if (status) {
       status.style.display = 'block';
