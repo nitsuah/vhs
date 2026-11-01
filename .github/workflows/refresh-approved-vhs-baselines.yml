@@ -103,11 +103,22 @@ jobs:
               return sorted(set(tracked + untracked))
 
           def pixel_bbox(left, right):
-              with Image.open(left) as a, Image.open(right) as b:
-                  if a.size != b.size:
-                      return ("size", a.size, b.size)
-                  # RGBA getbbox() defaults to alpha-only; screenshots are opaque, so compare RGB pixels.
-              return ImageChops.difference(a.convert("RGB"), b.convert("RGB")).getbbox()
+              try:
+                  with Image.open(left) as image:
+                      image.load()
+                      left_rgb = image.convert("RGB")
+                  with Image.open(right) as image:
+                      image.load()
+                      right_rgb = image.convert("RGB")
+              except Exception as error:
+                  raise RuntimeError(
+                      f"Could not load screenshots for pixel comparison: {left} vs {right}: {error}"
+                  ) from error
+
+              if left_rgb.size != right_rgb.size:
+                  return ("size", left_rgb.size, right_rgb.size)
+              # Compare opaque RGB pixels; RGBA getbbox() defaults to alpha-only.
+              return ImageChops.difference(left_rgb, right_rgb).getbbox()
 
           summary = []
           unapproved = []
