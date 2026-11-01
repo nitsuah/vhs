@@ -19,6 +19,9 @@ function makeClient() {
 }
 
 function getAuthUrl(state) {
+  if (typeof state !== 'string' || !state) {
+    throw new Error('State parameter is required');
+  }
   return makeClient().generateAuthUrl({
     scope: ['openid', 'email', 'profile'],
     prompt: 'select_account',
@@ -31,7 +34,17 @@ async function exchangeCode(code) {
   const { tokens } = await client.getToken(code);
   client.setCredentials(tokens);
   const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: CLIENT_ID });
-  return ticket.getPayload(); // { sub, email, name, picture, ... }
+  const payload = ticket.getPayload();
+  if (!payload?.sub) {
+    throw new Error('Invalid ID token payload');
+  }
+  return payload; // { sub, email, name, picture, ... }
+}
+
+function isValidOAuthState(state, cookieState) {
+  return typeof state === 'string' && state.length > 0 &&
+    typeof cookieState === 'string' && cookieState.length > 0 &&
+    state === cookieState;
 }
 
 function mintJWT(payload) {
@@ -85,6 +98,7 @@ module.exports = {
   ENABLED,
   getAuthUrl,
   exchangeCode,
+  isValidOAuthState,
   mintJWT,
   verifyJWT,
   setAuthCookie,
