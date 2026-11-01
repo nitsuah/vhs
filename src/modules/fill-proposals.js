@@ -9,9 +9,13 @@ const PLACEHOLDER = /^(unknown|n\/a|na|none|\?|-+|tbd)$/i;
 const MAX_VALUE_LENGTH = 240;
 const MAX_SOURCE_LENGTH = 48;
 
-function safeText(value, maxLength = MAX_VALUE_LENGTH) {
+function cleanText(value) {
   if (typeof value !== 'string') return '';
-  return value.replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, maxLength);
+  return value.replace(/[\u0000-\u001F\u007F]/g, '').trim();
+}
+
+function safeText(value, maxLength = MAX_VALUE_LENGTH) {
+  return cleanText(value).slice(0, maxLength);
 }
 
 function candidateValue(field, candidate) {
@@ -29,12 +33,11 @@ function candidateValue(field, candidate) {
   }
 
   if (typeof raw !== 'string') return null;
-  const value = safeText(raw);
-  if (!value || PLACEHOLDER.test(value)) return null;
+  const value = cleanText(raw);
+  if (!value || value.length > MAX_VALUE_LENGTH || PLACEHOLDER.test(value)) return null;
 
   if (field === 'year' && suspiciousFields({ year: value }).includes('year')) return null;
   if ((field === 'value_low' || field === 'value_high') && !Number.isFinite(Number(value))) return null;
-  if ((field === 'label' || field === 'format') && value.length > MAX_VALUE_LENGTH) return null;
   return value;
 }
 
