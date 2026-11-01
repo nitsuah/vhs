@@ -579,6 +579,25 @@ describe('POST /api/fill/proposals', () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
+  it('classifies malformed Ollama JSON as provider_error without exposing its payload', async () => {
+    resolveOllamaUrl.mockResolvedValueOnce('http://ollama');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ response: 'not-json secret' })
+    });
+
+    const res = await request(app)
+      .post('/api/fill/proposals')
+      .send({ tape });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      proposals: [],
+      partialFailures: { omdb: 'not_configured', ollama: 'provider_error' }
+    });
+    expect(JSON.stringify(res.body)).not.toContain('secret');
+  });
+
   it('returns safe no-configuration and skipped codes when no candidate is available', async () => {
     const res = await request(app)
       .post('/api/fill/proposals')
