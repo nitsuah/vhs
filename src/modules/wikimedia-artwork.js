@@ -45,7 +45,7 @@ function plainText(value) {
       .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
       .replace(/<[^>]*>/g, ' '),
-  ).replace(/\s+/g, ' ').trim();
+  ).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function isProhibitedLicense(name, url) {
@@ -58,11 +58,11 @@ function licenseFromName(value) {
   const name = plainText(value).toLowerCase();
   const versionMatch = /\b(1\.0|2\.0|2\.5|3\.0|4\.0)\b/.exec(name);
   const version = versionMatch ? versionMatch[1] : null;
-  if (/\bpublic domain(?: mark)?\b|\bpdm\b/.test(name)) {
-    return { type: 'pd', version: '1.0' };
-  }
   if (/\bcc0\b|creative commons zero|public domain dedication/.test(name)) {
     return { type: 'cc0', version: '1.0' };
+  }
+  if (/\bpublic domain(?: mark)?\b|\bpdm\b/.test(name)) {
+    return { type: 'pd', version: '1.0' };
   }
   if (/cc\s*by[\s-]*sa\b|attribution[\s-]*share.?alike/.test(name)) {
     return { type: 'by-sa', version };
