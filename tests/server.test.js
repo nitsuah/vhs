@@ -34,6 +34,8 @@ jest.mock('../src/modules/ollama', () => {
 });
 
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
+process.env.OMDB_API_KEY = '';
+process.env.TMDB_KEY = '';
 process.env.FETCH_IMAGE_HOST_ALLOWLIST = 'example.com';
 const { app } = require('../src/server.js');
 const { enhancedLookup } = require('../src/modules/omdb');
