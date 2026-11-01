@@ -1,11 +1,11 @@
 // ── BATCH UPLOAD ─────────────────────────────────────────────────────────
-import { inventory, renderInv, updateCount } from './inventory.js';
+import { inventory, renderInv, updateCount, getSelectedIds } from './inventory.js';
 import { dbAdd, nextId } from './db.js';
 import { findDup } from './utils.js';
 import { lookupBarcode, callAI, getLastLookupFailure } from './ai.js';
-import { addCard, showRevPanel, renderCards, setRevLoading, setRevMsg, showRevErr, cards, _seenAdd, _seenDel, seenJobIds } from './review.js';
+import { addCard, addProposalCard, showRevPanel, renderCards, setRevLoading, setRevMsg, showRevErr, cards, _seenAdd, _seenDel, seenJobIds } from './review.js';
 import { captureQueue, setCaptureQueue, nextUidSeq } from './state.js';
-import { apiKey, localAiUrl } from './state.js';
+import { apiKey, localAiUrl, apiProvider, omdbKey, tmdbKey } from './state.js';
 import { fileToB64, fileToThumb } from './utils.js';
 import { isCapturing, barcodeMode, cropEl, vidWrap, btnCap, video, cropFrac } from './camera.js';
 import { toast, flashInvRow } from './utils.js';
@@ -179,6 +179,75 @@ window.processQueue = processQueue;
 // camera.js calls this via window (not a direct import) to avoid a circular
 // module dependency — see the comment above camera.js's own imports.
 window.addBarcodeCard = addBarcodeCard;
+
+
+// ── PROPOSAL-ONLY FILL REVIEW ─────────────────────────────────────────────
+const fillButton = document.getElementById('bulk-fill');
+let fillRequestActive = false;
+const FILL_FAILURE_CODES = new Set(['not_configured', 'no_match', 'unreachable', 'provider_error', 'skipped']);
+
+function safeFillFailureText(failures) {
+  return Object.entries(failures || {}).filter(([provider, code]) =>
+    ['omdb', 'tmdb', 'ollama'].includes(provider) && FILL_FAILURE_CODES.has(code))
+    .map(([provider, code]) => provider + ': ' + code).join(' · ');
+}
+
+fillButton?.addEventListener('click', requestFillProposals);
+
+async function requestFillProposals() {
+  if (fillRequestActive) return;
+  const selected = [...getSelectedIds()].map(id => inventory.find(t => String(t.id) === String(id))).filter(Boolean);
+  if (!selected.length) { toast('Select tapes to generate Fill proposals.', 'warn'); return; }
+
+  fillRequestActive = true;
+  fillButton.disabled = true;
+  const status = document.getElementById('fill-review-status');
+  showRevPanel(); setRevLoading(true);
+  const noProposalNotes = [];
+  let proposalCount = 0;
+  try {
+    for (let i = 0; i < selected.length; i++) {
+      const tape = selected[i];
+      const title = String(tape.title || '').trim();
+      setRevMsg('Generating proposals ' + (i + 1) + ' of ' + selected.length + '…');
+      if (!title) { noProposalNotes.push('Tape ' + String(tape.id || '') + ': title_required'); continue; }
+      const requestTape = {
+        label: title, year: tape.year ?? '', format: tape.format ?? '',
+        value_low: tape.value_low ?? '', value_high: tape.value_high ?? '',
+        barcode: tape.barcode ?? '', imdb_id: tape.imdb_id ?? '',
+      };
+      const headers = { 'Content-Type': 'application/json' };
+      if (omdbKey) headers['x-omdb-key'] = omdbKey;
+      if (tmdbKey) headers['x-tmdb-key'] = tmdbKey;
+      try {
+        const response = await fetch('/api/fill/proposals', {
+          method: 'POST', headers,
+          body: JSON.stringify({ tape: requestTape, provider: apiProvider === 'tmdb' ? 'tmdb' : 'omdb', noai: false }),
+        });
+        if (!response.ok) { noProposalNotes.push(title + ': request_failed'); continue; }
+        const result = await response.json();
+        if (!Array.isArray(result.proposals)) { noProposalNotes.push(title + ': invalid_response'); continue; }
+        const card = addProposalCard(tape, result.proposals, result.partialFailures);
+        if (card) proposalCount += card.proposals.length;
+        else noProposalNotes.push(title + ': no_proposals' + (safeFillFailureText(result.partialFailures) ? ' (' + safeFillFailureText(result.partialFailures) + ')' : ''));
+      } catch {
+        noProposalNotes.push(title + ': request_failed');
+      }
+    }
+  } finally {
+    setRevLoading(false);
+    renderCards();
+    if (status) {
+      status.style.display = 'block';
+      status.textContent = proposalCount
+        ? 'Generated ' + proposalCount + ' field proposal(s). Review only; nothing saved.' + (noProposalNotes.length ? ' ' + noProposalNotes.join(' · ') : '')
+        : 'No proposals generated. ' + (noProposalNotes.join(' · ') || 'No missing or suspicious fields were found.') + ' Nothing saved.';
+    }
+    if (!cards.length) showRevPanel();
+    fillRequestActive = false;
+    fillButton.disabled = false;
+  }
+}
 
 // ── JOB POLLING ──────────────────────────────────────────────────────────
 let jobPollTimer = null;
