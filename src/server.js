@@ -445,6 +445,15 @@ Omit fields you're unsure about. Return {} if completely unknown.`;
 const FILL_PROPOSAL_TAPE_FIELDS = new Set([
   'label', 'year', 'format', 'value_low', 'value_high', 'barcode', 'imdb_id'
 ]);
+const FILL_PROPOSAL_TAPE_MAX_LENGTHS = {
+  label: 240,
+  year: 16,
+  format: 64,
+  value_low: 32,
+  value_high: 32,
+  barcode: 32,
+  imdb_id: 32
+};
 const FILL_PROPOSAL_REQUEST_FIELDS = new Set(['tape', 'provider', 'noai']);
 
 function isPlainJsonObject(value) {
@@ -569,7 +578,11 @@ app.post('/api/fill/proposals', defaultLimiter, async (req, res) => {
   if (
     !isPlainJsonObject(tape) ||
     Object.keys(tape).some((key) => !FILL_PROPOSAL_TAPE_FIELDS.has(key)) ||
-    Object.values(tape).some((value) => value !== null && typeof value !== 'string' && typeof value !== 'number')
+    Object.entries(tape).some(([key, value]) => (
+      (value !== null && typeof value !== 'string' && typeof value !== 'number') ||
+      (typeof value === 'number' && !Number.isFinite(value)) ||
+      (typeof value === 'string' && value.length > FILL_PROPOSAL_TAPE_MAX_LENGTHS[key])
+    ))
   ) {
     return res.status(400).json({ error: 'invalid tape' });
   }
