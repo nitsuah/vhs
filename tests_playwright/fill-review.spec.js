@@ -74,12 +74,12 @@ test('Fill proposals show provenance and keep accept/reject/edit decisions per f
   await edit.press('Enter');
   const input = format.locator('.fill-proposal-input');
   await expect(input).not.toHaveAttribute('readonly');
-  await input.fill('DVD');
+  await input.fill('VHS'); // differs from the proposed DVD value, so this is an actual edit
   await expect(format.locator('.fill-proposal-state')).toContainText('Edited');
   await format.locator('.fill-proposal-edit').click();
   await format.locator('.fill-proposal-accept').click();
   await expect(format.locator('.fill-proposal-state')).toContainText('Accepted');
-  await expect(format.locator('.fill-proposal-input')).toHaveValue('DVD');
+  await expect(format.locator('.fill-proposal-input')).toHaveValue('VHS');
 
   await card.locator('.fill-proposal-accept-high').click();
   await expect(card.locator('[data-field="value_low"] .fill-proposal-state')).toContainText('Accepted');
