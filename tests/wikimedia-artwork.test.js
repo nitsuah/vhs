@@ -88,6 +88,11 @@ describe('normalizeWikimediaArtwork', () => {
     expect(normalizeWikimediaArtwork(makePage(overrides))).toBeNull();
   });
 
+  test('removes encoded markup from attribution text', () => {
+    const page = makePage({ attribution: '&lt;script&gt;alert(1)&lt;/script&gt; Artist' });
+    expect(normalizeWikimediaArtwork(page).attribution).toBe('alert(1) Artist');
+  });
+
   test('does not mutate frozen input data', () => {
     const page = makePage();
     Object.freeze(page.imageinfo[0].extmetadata.LicenseShortName);
