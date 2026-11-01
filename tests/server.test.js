@@ -489,6 +489,11 @@ describe('POST /api/fill/proposals', () => {
     });
     expect(missingLabel.status).toBe(400);
 
+    const oversizedField = await request(app).post('/api/fill/proposals').send({
+      tape: { ...tape, year: '1'.repeat(17) }
+    });
+    expect(oversizedField.status).toBe(400);
+
     const unsupportedTopLevel = await request(app).post('/api/fill/proposals').send({
       tape,
       omdbKey: 'secret'
