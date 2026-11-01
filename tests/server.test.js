@@ -45,6 +45,9 @@ const actualResolveOllamaUrl = jest.requireActual('../src/modules/ollama').resol
 
 beforeEach(() => {
   mockQuery.mockReset();
+  enhancedLookup.mockClear();
+  tmdbLookup.mockClear();
+  resolveOllamaUrl.mockClear();
   enhancedLookup.mockImplementation(actualEnhancedLookup);
   tmdbLookup.mockImplementation(actualTmdbLookup);
   resolveOllamaUrl.mockImplementation(actualResolveOllamaUrl);
@@ -477,6 +480,14 @@ describe('POST /api/fill/proposals', () => {
       tape: { ...tape, apiKey: 'secret' }
     });
     expect(unsupportedBody.status).toBe(400);
+
+    const invalidTape = await request(app).post('/api/fill/proposals').send({ tape: [] });
+    expect(invalidTape.status).toBe(400);
+
+    const missingLabel = await request(app).post('/api/fill/proposals').send({
+      tape: { year: '1979' }
+    });
+    expect(missingLabel.status).toBe(400);
 
     const unsupportedTopLevel = await request(app).post('/api/fill/proposals').send({
       tape,
