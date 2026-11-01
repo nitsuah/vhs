@@ -93,9 +93,9 @@ describe('normalizeWikimediaArtwork', () => {
     expect(normalizeWikimediaArtwork(page).attribution).toBe('alert(1) Artist');
   });
 
-  test('strips script and style end tags with spacing', () => {
+  test('strips script and style end tags with whitespace and attributes', () => {
     const page = makePage({
-      attribution: '<script>alert(1)</script > <style>bad</style > Artist',
+      attribution: '<script>alert(1)</script\t\n bar> <style>bad</style foo> Artist',
     });
     expect(normalizeWikimediaArtwork(page).attribution).toBe('Artist');
   });
