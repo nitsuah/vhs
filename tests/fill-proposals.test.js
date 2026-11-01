@@ -105,6 +105,53 @@ describe('buildFieldProposals', () => {
     expect(buildFieldProposals({ label: '', year: 'Unknown' }, [oversized]).map((proposal) => proposal.field)).toEqual(['year']);
   });
 
+  test('rejects numeric values whose Number and parseFloat interpretations differ', () => {
+    const tape = { value_low: '', value_high: '' };
+    expect(buildFieldProposals(tape, [{ value_low: '0x10', value_high: '0x20' }])).toEqual([]);
+
+    const zero = buildFieldProposals({ value_low: '' }, [{ value_low: '0x0' }]);
+    expect(zero).toHaveLength(1);
+    expect(zero[0]).toMatchObject({ field: 'value_low', value: '0x0' });
+  });
+
+  test('treats blank current numeric fields as missing before equality', () => {
+    const proposals = buildFieldProposals({ value_low: '' }, [{ value_low: '0' }]);
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]).toMatchObject({ field: 'value_low', value: '0' });
+  });
+
+  test('rejects proposed ranges that reverse an unchanged or proposed bound', () => {
+    expect(
+      buildFieldProposals({ value_low: '', value_high: '10' }, [{ value_low: '20' }]),
+    ).toEqual([]);
+    expect(
+      buildFieldProposals({ value_low: '20', value_high: '5' }, [{ value_low: '30', value_high: '10' }]),
+    ).toEqual([]);
+  });
+
+  test('assigns inferred confidence when metadata fields match without identifiers', () => {
+    const tape = {
+      label: 'Orion',
+      year: '1989',
+      format: 'VHS',
+      value_low: '20',
+      value_high: '5',
+    };
+    const candidate = {
+      title: 'Orion',
+      year: '1989',
+      format: 'VHS',
+      value_low: '4',
+    };
+
+    const proposals = buildFieldProposals(tape, [candidate]);
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]).toMatchObject({
+      field: 'value_low',
+      value: '4',
+      confidence: 'inferred',
+    });
+  });
   test('bounds source and emits only generated reasons, not provider payloads or errors', () => {
     const tape = { year: 'Unknown', label: '' };
     const candidate = {

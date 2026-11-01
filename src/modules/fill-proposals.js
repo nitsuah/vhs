@@ -37,7 +37,10 @@ function candidateValue(field, candidate) {
   if (!value || value.length > MAX_VALUE_LENGTH || PLACEHOLDER.test(value)) return null;
 
   if (field === 'year' && suspiciousFields({ year: value }).includes('year')) return null;
-  if ((field === 'value_low' || field === 'value_high') && !Number.isFinite(Number(value))) return null;
+  if (field === 'value_low' || field === 'value_high') {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || parseFloat(value) !== numericValue) return null;
+  }
   return value;
 }
 
@@ -56,6 +59,7 @@ function safeSource(candidate) {
 
 function sameValue(field, current, proposed) {
   if (current === undefined || current === null) return false;
+  if (typeof current === 'string' && current.trim() === '') return false;
   if (field === 'year' || field === 'value_low' || field === 'value_high') {
     const a = Number(current);
     const b = Number(proposed);
@@ -65,6 +69,20 @@ function sameValue(field, current, proposed) {
   return String(current).trim() === String(proposed).trim();
 }
 
+function numericBound(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function resultingRangeIsValid(tape, candidateProposals) {
+  const lowProposal = candidateProposals.find((proposal) => proposal.field === 'value_low');
+  const highProposal = candidateProposals.find((proposal) => proposal.field === 'value_high');
+  const low = numericBound(lowProposal ? lowProposal.value : tape.value_low);
+  const high = numericBound(highProposal ? highProposal.value : tape.value_high);
+  return low === null || high === null || low <= high;
+}
 function confidenceFor(tape, candidate, score) {
   const invalidIdentifier = [tape, candidate].some((item) => {
     const suspicious = suspiciousFields(item);
@@ -89,6 +107,7 @@ function buildFieldProposals(tape = {}, candidates = []) {
     if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) continue;
     const score = scoreCandidate(tape, candidate);
     const confidence = confidenceFor(tape, candidate, score);
+    let candidateProposals = [];
 
     for (const field of PROPOSABLE_FIELDS) {
       const valueSuspicious = (field === 'value_low' || field === 'value_high') && suspicious.has('value');
@@ -100,7 +119,7 @@ function buildFieldProposals(tape = {}, candidates = []) {
       const fieldReason = missing.has(field) ? `${field} missing` : (valueSuspicious ? 'value range suspicious' : `${field} suspicious`);
       const reasons = [fieldReason, ...(Array.isArray(score.reasons) ? score.reasons.filter((reason) => typeof reason === 'string').slice(0, 6) : [])];
 
-      proposals.push({
+      candidateProposals.push({
         field,
         originalValue: safeOriginalValue(tape[field]),
         value,
@@ -109,6 +128,22 @@ function buildFieldProposals(tape = {}, candidates = []) {
         reasons,
       });
     }
+
+    if (!resultingRangeIsValid(tape, candidateProposals)) {
+      const hasLow = candidateProposals.some((proposal) => proposal.field === 'value_low');
+      const hasHigh = candidateProposals.some((proposal) => proposal.field === 'value_high');
+      if (hasLow && hasHigh) {
+        candidateProposals = candidateProposals.filter(
+          (proposal) => proposal.field !== 'value_low' && proposal.field !== 'value_high',
+        );
+      } else if (hasLow) {
+        candidateProposals = candidateProposals.filter((proposal) => proposal.field !== 'value_low');
+      } else if (hasHigh) {
+        candidateProposals = candidateProposals.filter((proposal) => proposal.field !== 'value_high');
+      }
+    }
+
+    proposals.push(...candidateProposals);
   }
 
   return proposals;
