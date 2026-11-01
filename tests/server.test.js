@@ -586,6 +586,26 @@ describe('POST /api/fill/proposals', () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
+  it('returns no_match codes when OMDb and Ollama have no usable candidate', async () => {
+    enhancedLookup.mockResolvedValueOnce(null);
+    resolveOllamaUrl.mockResolvedValueOnce('http://ollama');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ response: '{}' })
+    });
+
+    const res = await request(app)
+      .post('/api/fill/proposals')
+      .set('x-omdb-key', 'test-omdb-key')
+      .send({ tape });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      proposals: [],
+      partialFailures: { omdb: 'no_match', ollama: 'no_match' }
+    });
+  });
+
   it('classifies malformed Ollama JSON as provider_error without exposing its payload', async () => {
     resolveOllamaUrl.mockResolvedValueOnce('http://ollama');
     global.fetch = jest.fn().mockResolvedValue({
