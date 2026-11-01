@@ -106,7 +106,8 @@ jobs:
               with Image.open(left) as a, Image.open(right) as b:
                   if a.size != b.size:
                       return ("size", a.size, b.size)
-                  return ImageChops.difference(a.convert("RGBA"), b.convert("RGBA")).getbbox()
+                  # RGBA getbbox() defaults to alpha-only; screenshots are opaque, so compare RGB pixels.
+              return ImageChops.difference(a.convert("RGB"), b.convert("RGB")).getbbox()
 
           summary = []
           unapproved = []
