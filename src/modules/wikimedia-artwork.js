@@ -42,8 +42,8 @@ function decodeHtmlEntities(value) {
 function plainText(value) {
   return decodeHtmlEntities(
     String(value || '')
-      .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
-      .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ')
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*[^>]*>/gi, ' ')
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*[^>]*>/gi, ' ')
       .replace(/<[^>]*>/g, ' '),
   ).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
