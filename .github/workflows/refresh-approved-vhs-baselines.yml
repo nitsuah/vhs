@@ -1,0 +1,186 @@
+name: One-shot approved VHS baseline refresh
+
+on:
+  push:
+    branches:
+      - fix/restore-collection-stats-chips
+    paths:
+      - '.github/workflows/refresh-approved-vhs-baselines.yml'
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: approved-baseline-refresh-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.actor == 'nitsuah'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/restore-collection-stats-chips
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Guard the owner-approved source head
+        env:
+          APPROVED_HEAD: c09fc7dcbe46663882fdfe6d6b7a97e7b74f7914
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$APPROVED_HEAD" HEAD
+          changed="$(git diff --name-only "$APPROVED_HEAD"..HEAD | sort)"
+          test "$changed" = ".github/workflows/refresh-approved-vhs-baselines.yml"
+
+      - name: Download the owner-approved visual artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/nitsuah/vhs/actions/artifacts/13052414552/zip \
+            -o /tmp/approved-vhs-journeys.zip
+          mkdir -p /tmp/approved-vhs-journeys
+          unzip -q /tmp/approved-vhs-journeys.zip -d /tmp/approved-vhs-journeys
+
+      - name: Preserve existing baselines before snapshot update
+        run: |
+          set -euo pipefail
+          cp -a tests/journeys/__screenshots__ /tmp/vhs-baselines-before
+
+      - name: Build the repository Playwright image
+        run: docker build -f config/Dockerfile.playwright -t vhs-journeys .
+
+      - name: Refresh snapshots in the Docker Playwright image
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/tests/journeys:/work/tests/journeys" \
+            vhs-journeys npm run test:journeys -- --update-snapshots
+
+      - name: Filter byte-only churn and hold unapproved pixel changes
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/pillow-env
+          /tmp/pillow-env/bin/pip install --quiet pillow
+          mkdir -p /tmp/unapproved-visual-diffs
+          /tmp/pillow-env/bin/python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageChops
+          import shutil
+          import subprocess
+          import sys
+
+          root = Path("tests/journeys/__screenshots__")
+          before = Path("/tmp/vhs-baselines-before")
+          approved = {
+              "tests/journeys/__screenshots__/collection.spec.js/collector-browses-the-shelf-and-finds-a-tape/open-my-collection.png":
+                  Path("/tmp/approved-vhs-journeys/test-results/collection-collector-browses-the-shelf-and-finds-a-tape/open-my-collection-actual.png"),
+              "tests/journeys/__screenshots__/phone.spec.js/phone-user-opens-the-shelf-and-the-menu/open-the-app-on-a-phone.png":
+                  Path("/tmp/approved-vhs-journeys/test-results/phone-phone-user-opens-the-shelf-and-the-menu/open-the-app-on-a-phone-actual.png"),
+              "tests/journeys/__screenshots__/tape.spec.js/collector-opens-a-tape-and-gets-ready-to-sell/open-the-export-menu.png":
+                  Path("/tmp/approved-vhs-journeys/test-results/tape-collector-opens-a-tape-and-gets-ready-to-sell/open-the-export-menu-actual.png"),
+          }
+
+          def changed_paths():
+              tracked = subprocess.check_output(
+                  ["git", "diff", "--name-only", "--", str(root)], text=True
+              ).splitlines()
+              untracked = subprocess.check_output(
+                  ["git", "ls-files", "--others", "--exclude-standard", str(root)], text=True
+              ).splitlines()
+              return sorted(set(tracked + untracked))
+
+          def pixel_bbox(left, right):
+              with Image.open(left) as a, Image.open(right) as b:
+                  if a.size != b.size:
+                      return ("size", a.size, b.size)
+                  return ImageChops.difference(a.convert("RGBA"), b.convert("RGBA")).getbbox()
+
+          summary = []
+          unapproved = []
+          for rel in changed_paths():
+              current = Path(rel)
+              old = before / current.relative_to(root)
+              if not old.exists():
+                  target = Path("/tmp/unapproved-visual-diffs") / current.name
+                  shutil.copy2(current, target)
+                  unapproved.append(rel)
+                  summary.append(f"NEW unapproved baseline: {rel}")
+                  current.unlink()
+                  continue
+
+              bbox = pixel_bbox(old, current)
+              if rel in approved:
+                  artifact = approved[rel]
+                  artifact_bbox = pixel_bbox(artifact, current)
+                  summary.append(f"APPROVED {rel}: old-vs-new={bbox}; artifact-vs-new={artifact_bbox}")
+                  if artifact_bbox is not None:
+                      target = Path("/tmp/unapproved-visual-diffs") / current.name
+                      shutil.copy2(current, target)
+                      unapproved.append(rel + " (differs from approved artifact)")
+                      shutil.copy2(old, current)
+                  elif bbox is None:
+                      shutil.copy2(old, current)
+              elif bbox is None:
+                  summary.append(f"RESTORED byte-only change: {rel}")
+                  shutil.copy2(old, current)
+              else:
+                  summary.append(f"UNAPPROVED pixel change: {rel}; bbox={bbox}")
+                  target = Path("/tmp/unapproved-visual-diffs") / current.name
+                  shutil.copy2(current, target)
+                  unapproved.append(rel)
+                  shutil.copy2(old, current)
+
+          Path("/tmp/visual-diff-summary.txt").write_text("\n".join(summary) + "\n")
+          print("\n".join(summary))
+
+          expected = sorted(approved)
+          actual = changed_paths()
+          if unapproved:
+              print("Unapproved visual changes require owner review:", *unapproved, sep="\n- ")
+              sys.exit(42)
+          if actual != expected:
+              print(f"Expected exactly approved baselines {expected}; found {actual}")
+              sys.exit(43)
+          PY
+
+      - name: Run the exact three-run zero-retry Docker soak
+        run: |
+          set -euo pipefail
+          docker run --rm -e CI=true \
+            -v "$GITHUB_WORKSPACE/tests/journeys:/work/tests/journeys" \
+            vhs-journeys npm run test:journeys -- --retries 0 --repeat-each 3
+
+      - name: Commit only the approved baselines
+        run: |
+          set -euo pipefail
+          p1='tests/journeys/__screenshots__/collection.spec.js/collector-browses-the-shelf-and-finds-a-tape/open-my-collection.png'
+          p2='tests/journeys/__screenshots__/phone.spec.js/phone-user-opens-the-shelf-and-the-menu/open-the-app-on-a-phone.png'
+          p3='tests/journeys/__screenshots__/tape.spec.js/collector-opens-a-tape-and-gets-ready-to-sell/open-the-export-menu.png'
+          expected="$(printf '%s\n' "$p1" "$p2" "$p3" | sort)"
+          actual="$(git diff --name-only -- tests/journeys/__screenshots__ | sort)"
+          test "$actual" = "$expected"
+          git add -- "$p1" "$p2" "$p3"
+          staged="$(git diff --cached --name-only | sort)"
+          test "$staged" = "$expected"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test: refresh owner-approved journey baselines"
+          git push origin HEAD:fix/restore-collection-stats-chips
+
+      - name: Upload unapproved visual changes for owner review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vhs-unapproved-visual-diffs
+          path: |
+            /tmp/unapproved-visual-diffs/
+            /tmp/visual-diff-summary.txt
+          if-no-files-found: ignore
