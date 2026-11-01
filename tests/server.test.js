@@ -18,11 +18,42 @@ jest.mock('fs', () => ({
   readFileSync: () => Buffer.from('test'),
 }));
 
+// Keep the real lookup functions as defaults for existing GET tests; proposal
+// route tests override these module-level references without live providers.
+jest.mock('../src/modules/omdb', () => {
+  const actual = jest.requireActual('../src/modules/omdb');
+  return { ...actual, enhancedLookup: jest.fn(actual.enhancedLookup) };
+});
+jest.mock('../src/modules/tmdb', () => {
+  const actual = jest.requireActual('../src/modules/tmdb');
+  return { ...actual, tmdbLookup: jest.fn(actual.tmdbLookup) };
+});
+jest.mock('../src/modules/ollama', () => {
+  const actual = jest.requireActual('../src/modules/ollama');
+  return { ...actual, resolveOllamaUrl: jest.fn(actual.resolveOllamaUrl) };
+});
+
 process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
+process.env.OMDB_API_KEY = '';
+process.env.TMDB_KEY = '';
 process.env.FETCH_IMAGE_HOST_ALLOWLIST = 'example.com';
 const { app } = require('../src/server.js');
+const { enhancedLookup } = require('../src/modules/omdb');
+const { tmdbLookup } = require('../src/modules/tmdb');
+const { resolveOllamaUrl } = require('../src/modules/ollama');
+const actualEnhancedLookup = jest.requireActual('../src/modules/omdb').enhancedLookup;
+const actualTmdbLookup = jest.requireActual('../src/modules/tmdb').tmdbLookup;
+const actualResolveOllamaUrl = jest.requireActual('../src/modules/ollama').resolveOllamaUrl;
 
-beforeEach(() => mockQuery.mockReset());
+beforeEach(() => {
+  mockQuery.mockReset();
+  enhancedLookup.mockClear();
+  tmdbLookup.mockClear();
+  resolveOllamaUrl.mockClear();
+  enhancedLookup.mockImplementation(actualEnhancedLookup);
+  tmdbLookup.mockImplementation(actualTmdbLookup);
+  resolveOllamaUrl.mockImplementation(actualResolveOllamaUrl);
+});
 
 // ── Tapes ─────────────────────────────────────────────────────────────────────
 
@@ -428,6 +459,183 @@ describe('GET /api/lookup', () => {
     expect(res.status).toBe(200);
     expect(res.body.error).toBe('no_metadata_found');
     expect(res.body.reasons.ollama).toBe('unreachable');
+  });
+});
+
+// ── Proposal-only Fill API ────────────────────────────────────────────────────
+
+describe('POST /api/fill/proposals', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => { global.fetch = originalFetch; });
+
+  const tape = {
+    label: 'Alien',
+    year: 'Unknown',
+    format: 'VHS',
+    value_low: '',
+    value_high: '',
+    imdb_id: 'tt0078748'
+  };
+
+  it('rejects unsupported fields, invalid provider values, and non-boolean noai', async () => {
+    const unsupportedBody = await request(app).post('/api/fill/proposals').send({
+      tape: { ...tape, apiKey: 'secret' }
+    });
+    expect(unsupportedBody.status).toBe(400);
+
+    const invalidTape = await request(app).post('/api/fill/proposals').send({ tape: [] });
+    expect(invalidTape.status).toBe(400);
+
+    const missingLabel = await request(app).post('/api/fill/proposals').send({
+      tape: { year: '1979' }
+    });
+    expect(missingLabel.status).toBe(400);
+
+    const oversizedField = await request(app).post('/api/fill/proposals').send({
+      tape: { ...tape, year: '1'.repeat(17) }
+    });
+    expect(oversizedField.status).toBe(400);
+
+    const unsupportedTopLevel = await request(app).post('/api/fill/proposals').send({
+      tape,
+      omdbKey: 'secret'
+    });
+    expect(unsupportedTopLevel.status).toBe(400);
+
+    const invalidProvider = await request(app).post('/api/fill/proposals').send({
+      tape,
+      provider: 'imdb'
+    });
+    expect(invalidProvider.status).toBe(400);
+
+    const invalidNoai = await request(app).post('/api/fill/proposals').send({
+      tape,
+      noai: 'true'
+    });
+    expect(invalidNoai.status).toBe(400);
+  });
+
+  it('returns OMDb and Ollama proposals without mutating tapes or review items', async () => {
+    enhancedLookup.mockResolvedValueOnce({
+      title: 'Alien',
+      year: '1979',
+      label: 'Brandywine',
+      imdb_id: 'tt0078748',
+      source: 'omdb_exact'
+    });
+    resolveOllamaUrl.mockResolvedValueOnce('http://ollama');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        response: '{"format":"VHS","value_low":"5","value_high":"20"}'
+      })
+    });
+
+    const res = await request(app)
+      .post('/api/fill/proposals')
+      .set('x-omdb-key', 'test-omdb-key')
+      .send({ tape });
+
+    expect(res.status).toBe(200);
+    expect(res.body.partialFailures).toEqual({});
+    expect(res.body.proposals.map((proposal) => proposal.field)).toEqual(['year', 'value_low', 'value_high']);
+    expect(res.body.proposals.every((proposal) => proposal.confidence === 'verified')).toBe(true);
+    expect(enhancedLookup).toHaveBeenCalledWith({ title: 'Alien' }, 'test-omdb-key');
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('supports TMDb with noai and reports Ollama as skipped', async () => {
+    tmdbLookup.mockResolvedValueOnce({
+      title: 'Alien',
+      year: '1979',
+      imdb_id: 'tt0078748',
+      source: 'tmdb_search'
+    });
+
+    const res = await request(app)
+      .post('/api/fill/proposals')
+      .set('x-tmdb-key', 'test-tmdb-key')
+      .send({ tape, provider: 'tmdb', noai: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.partialFailures).toEqual({ ollama: 'skipped' });
+    expect(res.body.proposals).toMatchObject([
+      { field: 'year', value: '1979', confidence: 'verified' }
+    ]);
+    expect(tmdbLookup).toHaveBeenCalledWith({ title: 'Alien' }, 'test-tmdb-key');
+    expect(resolveOllamaUrl).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('returns fixed failure codes and never exposes raw provider errors', async () => {
+    enhancedLookup.mockRejectedValueOnce(new Error('provider key secret'));
+    resolveOllamaUrl.mockResolvedValueOnce('http://ollama');
+    global.fetch = jest.fn().mockRejectedValue(new TypeError('network secret'));
+
+    const res = await request(app)
+      .post('/api/fill/proposals')
+      .set('x-omdb-key', 'test-omdb-key')
+      .send({ tape });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      proposals: [],
+      partialFailures: { omdb: 'provider_error', ollama: 'unreachable' }
+    });
+    expect(JSON.stringify(res.body)).not.toContain('secret');
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('returns no_match codes when OMDb and Ollama have no usable candidate', async () => {
+    enhancedLookup.mockResolvedValueOnce(null);
+    resolveOllamaUrl.mockResolvedValueOnce('http://ollama');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ response: '{}' })
+    });
+
+    const res = await request(app)
+      .post('/api/fill/proposals')
+      .set('x-omdb-key', 'test-omdb-key')
+      .send({ tape });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      proposals: [],
+      partialFailures: { omdb: 'no_match', ollama: 'no_match' }
+    });
+  });
+
+  it('classifies malformed Ollama JSON as provider_error without exposing its payload', async () => {
+    resolveOllamaUrl.mockResolvedValueOnce('http://ollama');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ response: 'not-json secret' })
+    });
+
+    const res = await request(app)
+      .post('/api/fill/proposals')
+      .send({ tape });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      proposals: [],
+      partialFailures: { omdb: 'not_configured', ollama: 'provider_error' }
+    });
+    expect(JSON.stringify(res.body)).not.toContain('secret');
+  });
+
+  it('returns safe no-configuration and skipped codes when no candidate is available', async () => {
+    const res = await request(app)
+      .post('/api/fill/proposals')
+      .send({ tape, noai: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      proposals: [],
+      partialFailures: { omdb: 'not_configured', ollama: 'skipped' }
+    });
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
 
