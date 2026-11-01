@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - fix/restore-collection-stats-chips
+    paths:
+      - '.github/workflows/refresh-approved-vhs-baselines.yml'
 
 permissions:
   actions: read
@@ -22,6 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: fix/restore-collection-stats-chips
+          fetch-depth: 0
           persist-credentials: true
 
       - name: Guard the owner-approved source head
@@ -29,7 +32,9 @@ jobs:
           APPROVED_HEAD: c09fc7dcbe46663882fdfe6d6b7a97e7b74f7914
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "$APPROVED_HEAD"
+          git merge-base --is-ancestor "$APPROVED_HEAD" HEAD
+          changed="$(git diff --name-only "$APPROVED_HEAD"..HEAD | sort)"
+          test "$changed" = ".github/workflows/refresh-approved-vhs-baselines.yml"
 
       - name: Download the owner-approved visual artifact
         env:
@@ -60,7 +65,7 @@ jobs:
           p1='tests/journeys/__screenshots__/collection.spec.js/collector-browses-the-shelf-and-finds-a-tape/open-my-collection.png'
           p2='tests/journeys/__screenshots__/phone.spec.js/phone-user-opens-the-shelf-and-the-menu/open-the-app-on-a-phone.png'
           p3='tests/journeys/__screenshots__/tape.spec.js/collector-opens-a-tape-and-gets-ready-to-sell/open-the-export-menu.png'
-          expected="$(printf '%s\\n' "$p1" "$p2" "$p3" | sort)"
+          expected="$(printf '%s\n' "$p1" "$p2" "$p3" | sort)"
           actual="$(git diff --name-only -- tests/journeys/__screenshots__ | sort)"
           test "$actual" = "$expected"
           cmp "$p1" /tmp/approved-vhs-journeys/test-results/collection-collector-browses-the-shelf-and-finds-a-tape/open-my-collection-actual.png
@@ -74,20 +79,18 @@ jobs:
             -v "$GITHUB_WORKSPACE/tests/journeys:/work/tests/journeys" \
             vhs-journeys npm run test:journeys -- --retries 0 --repeat-each 3
 
-      - name: Commit only the approved baselines and remove this one-shot workflow
+      - name: Commit only the approved baselines
         run: |
           set -euo pipefail
           p1='tests/journeys/__screenshots__/collection.spec.js/collector-browses-the-shelf-and-finds-a-tape/open-my-collection.png'
           p2='tests/journeys/__screenshots__/phone.spec.js/phone-user-opens-the-shelf-and-the-menu/open-the-app-on-a-phone.png'
           p3='tests/journeys/__screenshots__/tape.spec.js/collector-opens-a-tape-and-gets-ready-to-sell/open-the-export-menu.png'
-          expected="$(printf '%s\\n' "$p1" "$p2" "$p3" | sort)"
+          expected="$(printf '%s\n' "$p1" "$p2" "$p3" | sort)"
           actual="$(git diff --name-only -- tests/journeys/__screenshots__ | sort)"
           test "$actual" = "$expected"
           git add -- "$p1" "$p2" "$p3"
-          git rm -- .github/workflows/refresh-approved-vhs-baselines.yml
           staged="$(git diff --cached --name-only | sort)"
-          expected_staged="$(printf '%s\\n' "$p1" "$p2" "$p3" '.github/workflows/refresh-approved-vhs-baselines.yml' | sort)"
-          test "$staged" = "$expected_staged"
+          test "$staged" = "$expected"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "test: refresh owner-approved journey baselines"
