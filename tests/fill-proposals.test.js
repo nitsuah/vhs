@@ -100,6 +100,9 @@ describe('buildFieldProposals', () => {
       value_high: 'not-a-number',
     };
     expect(buildFieldProposals(tape, [candidate])).toEqual([]);
+
+    const oversized = { title: 'x'.repeat(241), year: '1989' };
+    expect(buildFieldProposals({ label: '', year: 'Unknown' }, [oversized]).map((proposal) => proposal.field)).toEqual(['year']);
   });
 
   test('bounds source and emits only generated reasons, not provider payloads or errors', () => {
@@ -115,6 +118,7 @@ describe('buildFieldProposals', () => {
     const proposals = buildFieldProposals(tape, [candidate]);
     expect(proposals.length).toBe(2);
     expect(proposals.every((proposal) => proposal.source === 'OMDbscriptalert1script')).toBe(true);
+    expect(proposals.every((proposal) => proposal.source.length <= 48)).toBe(true);
     expect(JSON.stringify(proposals)).not.toContain('provider-secret');
     expect(JSON.stringify(proposals)).not.toContain('payload');
     expect(JSON.stringify(proposals)).not.toContain('token');
