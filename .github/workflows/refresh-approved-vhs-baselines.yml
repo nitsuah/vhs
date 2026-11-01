@@ -1,0 +1,94 @@
+name: One-shot approved VHS baseline refresh
+
+on:
+  push:
+    branches:
+      - fix/restore-collection-stats-chips
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: approved-baseline-refresh-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.actor == 'nitsuah'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/restore-collection-stats-chips
+          persist-credentials: true
+
+      - name: Guard the owner-approved source head
+        env:
+          APPROVED_HEAD: c09fc7dcbe46663882fdfe6d6b7a97e7b74f7914
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$APPROVED_HEAD"
+
+      - name: Download the owner-approved visual artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/nitsuah/vhs/actions/artifacts/13052414552/zip \
+            -o /tmp/approved-vhs-journeys.zip
+          mkdir -p /tmp/approved-vhs-journeys
+          unzip -q /tmp/approved-vhs-journeys.zip -d /tmp/approved-vhs-journeys
+
+      - name: Build the repository Playwright image
+        run: docker build -f config/Dockerfile.playwright -t vhs-journeys .
+
+      - name: Refresh snapshots in the Docker Playwright image
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/tests/journeys:/work/tests/journeys" \
+            vhs-journeys npm run test:journeys -- --update-snapshots
+
+      - name: Verify exactly the three approved baselines
+        run: |
+          set -euo pipefail
+          p1='tests/journeys/__screenshots__/collection.spec.js/collector-browses-the-shelf-and-finds-a-tape/open-my-collection.png'
+          p2='tests/journeys/__screenshots__/phone.spec.js/phone-user-opens-the-shelf-and-the-menu/open-the-app-on-a-phone.png'
+          p3='tests/journeys/__screenshots__/tape.spec.js/collector-opens-a-tape-and-gets-ready-to-sell/open-the-export-menu.png'
+          expected="$(printf '%s\\n' "$p1" "$p2" "$p3" | sort)"
+          actual="$(git diff --name-only -- tests/journeys/__screenshots__ | sort)"
+          test "$actual" = "$expected"
+          cmp "$p1" /tmp/approved-vhs-journeys/test-results/collection-collector-browses-the-shelf-and-finds-a-tape/open-my-collection-actual.png
+          cmp "$p2" /tmp/approved-vhs-journeys/test-results/phone-phone-user-opens-the-shelf-and-the-menu/open-the-app-on-a-phone-actual.png
+          cmp "$p3" /tmp/approved-vhs-journeys/test-results/tape-collector-opens-a-tape-and-gets-ready-to-sell/open-the-export-menu-actual.png
+
+      - name: Run the exact three-run zero-retry Docker soak
+        run: |
+          set -euo pipefail
+          docker run --rm -e CI=true \
+            -v "$GITHUB_WORKSPACE/tests/journeys:/work/tests/journeys" \
+            vhs-journeys npm run test:journeys -- --retries 0 --repeat-each 3
+
+      - name: Commit only the approved baselines and remove this one-shot workflow
+        run: |
+          set -euo pipefail
+          p1='tests/journeys/__screenshots__/collection.spec.js/collector-browses-the-shelf-and-finds-a-tape/open-my-collection.png'
+          p2='tests/journeys/__screenshots__/phone.spec.js/phone-user-opens-the-shelf-and-the-menu/open-the-app-on-a-phone.png'
+          p3='tests/journeys/__screenshots__/tape.spec.js/collector-opens-a-tape-and-gets-ready-to-sell/open-the-export-menu.png'
+          expected="$(printf '%s\\n' "$p1" "$p2" "$p3" | sort)"
+          actual="$(git diff --name-only -- tests/journeys/__screenshots__ | sort)"
+          test "$actual" = "$expected"
+          git add -- "$p1" "$p2" "$p3"
+          git rm -- .github/workflows/refresh-approved-vhs-baselines.yml
+          staged="$(git diff --cached --name-only | sort)"
+          expected_staged="$(printf '%s\\n' "$p1" "$p2" "$p3" '.github/workflows/refresh-approved-vhs-baselines.yml' | sort)"
+          test "$staged" = "$expected_staged"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test: refresh owner-approved journey baselines"
+          git push origin HEAD:fix/restore-collection-stats-chips
