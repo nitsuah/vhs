@@ -54,17 +54,18 @@ jobs:
           set -euo pipefail
           cp -a tests/journeys/__screenshots__ /tmp/vhs-baselines-before
 
-      - name: Build the repository Playwright image
-        run: docker build -f config/Dockerfile.playwright -t vhs-journeys .
-
-      - name: Refresh snapshots in the Docker Playwright image
+      - name: Refresh snapshots in the shared CI Playwright image
         run: |
           set -euo pipefail
-          docker run --rm \
-            -v "$GITHUB_WORKSPACE/tests/journeys:/work/tests/journeys" \
-            vhs-journeys npm run test:journeys -- --update-snapshots
+          mkdir -p test-results journeys-report
+          docker run --rm -e CI=true \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work \
+            mcr.microsoft.com/playwright:v1.63.0-jammy \
+            bash -lc "npm ci --no-audit --no-fund && npm run test:journeys -- --update-snapshots"
 
       - name: Filter byte-only churn and hold unapproved pixel changes
+        id: filter
         run: |
           set -euo pipefail
           python3 -m venv /tmp/pillow-env
@@ -73,6 +74,7 @@ jobs:
           /tmp/pillow-env/bin/python - <<'PY'
           from pathlib import Path
           from PIL import Image, ImageChops
+          import os
           import shutil
           import subprocess
           import sys
@@ -146,19 +148,29 @@ jobs:
           if unapproved:
               print("Unapproved visual changes require owner review:", *unapproved, sep="\n- ")
               sys.exit(42)
-          if actual != expected:
-              print(f"Expected exactly approved baselines {expected}; found {actual}")
+          if actual == expected:
+              baseline_changes = "true"
+          elif not actual:
+              baseline_changes = "false"
+              print("No pixel changes required: current baselines match the approved actuals.")
+          else:
+              print(f"Expected exactly approved baselines {expected} or no changes; found {actual}")
               sys.exit(43)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"baseline_changes={baseline_changes}\n")
           PY
 
       - name: Run the exact three-run zero-retry Docker soak
         run: |
           set -euo pipefail
           docker run --rm -e CI=true \
-            -v "$GITHUB_WORKSPACE/tests/journeys:/work/tests/journeys" \
-            vhs-journeys npm run test:journeys -- --retries 0 --repeat-each 3
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work \
+            mcr.microsoft.com/playwright:v1.63.0-jammy \
+            bash -lc "npm run test:journeys -- --retries 0 --repeat-each 3"
 
       - name: Commit only the approved baselines
+        if: steps.filter.outputs.baseline_changes == 'true'
         run: |
           set -euo pipefail
           p1='tests/journeys/__screenshots__/collection.spec.js/collector-browses-the-shelf-and-finds-a-tape/open-my-collection.png'
@@ -183,4 +195,6 @@ jobs:
           path: |
             /tmp/unapproved-visual-diffs/
             /tmp/visual-diff-summary.txt
+            test-results/
+            journeys-report/
           if-no-files-found: ignore
