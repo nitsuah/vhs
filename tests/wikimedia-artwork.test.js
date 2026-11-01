@@ -93,6 +93,13 @@ describe('normalizeWikimediaArtwork', () => {
     expect(normalizeWikimediaArtwork(page).attribution).toBe('alert(1) Artist');
   });
 
+  test('strips script and style end tags with spacing', () => {
+    const page = makePage({
+      attribution: '<script>alert(1)</script > <style>bad</style > Artist',
+    });
+    expect(normalizeWikimediaArtwork(page).attribution).toBe('Artist');
+  });
+
   test('does not mutate frozen input data', () => {
     const page = makePage();
     Object.freeze(page.imageinfo[0].extmetadata.LicenseShortName);
