@@ -362,11 +362,13 @@ async function applyFillProposal(uid) {
 
   const tape = inventory.find(t => String(t.id) === String(card.data.tape_id));
   const appliedCount = Object.keys(applied).length;
-  if (tape && appliedCount) {
-    Object.assign(tape, applied);
-    renderInv();
-    updateCount();
+  if (appliedCount) {
     card.hasApplied = true;
+    if (tape) {
+      Object.assign(tape, applied);
+      renderInv();
+      updateCount();
+    }
   }
 
   const reviewCount = conflicts + invalid + unknown;
