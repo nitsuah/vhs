@@ -1,5 +1,26 @@
 // Proposal review is UI-only: accept/reject/edit state must never write tapes or review rows.
 const { test, expect } = require('@playwright/test');
+const express = require('express');
+const path = require('path');
+
+let server;
+const PORT = 8082;
+const BASE_URL = `http://127.0.0.1:${PORT}`;
+
+test.beforeAll(async () => {
+  const app = express();
+  app.use(express.static(path.resolve(__dirname, '../public')));
+  await new Promise((resolve, reject) => {
+    server = app.listen(PORT, '127.0.0.1', resolve);
+    server.on('error', reject);
+  });
+});
+
+test.afterAll(async () => {
+  if (server) {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
 
 const TAPE = {
   id: 'VHS-0001', title: 'Alien', year: 'Unknown', label: '20th Century Fox',
@@ -43,7 +64,7 @@ async function openFillReview(page) {
     }
     return route.fulfill({ json: {} });
   });
-  await page.goto('/');
+  await page.goto(BASE_URL);
   await page.locator('#tab-collect').click();
   const row = page.locator('.tape-row[data-id="VHS-0001"]');
   await expect(row).toBeVisible();
