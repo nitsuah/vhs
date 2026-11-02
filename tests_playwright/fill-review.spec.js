@@ -4,14 +4,21 @@ const express = require('express');
 const path = require('path');
 
 let server;
-const PORT = 8082;
-const BASE_URL = `http://127.0.0.1:${PORT}`;
+let baseUrl;
 
 test.beforeAll(async () => {
   const app = express();
   app.use(express.static(path.resolve(__dirname, '../public')));
   await new Promise((resolve, reject) => {
-    server = app.listen(PORT, '127.0.0.1', resolve);
+    server = app.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        reject(new Error('Static test server did not expose a TCP port'));
+        return;
+      }
+      baseUrl = `http://127.0.0.1:${address.port}`;
+      resolve();
+    });
     server.on('error', reject);
   });
 });
@@ -64,7 +71,7 @@ async function openFillReview(page) {
     }
     return route.fulfill({ json: {} });
   });
-  await page.goto(BASE_URL);
+  await page.goto(baseUrl);
   await page.locator('#tab-collect').click();
   const row = page.locator('.tape-row[data-id="VHS-0001"]');
   await expect(row).toBeVisible();
