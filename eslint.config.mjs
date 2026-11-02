@@ -1,3 +1,5 @@
+// ESLint 10 flat config. The Fill Review CI workflow uses this when present;
+// main remains on ESLint 8 until the dependency migration PR merges.
 import globals from "globals";
 
 export default [
