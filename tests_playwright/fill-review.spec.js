@@ -11,6 +11,7 @@ const PROPOSALS = [
   { field: 'year', originalValue: 'Unknown', value: '1979', source: 'OMDb', confidence: 'verified', reasons: ['year suspicious'] },
   { field: 'format', originalValue: 'VHS', value: 'DVD', source: 'ai', confidence: 'low', reasons: ['format suspicious'] },
   { field: 'value_low', originalValue: '', value: '8', source: 'ai', confidence: 'inferred', reasons: ['value_low missing'] },
+  { field: 'value_high', originalValue: 0, value: 12, source: 'OMDb', confidence: 'inferred', reasons: ['value_high missing'] },
   { field: 'label', originalValue: 'Alien', value: 'Aliens', source: 'OMDb', confidence: 'low', reasons: ['title suspicious'] },
 ];
 
@@ -69,6 +70,8 @@ test('Fill proposals show provenance and keep accept/reject/edit decisions per f
   await expect(year.locator('.fill-proposal-original')).toContainText('Unknown');
   await expect(year.locator('.fill-proposal-input')).toHaveValue('1979');
   await expect(year.locator('.fill-proposal-meta')).toContainText('OMDb');
+  // The API preserves finite numeric originals; the UI must stringify them before rendering.
+  await expect(card.locator('[data-field="value_high"] .fill-proposal-original')).toContainText('0');
   await expect(year.locator('.fill-confidence')).toContainText('verified');
 
   await year.locator('.fill-proposal-reject').click();

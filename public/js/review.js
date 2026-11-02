@@ -41,7 +41,7 @@ export function addProposalCard(tape, proposals, partialFailures = {}) {
   const fields = proposals.filter(p => p && FILL_PROPOSAL_FIELDS.has(p.field) &&
     (typeof p.value === 'string' || (typeof p.value === 'number' && Number.isFinite(p.value))))
     .map(p => ({
-      field: p.field, originalValue: p.originalValue ?? '',
+      field: p.field, originalValue: String(p.originalValue ?? ''),
       value: p.value, editValue: String(p.value), source: String(p.source || 'unknown').slice(0, 48),
       confidence: FILL_CONFIDENCE.has(p.confidence) ? p.confidence : 'low',
       reasons: Array.isArray(p.reasons) ? p.reasons.filter(r => typeof r === 'string').slice(0, 6).map(r => r.slice(0, 120)) : [],
