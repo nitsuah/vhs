@@ -1,3 +1,5 @@
+import globals from "globals";
+
 export default [
   {
     ignores: ["node_modules/", "dist/", "build/"],
@@ -7,17 +9,8 @@ export default [
       ecmaVersion: 2022,
       sourceType: "commonjs",
       globals: {
-        node: true,
-        es2022: true,
-        process: "readonly",
-        console: "readonly",
-        fetch: "readonly",
-        AbortSignal: "readonly",
-        Buffer: "readonly",
-        setInterval: "readonly",
-        clearInterval: "readonly",
-        setTimeout: "readonly",
-        clearTimeout: "readonly",
+        ...globals.node,
+        ...globals.es2022,
       },
     },
     rules: {
@@ -30,10 +23,20 @@ export default [
     },
   },
   {
+    files: ["src/**/*.js"],
+    languageOptions: {
+      sourceType: "commonjs",
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
     files: ["tests/**/*.js", "tests/**/*.spec.js"],
     languageOptions: {
       globals: {
-        jest: true,
+        ...globals.jest,
+        ...globals.node,
       },
     },
   },
@@ -41,8 +44,8 @@ export default [
     files: ["tests_playwright/**/*.js", "tests_playwright/**/*.spec.js"],
     languageOptions: {
       globals: {
-        browser: true,
-        node: true,
+        ...globals.browser,
+        ...globals.node,
         openDetail: "readonly",
         openNewTapeModal: "readonly",
         renderInv: "readonly",
