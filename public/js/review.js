@@ -20,6 +20,88 @@ export function addCard(data, source = null, thumb = null, expanded = false, job
   cards.push({ uid: nextUidSeq(), data: { ...data }, source, thumb, expanded, jobId, processingState, failReason, _aiTitle: data.title || null });
 }
 
+
+const FILL_PROPOSAL_FIELDS = new Set(['label', 'year', 'format', 'value_low', 'value_high']);
+const FILL_CONFIDENCE = new Set(['verified', 'inferred', 'low']);
+const FILL_FAILURES = new Set(['not_configured', 'no_match', 'unreachable', 'provider_error', 'skipped']);
+const FILL_PROVIDERS = new Set(['omdb', 'tmdb', 'ollama']);
+
+function safeFillFailures(failures) {
+  return Object.entries(failures || {})
+    .filter(([provider, code]) => FILL_PROVIDERS.has(provider) && FILL_FAILURES.has(code))
+    .map(([provider, code]) => provider + ': ' + code).join(' · ');
+}
+
+function fillProposalStateLabel(state) {
+  return ({
+    accepted: 'Accepted (UI only)',
+    rejected: 'Rejected (UI only)',
+    edited: 'Edited — pending accept',
+    applied: 'Applied',
+    conflict: 'Changed since proposal — refresh required',
+    invalid: 'Not applied — edit value',
+  })[state] || 'Pending — not accepted';
+}
+
+export function addProposalCard(tape, proposals, partialFailures = {}) {
+  if (!tape || !Array.isArray(proposals)) return null;
+  const fields = proposals.filter(p => p && FILL_PROPOSAL_FIELDS.has(p.field) &&
+    (typeof p.value === 'string' || (typeof p.value === 'number' && Number.isFinite(p.value))))
+    .map(p => ({
+      field: p.field, originalValue: String(p.originalValue ?? ''),
+      value: p.value, editValue: String(p.value), source: String(p.source || 'unknown').slice(0, 48),
+      confidence: FILL_CONFIDENCE.has(p.confidence) ? p.confidence : 'low',
+      reasons: Array.isArray(p.reasons) ? p.reasons.filter(r => typeof r === 'string').slice(0, 6).map(r => r.slice(0, 120)) : [],
+      state: 'pending', editing: false,
+    }));
+  if (!fields.length) return null;
+  const card = {
+    uid: nextUidSeq(), source: 'fill-proposal', processingState: 'ready', jobId: null,
+    data: { tape_id: String(tape.id || ''), title: String(tape.title || '') },
+    thumb: typeof tape.photo_thumbnail === 'string' ? tape.photo_thumbnail : null,
+    proposals: fields, partialFailures: safeFillFailures(partialFailures),
+  };
+  cards.push(card);
+  return card;
+}
+
+function renderFillProposalCard(card) {
+  const title = esc(card.data.title || 'Untitled tape');
+  const bulk = card.proposals.some(p =>
+    p.confidence !== 'low' && ['pending', 'edited'].includes(p.state) && p.editValue.trim()
+  );
+  const acceptedCount = card.proposals.filter(p =>
+    p.state === 'accepted' && p.acceptedValue !== undefined && String(p.acceptedValue).trim()
+  ).length;
+  const fields = card.proposals.map((p, i) => {
+    const label = ({ label: 'Title', year: 'Year', format: 'Format', value_low: 'Estimated low value', value_high: 'Estimated high value' })[p.field];
+    const original = p.originalValue.trim() ? p.originalValue : '—';
+    const state = fillProposalStateLabel(p.state);
+    const inputId = 'fill-proposal-' + card.uid + '-' + i;
+    const locked = p.state === 'applied' || p.state === 'conflict';
+    const acceptDisabled = ['accepted', 'rejected', 'applied', 'conflict', 'invalid'].includes(p.state) || !p.editValue.trim();
+    const rejectDisabled = ['rejected', 'applied', 'conflict'].includes(p.state);
+    return '<section class="fill-proposal-field" data-field="' + p.field + '" data-state="' + p.state + '">' +
+      '<div class="fill-proposal-field-head"><strong>' + esc(label) + '</strong><span class="fill-confidence fill-confidence-' + p.confidence + '">' + esc(p.confidence) + '</span>' +
+      (p.confidence === 'low' ? '<span class="fill-confidence-note">Low confidence — review carefully</span>' : '') + '</div>' +
+      '<div class="fill-proposal-values"><div class="fill-proposal-original"><span>Original</span><strong>' + esc(original) + '</strong></div>' +
+      '<div class="fill-proposal-new"><label for="' + inputId + '">Proposed</label><input id="' + inputId + '" class="fill-proposal-input" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="Proposed ' + esc(label) + ' for ' + title + '" value="' + esc(p.editValue) + '"' + (p.editing && !locked ? '' : ' readonly') + '></div></div>' +
+      '<div class="fill-proposal-meta"><span>Source: ' + esc(p.source) + '</span><span>Reason: ' + esc(p.reasons.join(' · ') || 'candidate field') + '</span></div>' +
+      '<div class="fill-proposal-actions"><span class="fill-proposal-state" data-state="' + p.state + '" role="status" aria-live="polite">' + esc(state) + '</span>' +
+      '<button type="button" class="hbtn fill-proposal-edit" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="' + (p.editing ? 'Finish editing' : 'Edit proposed ' + label + ' for ' + title) + '"' + (locked ? ' disabled' : '') + '>' + (p.editing ? 'Done' : 'Edit') + '</button>' +
+      '<button type="button" class="btn btn-sm btn-ok fill-proposal-accept" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="Accept proposed ' + esc(label) + ' for ' + title + '"' + (acceptDisabled ? ' disabled' : '') + '>Accept</button>' +
+      '<button type="button" class="btn btn-sm btn-x fill-proposal-reject" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="Reject proposed ' + esc(label) + ' for ' + title + '"' + (rejectDisabled ? ' disabled' : '') + '>Reject</button></div></section>';
+  }).join('');
+  return '<tr class="rev-card fill-proposal-card" data-uid="' + card.uid + '"><td colspan="3"><div class="fill-proposal-wrap">' +
+    '<div class="fill-proposal-header"><div><strong>' + title + '</strong><span class="fill-proposal-tape-id">' + esc(card.data.tape_id) + '</span></div><span>' + (card.hasApplied ? 'Applied results' : 'Review only · nothing saved') + '</span>' +
+    (bulk ? '<button type="button" class="hbtn fill-proposal-accept-high" data-uid="' + card.uid + '" aria-label="Accept verified and inferred proposals for ' + title + '">Accept verified/inferred</button>' : '') +
+    '<button type="button" class="hbtn fill-proposal-apply" data-uid="' + card.uid + '" aria-label="Apply accepted fields for ' + title + '"' + (acceptedCount === 0 || card.applying ? ' disabled' : '') + '>' + (card.applying ? 'Applying…' : 'Apply accepted fields (' + acceptedCount + ')') + '</button>' +
+    '<button type="button" class="hbtn fill-proposal-dismiss" data-uid="' + card.uid + '" aria-label="Dismiss proposals for ' + title + '">Dismiss</button></div>' +
+    (card.partialFailures ? '<div class="fill-proposal-status" role="status">Provider status: ' + esc(card.partialFailures) + '</div>' : '') +
+    (card.applyStatus ? '<div class="fill-proposal-status fill-proposal-apply-status" role="status">' + esc(card.applyStatus) + '</div>' : '') +
+    '<div class="fill-proposal-fields">' + fields + '</div></div></td></tr>';
+}
+
 function _claimJob(card) {
   if (!card) return;
   const id = card.jobId; if (!id) return;
@@ -54,6 +136,8 @@ export function hideRevPanel() {
   revPanel.classList.remove('on');
   setCards([]);
   revCardsEl.innerHTML = ''; revBulk.classList.remove('on');
+  const fillStatus = document.getElementById('fill-review-status');
+  if (fillStatus) { fillStatus.textContent = ''; fillStatus.style.display = 'none'; }
   document.getElementById('rev-title').textContent = 'Pending Review';
   window.updateTabBadge?.();
 }
@@ -64,9 +148,12 @@ export function showRevErr(m) { revErr.style.display = 'block'; revErr.textConte
 
 export function renderCards() {
   window.updateTabBadge?.();
-  const readyCount = cards.filter(c => c.processingState === 'ready').length;
+  const readyCount = cards.filter(c => c.processingState === 'ready' && c.source !== 'fill-proposal').length;
+  const proposalCount = cards.filter(c => c.processingState === 'ready' && c.source === 'fill-proposal').length;
   const procCount = cards.filter(c => c.processingState === 'processing' || c.processingState === 'queued').length;
-  revBulk.classList.toggle('on', readyCount > 0 || procCount > 0);
+  const confirmAllBtn = document.getElementById('btn-confirm-all');
+  if (confirmAllBtn) confirmAllBtn.style.display = readyCount ? '' : 'none';
+  revBulk.classList.toggle('on', proposalCount > 0 || readyCount > 0 || procCount > 0);
   const stopBtn = document.getElementById('btn-stop-proc');
   if (stopBtn) stopBtn.style.display = procCount ? '' : 'none';
   const discardAllBtn = document.getElementById('btn-discard-all');
@@ -76,6 +163,8 @@ export function renderCards() {
   if (!totalN) {
     revCardsEl.innerHTML = ''; revBulk.classList.remove('on');
     document.getElementById('rev-title').textContent = 'Pending Review';
+    const fillStatus = document.getElementById('fill-review-status');
+    if (fillStatus) { fillStatus.textContent = ''; fillStatus.style.display = 'none'; }
     if (!revErr.style.display || revErr.style.display === 'none') revPanel.classList.remove('on');
     return;
   }
@@ -83,6 +172,7 @@ export function renderCards() {
     <th style="width:170px"></th>
     <th>Title</th><th style="width:120px"></th>
   </tr></thead><tbody>${cards.map(card => {
+    if (card.source === 'fill-proposal') return renderFillProposalCard(card);
     const proc = card.processingState === 'processing';
     const queued = card.processingState === 'queued';
     const fail = card.processingState === 'failed';
@@ -196,6 +286,158 @@ export function renderCards() {
       } catch { btn.disabled = false; btn.textContent = '↺'; toast('Retry failed', 'err'); }
     });
   });
+
+  attachFillProposalHandlers();
+}
+
+function fillProposalAt(uid, index) {
+  const card = cards.find(c => c.uid === uid && c.source === 'fill-proposal');
+  return { card, proposal: card?.proposals[index] };
+}
+
+async function applyFillProposal(uid) {
+  const card = cards.find(c => c.uid === uid && c.source === 'fill-proposal');
+  if (!card || card.applying) return;
+  const selected = card.proposals.filter(p =>
+    p.state === 'accepted' &&
+    FILL_PROPOSAL_FIELDS.has(p.field) &&
+    p.acceptedValue !== undefined &&
+    String(p.acceptedValue).trim()
+  );
+  if (!selected.length) return;
+
+  const expected = {};
+  const updates = {};
+  selected.forEach(p => {
+    expected[p.field] = p.originalValue;
+    updates[p.field] = p.acceptedValue;
+  });
+
+  card.applying = true;
+  card.applyStatus = 'Applying accepted fields…';
+  renderCards();
+
+  let results;
+  try {
+    const response = await fetch(`/api/tapes/${encodeURIComponent(card.data.tape_id)}/fill-proposals`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ expected, updates }),
+    });
+    if (!response.ok) throw new Error('apply request failed');
+    const payload = await response.json();
+    if (!payload || !payload.results || typeof payload.results !== 'object' || Array.isArray(payload.results)) {
+      throw new Error('invalid apply response');
+    }
+    results = payload.results;
+  } catch {
+    card.applying = false;
+    card.applyStatus = 'Apply failed. No local changes were made; retry or refresh before applying again.';
+    renderCards();
+    return;
+  }
+
+  const applied = {};
+  let conflicts = 0;
+  let invalid = 0;
+  let unknown = 0;
+  selected.forEach(p => {
+    const outcome = results[p.field];
+    if (outcome === 'applied') {
+      p.state = 'applied';
+      p.appliedValue = updates[p.field];
+      applied[p.field] = updates[p.field];
+    } else if (outcome === 'stale_value_conflict') {
+      p.state = 'conflict';
+      conflicts++;
+    } else if (outcome === 'invalid_value' || outcome === 'invalid_value_range') {
+      p.state = 'invalid';
+      invalid++;
+    } else {
+      p.state = 'invalid';
+      unknown++;
+    }
+    p.editing = false;
+  });
+
+  const tape = inventory.find(t => String(t.id) === String(card.data.tape_id));
+  const appliedCount = Object.keys(applied).length;
+  if (appliedCount) {
+    card.hasApplied = true;
+    if (tape) {
+      Object.assign(tape, applied);
+      renderInv();
+      updateCount();
+    }
+  }
+
+  const reviewCount = conflicts + invalid + unknown;
+  if (appliedCount && reviewCount) {
+    card.applyStatus = `${appliedCount} accepted field${appliedCount === 1 ? '' : 's'} applied; ${reviewCount} need review.`;
+  } else if (appliedCount) {
+    card.applyStatus = `${appliedCount} accepted field${appliedCount === 1 ? '' : 's'} applied.`;
+  } else if (conflicts) {
+    card.applyStatus = `No fields applied; ${conflicts} changed since proposal. Refresh proposals before retrying.`;
+  } else if (invalid || unknown) {
+    card.applyStatus = 'No fields applied. One or more accepted values need correction.';
+  } else {
+    card.applyStatus = 'No fields were applied. Review the accepted values and try again.';
+  }
+  card.applying = false;
+  renderCards();
+}
+
+function attachFillProposalHandlers() {
+  revCardsEl.querySelectorAll('.fill-proposal-input').forEach(input => input.addEventListener('input', () => {
+    const { card, proposal } = fillProposalAt(+input.dataset.uid, +input.dataset.index);
+    if (!proposal) return;
+    proposal.editValue = input.value;
+    proposal.state = proposal.editValue === String(proposal.value) ? 'pending' : 'edited';
+    if (card) card.applyStatus = '';
+    const field = input.closest('.fill-proposal-field');
+    if (field) {
+      field.dataset.state = proposal.state;
+      const state = field.querySelector('.fill-proposal-state');
+      if (state) { state.dataset.state = proposal.state; state.textContent = fillProposalStateLabel(proposal.state); }
+    }
+  }));
+  revCardsEl.querySelectorAll('.fill-proposal-edit').forEach(btn => btn.addEventListener('click', () => {
+    const { card, proposal } = fillProposalAt(+btn.dataset.uid, +btn.dataset.index);
+    if (!proposal) return;
+    proposal.editing = !proposal.editing;
+    if (card) card.applyStatus = '';
+    renderCards();
+    if (proposal.editing) revCardsEl.querySelector('.fill-proposal-input[data-uid="' + btn.dataset.uid + '"][data-index="' + btn.dataset.index + '"]')?.focus();
+  }));
+  revCardsEl.querySelectorAll('.fill-proposal-accept').forEach(btn => btn.addEventListener('click', () => {
+    const { card, proposal } = fillProposalAt(+btn.dataset.uid, +btn.dataset.index);
+    if (!proposal || !proposal.editValue.trim()) return;
+    proposal.state = 'accepted'; proposal.acceptedValue = proposal.editValue; proposal.editing = false;
+    if (card) card.applyStatus = '';
+    renderCards();
+  }));
+  revCardsEl.querySelectorAll('.fill-proposal-reject').forEach(btn => btn.addEventListener('click', () => {
+    const { card, proposal } = fillProposalAt(+btn.dataset.uid, +btn.dataset.index);
+    if (!proposal) return;
+    proposal.state = 'rejected'; proposal.editing = false;
+    if (card) card.applyStatus = '';
+    renderCards();
+  }));
+  revCardsEl.querySelectorAll('.fill-proposal-accept-high').forEach(btn => btn.addEventListener('click', () => {
+    const card = cards.find(c => c.uid === +btn.dataset.uid && c.source === 'fill-proposal');
+    if (!card) return;
+    card.proposals.forEach(p => {
+      if (p.confidence !== 'low' && ['pending', 'edited'].includes(p.state) && p.editValue.trim()) {
+        p.state = 'accepted'; p.acceptedValue = p.editValue; p.editing = false;
+      }
+    });
+    card.applyStatus = '';
+    renderCards();
+  }));
+  revCardsEl.querySelectorAll('.fill-proposal-apply').forEach(btn => btn.addEventListener('click', () => {
+    applyFillProposal(+btn.dataset.uid);
+  }));
+  revCardsEl.querySelectorAll('.fill-proposal-dismiss').forEach(btn => btn.addEventListener('click', () => discardCard(+btn.dataset.uid)));
 }
 
 export function syncCard(uid) {
@@ -212,6 +454,7 @@ export function syncCard(uid) {
 export async function confirmCard(uid) {
   syncCard(uid);
   const card = cards.find(c => c.uid === uid); if (!card) return;
+  if (card.source === 'fill-proposal') return;
   if ((card.processingState === 'processing' || card.processingState === 'queued') && !card.data.title?.trim()) return;
 
   if (card.source === 'fill' || card.source === 'revalidate') {
@@ -290,7 +533,7 @@ export function discardCard(uid) {
 
 document.getElementById('btn-confirm-all').addEventListener('click', async () => {
   for (const card of [...cards]) {
-    if (card.processingState === 'processing' || card.processingState === 'queued') continue;
+    if (card.source === 'fill-proposal' || card.processingState === 'processing' || card.processingState === 'queued') continue;
     syncCard(card.uid); if (card.data.title.trim()) await confirmCard(card.uid);
   }
 });

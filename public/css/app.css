@@ -750,3 +750,31 @@ body.crt-on #crt-overlay{display:block}
 #auth-slot-mob .auth-avatar{width:32px;height:32px}
 #auth-slot-mob .hbtn{width:100%;text-align:left}
 #auth-slot-mob .auth-signin-btn{width:100%;text-align:center;display:flex;justify-content:center}
+
+/* Proposal-only Fill review: explicit per-field decisions, no implicit writes. */
+.fill-proposal-card>td{padding:8px!important}
+.fill-proposal-wrap{display:flex;flex-direction:column;gap:10px;min-width:0}
+.fill-proposal-header,.fill-proposal-field-head,.fill-proposal-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fill-proposal-header{justify-content:space-between}
+.fill-proposal-tape-id{font-size:10px;color:var(--text3);margin-left:8px}
+.fill-proposal-fields{display:grid;grid-template-columns:1fr;gap:8px}
+.fill-proposal-field{border:1px solid var(--border2);border-radius:6px;background:var(--bg2);padding:9px;min-width:0}
+.fill-proposal-field[data-state="accepted"]{border-color:var(--green)}
+.fill-proposal-field[data-state="rejected"]{opacity:.72}
+.fill-proposal-values{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin:8px 0}
+.fill-proposal-original,.fill-proposal-new{display:flex;flex-direction:column;gap:4px;min-width:0;font-size:11px;color:var(--text2)}
+.fill-proposal-original strong{color:var(--text);overflow-wrap:anywhere}
+.fill-proposal-input{width:100%;min-width:0;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:4px;padding:6px;font:inherit}
+.fill-proposal-input[readonly]{opacity:.8}
+.fill-proposal-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:10px;color:var(--text3);overflow-wrap:anywhere}
+.fill-proposal-actions{justify-content:flex-end;margin-top:8px}
+.fill-proposal-state{margin-right:auto;font-size:11px;color:var(--text2)}
+.fill-proposal-state[data-state="accepted"]{color:var(--green)}
+.fill-confidence{font-size:10px;border:1px solid var(--border2);border-radius:3px;padding:2px 5px;text-transform:uppercase}
+.fill-confidence-verified{color:var(--green)}
+.fill-confidence-inferred{color:var(--blue)}
+.fill-confidence-low,.fill-confidence-note{color:var(--yellow)}
+.fill-confidence-note,.fill-proposal-status{font-size:11px}
+.fill-proposal-status{color:var(--text2);overflow-wrap:anywhere}
+@media(max-width:600px){.fill-proposal-values{grid-template-columns:1fr}.fill-proposal-actions{justify-content:flex-start}.fill-proposal-state{flex-basis:100%}.fill-proposal-header{align-items:flex-start}}
+

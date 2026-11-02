@@ -38,6 +38,7 @@ const {
   tapesGetHandler,
   tapesPostHandler,
   tapesPutHandler,
+  tapesFillProposalsHandler,
   tapesDeleteHandler
 } = require('./modules/routes/tapes');
 const { valuatePreviewHandler, valuateTapeHandler } = require('./modules/routes/valuate');
@@ -252,6 +253,8 @@ app.get('/api/tapes', tapeLimiter, tapesGetHandler);
 app.post('/api/tapes', tapeLimiter, requireAuth, tapesPostHandler);
 // codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site PUT; requireAuth enforces authentication
 app.put('/api/tapes/:id', tapeWriteLimiter, requireAuth, tapesPutHandler);
+// codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site PATCH; requireAuth enforces authentication
+app.patch('/api/tapes/:id/fill-proposals', tapeWriteLimiter, requireAuth, tapesFillProposalsHandler);
 // codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token blocks cross-site DELETE; requireAuth enforces authentication
 app.delete('/api/tapes/:id', tapeWriteLimiter, requireAuth, tapesDeleteHandler);
 

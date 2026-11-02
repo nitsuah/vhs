@@ -10,8 +10,6 @@ on:
       - 'playwright.config.js'
       - 'package-lock.json'
       - '.github/workflows/fill-review.yml'
-      - 'eslint.config.mjs'
-      - 'package.json'
   push:
     branches: [main]
     paths:
@@ -21,8 +19,6 @@ on:
       - 'playwright.config.js'
       - 'package-lock.json'
       - '.github/workflows/fill-review.yml'
-      - 'eslint.config.mjs'
-      - 'package.json'
   workflow_dispatch:
 
 permissions:
@@ -67,7 +63,7 @@ jobs:
           npx playwright test tests_playwright/fill-review.spec.js --reporter=line
 
       - name: Lint proposal-review UI and spec
-        run: npx eslint --config ./eslint.config.mjs public/js/review.js public/js/capture.js tests_playwright/fill-review.spec.js
+        run: npx eslint --env browser --parser-options '{"sourceType":"module"}' --config ./.eslintrc.json public/js/review.js public/js/capture.js tests_playwright/fill-review.spec.js
 
       - name: Upload Playwright diagnostics
         if: failure()
