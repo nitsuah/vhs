@@ -1,0 +1,75 @@
+name: Fill Review UI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'public/js/review.js'
+      - 'public/js/capture.js'
+      - 'tests_playwright/fill-review.spec.js'
+      - 'playwright.config.js'
+      - 'package-lock.json'
+      - '.github/workflows/fill-review.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'public/js/review.js'
+      - 'public/js/capture.js'
+      - 'tests_playwright/fill-review.spec.js'
+      - 'playwright.config.js'
+      - 'package-lock.json'
+      - '.github/workflows/fill-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fill-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fill-review:
+    name: Fill proposal review (mocked API)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run focused proposal-review journey
+        run: |
+          set -eu
+          node -e "require('express')().use(require('express').static('public')).listen(8082, '127.0.0.1')" > /tmp/vhs-static.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8082/ >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8082/ >/dev/null
+          npx playwright test tests_playwright/fill-review.spec.js --reporter=line
+
+      - name: Lint proposal-review UI and spec
+        run: npx eslint --env browser --config ./.eslintrc.json public/js/review.js public/js/capture.js tests_playwright/fill-review.spec.js
+
+      - name: Upload Playwright diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: fill-review-playwright-diagnostics
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
