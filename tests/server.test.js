@@ -3,7 +3,10 @@ const request = require('supertest');
 
 // Must mock pg and http-proxy-middleware before requiring server.js
 const mockQuery = jest.fn();
-jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: mockQuery })) }));
+const mockClientQuery = jest.fn();
+const mockClient = { query: mockClientQuery, release: jest.fn() };
+const mockConnect = jest.fn();
+jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: mockQuery, connect: mockConnect })) }));
 jest.mock('http-proxy-middleware', () => ({
   createProxyMiddleware: () => (_req, _res, next) => next(),
 }));
@@ -47,6 +50,9 @@ const actualResolveOllamaUrl = jest.requireActual('../src/modules/ollama').resol
 
 beforeEach(() => {
   mockQuery.mockReset();
+  mockClientQuery.mockReset();
+  mockConnect.mockReset().mockResolvedValue(mockClient);
+  mockClient.release.mockReset();
   enhancedLookup.mockClear();
   tmdbLookup.mockClear();
   resolveOllamaUrl.mockClear();
@@ -97,6 +103,154 @@ describe('PUT /api/tapes/:id', () => {
     const res = await request(app).put('/api/tapes/VHS-0001').send(tape);
     expect(res.status).toBe(200);
     expect(res.body.title).toBe('Updated');
+  });
+});
+
+describe('PATCH /api/tapes/:id/fill-proposals', () => {
+  it('applies only allowlisted fields under a row lock and preserves unrelated tape data', async () => {
+    const current = {
+      id: 'VHS-0001',
+      title: 'Jaws',
+      year: 'Unknown',
+      value_low: '5',
+      value_high: '10',
+      photos: ['cover.jpg'],
+      photo_face: 'face.jpg',
+      tags: ['trusted'],
+      barcode: '012345678905',
+    };
+    mockClientQuery
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ data: current }] })
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({});
+
+    const res = await request(app).patch('/api/tapes/VHS-0001/fill-proposals').send({
+      expected: { year: 'Unknown', value_low: '5' },
+      updates: { year: '1979', value_low: '8' },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ results: { year: 'applied', value_low: 'applied' } });
+    expect(res.body).not.toHaveProperty('data');
+    expect(mockConnect).toHaveBeenCalledTimes(1);
+    expect(mockClientQuery.mock.calls[0][0]).toBe('BEGIN');
+    expect(mockClientQuery.mock.calls[1][0]).toMatch(/FOR UPDATE$/);
+    expect(mockClientQuery.mock.calls[2][0]).toMatch(/^UPDATE tapes SET data=/);
+    expect(mockClientQuery.mock.calls[2][1][0]).toMatchObject({
+      year: '1979',
+      value_low: '8',
+      photos: ['cover.jpg'],
+      photo_face: 'face.jpg',
+      tags: ['trusted'],
+      barcode: '012345678905',
+    });
+    expect(mockClientQuery.mock.calls[3][0]).toBe('COMMIT');
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the same owner predicate as tape writes when auth is enabled', async () => {
+    let handler;
+    jest.isolateModules(() => {
+      jest.doMock('../src/modules/auth', () => ({ ENABLED: true }));
+      jest.doMock('../src/modules/db', () => ({ pool: { connect: mockConnect } }));
+      handler = require('../src/modules/routes/tapes').tapesFillProposalsHandler;
+    });
+    jest.dontMock('../src/modules/auth');
+    jest.dontMock('../src/modules/db');
+
+    mockClientQuery
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001', year: 'Unknown' } }] })
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({});
+    const req = {
+      params: { id: 'VHS-0001' },
+      user: { sub: 'owner-1' },
+      body: { expected: { year: 'Unknown' }, updates: { year: '1979' } },
+    };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+
+    await handler(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({ results: { year: 'applied' } });
+    expect(mockClientQuery.mock.calls[1][0]).toBe('SELECT data FROM tapes WHERE id=$1 AND owner_id=$2 FOR UPDATE');
+    expect(mockClientQuery.mock.calls[1][1]).toEqual(['VHS-0001', 'owner-1']);
+    expect(mockClientQuery.mock.calls[2][0]).toBe('UPDATE tapes SET data=$1 WHERE id=$2 AND owner_id=$3');
+    expect(mockClientQuery.mock.calls[2][1]).toEqual([
+      { id: 'VHS-0001', year: '1979' },
+      'VHS-0001',
+      'owner-1',
+    ]);
+  });
+
+  it('skips stale proposal values without writing', async () => {
+    mockClientQuery
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001', year: '1980' } }] })
+      .mockResolvedValueOnce({});
+
+    const res = await request(app).patch('/api/tapes/VHS-0001/fill-proposals').send({
+      expected: { year: '1979' },
+      updates: { year: '1981' },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ results: { year: 'stale_value_conflict' } });
+    expect(mockClientQuery.mock.calls.some(([sql]) => /^UPDATE tapes/.test(sql))).toBe(false);
+    expect(mockClientQuery.mock.calls.at(-1)[0]).toBe('COMMIT');
+  });
+
+  it('rejects unknown, mismatched, nested, or empty field sets before opening a transaction', async () => {
+    const cases = [
+      { expected: { title: 'Jaws' }, updates: { title: 'Alien' } },
+      { expected: { year: '1980' }, updates: { year: '1981', label: 'Studio' } },
+      { expected: { year: '1980' }, updates: { year: { nested: true } } },
+      { expected: {}, updates: {} },
+    ];
+
+    for (const body of cases) {
+      const res = await request(app).patch('/api/tapes/VHS-0001/fill-proposals').send(body);
+      expect(res.status).toBe(400);
+    }
+    expect(mockConnect).not.toHaveBeenCalled();
+  });
+
+  it('skips a numeric proposal that would reverse the resulting value range', async () => {
+    mockClientQuery
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001', value_low: '20', value_high: '30' } }] })
+      .mockResolvedValueOnce({});
+
+    const res = await request(app).patch('/api/tapes/VHS-0001/fill-proposals').send({
+      expected: { value_low: '20' },
+      updates: { value_low: '40' },
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ results: { value_low: 'invalid_value_range' } });
+    expect(mockClientQuery.mock.calls.some(([sql]) => /^UPDATE tapes/.test(sql))).toBe(false);
+  });
+
+  it('rolls back on database failure and returns a generic error', async () => {
+    mockClientQuery
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001', year: 'Unknown' } }] })
+      .mockRejectedValueOnce(new Error('private database detail'))
+      .mockResolvedValueOnce({});
+
+    const logSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await request(app).patch('/api/tapes/VHS-0001/fill-proposals').send({
+      expected: { year: 'Unknown' },
+      updates: { year: '1979' },
+    });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('internal server error');
+    expect(JSON.stringify(logSpy.mock.calls)).not.toContain('private database detail');
+    expect(mockClientQuery.mock.calls.at(-1)[0]).toBe('ROLLBACK');
+    expect(mockClient.release).toHaveBeenCalledTimes(1);
+    logSpy.mockRestore();
   });
 });
 
