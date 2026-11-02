@@ -2,9 +2,10 @@
   "name": "vhs-shelf-scanner",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "lint": "eslint --config ./.eslintrc.json src/server.js",
+    "lint": "eslint src/server.js",
     "test": "NODE_ENV=test jest",
     "test:ui": "playwright test",
     "test:journeys": "playwright test --config config/playwright.journeys.config.js",
