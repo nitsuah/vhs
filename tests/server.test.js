@@ -252,6 +252,26 @@ describe('PATCH /api/tapes/:id/fill-proposals', () => {
     expect(mockClient.release).toHaveBeenCalledTimes(1);
     logSpy.mockRestore();
   });
+
+  it('discards the client when rollback fails', async () => {
+    mockClientQuery
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ data: { id: 'VHS-0001', year: 'Unknown' } }] })
+      .mockRejectedValueOnce(new Error('private database detail'))
+      .mockRejectedValueOnce(new Error('rollback failure'));
+
+    const logSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await request(app).patch('/api/tapes/VHS-0001/fill-proposals').send({
+      expected: { year: 'Unknown' },
+      updates: { year: '1979' },
+    });
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('internal server error');
+    expect(mockClientQuery.mock.calls.at(-1)[0]).toBe('ROLLBACK');
+    expect(mockClient.release).toHaveBeenCalledWith(true);
+    logSpy.mockRestore();
+  });
 });
 
 describe('DELETE /api/tapes/:id', () => {
