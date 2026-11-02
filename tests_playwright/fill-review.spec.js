@@ -49,6 +49,8 @@ async function openFillReview(page) {
   await row.dblclick();
   await expect(row).toHaveClass(/bulk-sel/);
   await page.locator('#bulk-fill').click();
+  // Review cards live in the Review tab; Collection intentionally hides it.
+  await page.locator('#tab-review').click();
   const card = page.locator('.fill-proposal-card');
   await expect(card).toBeVisible();
   return { card, payload: () => payload, writes };
