@@ -7,7 +7,6 @@ export default [
   {
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: "commonjs",
       globals: {
         ...globals.node,
         ...globals.es2022,
