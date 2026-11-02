@@ -29,7 +29,7 @@ jobs:
 
       - name: Guard the owner-approved source head
         env:
-          APPROVED_HEAD: c09fc7dcbe46663882fdfe6d6b7a97e7b74f7914
+          APPROVED_HEAD: d6b0b026f0b1dd79f623f18f631c0b8b5ef443ae
         run: |
           set -euo pipefail
           git merge-base --is-ancestor "$APPROVED_HEAD" HEAD
@@ -44,7 +44,7 @@ jobs:
           curl --fail --location --silent --show-error \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/nitsuah/vhs/actions/artifacts/13052414552/zip \
+            https://api.github.com/repos/nitsuah/vhs/actions/artifacts/13098482283/zip \
             -o /tmp/approved-vhs-journeys.zip
           mkdir -p /tmp/approved-vhs-journeys
           unzip -q /tmp/approved-vhs-journeys.zip -d /tmp/approved-vhs-journeys
