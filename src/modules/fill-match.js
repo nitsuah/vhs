@@ -19,7 +19,11 @@ function titleSimilarity(a, b) {
 
 function extractEdition(title) {
   const t = clean(title);
-  const match = t.match(/\(([^)]*(?:special|director'?s cut|extended|unrated|collector'?s?|anniversary|limited|deluxe|remastered|edition)[^)]*)\)/i);
+  // ReDoS-safe regex: avoid nested quantifiers by using non-backtracking approach
+  // Match parentheses content containing edition keywords without catastrophic backtracking
+  const editionKeywords = ['special', 'director.?s? cut', 'extended', 'unrated', 'collector.?s?', 'anniversary', 'limited', 'deluxe', 'remastered', 'edition'];
+  const pattern = new RegExp(`\\(([^)]*?(?:${editionKeywords.join('|')})[^)]*)\\)`, 'i');
+  const match = t.match(pattern);
   return match ? match[1].toLowerCase() : '';
 }
 
