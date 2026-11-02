@@ -63,7 +63,7 @@ jobs:
           npx playwright test tests_playwright/fill-review.spec.js --reporter=line
 
       - name: Lint proposal-review UI and spec
-        run: npx eslint --env browser --config ./.eslintrc.json public/js/review.js public/js/capture.js tests_playwright/fill-review.spec.js
+        run: npx eslint --env browser --parser-options '{"sourceType":"module"}' --config ./.eslintrc.json public/js/review.js public/js/capture.js tests_playwright/fill-review.spec.js
 
       - name: Upload Playwright diagnostics
         if: failure()
