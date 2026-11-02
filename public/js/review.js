@@ -33,7 +33,14 @@ function safeFillFailures(failures) {
 }
 
 function fillProposalStateLabel(state) {
-  return ({ accepted: 'Accepted (UI only)', rejected: 'Rejected (UI only)', edited: 'Edited — pending accept' })[state] || 'Pending — not accepted';
+  return ({
+    accepted: 'Accepted (UI only)',
+    rejected: 'Rejected (UI only)',
+    edited: 'Edited — pending accept',
+    applied: 'Applied',
+    conflict: 'Changed since proposal — refresh required',
+    invalid: 'Not applied — edit value',
+  })[state] || 'Pending — not accepted';
 }
 
 export function addProposalCard(tape, proposals, partialFailures = {}) {
@@ -60,28 +67,38 @@ export function addProposalCard(tape, proposals, partialFailures = {}) {
 
 function renderFillProposalCard(card) {
   const title = esc(card.data.title || 'Untitled tape');
-  const bulk = card.proposals.some(p => p.confidence !== 'low' && p.state !== 'accepted' && p.state !== 'rejected');
+  const bulk = card.proposals.some(p =>
+    p.confidence !== 'low' && ['pending', 'edited'].includes(p.state) && p.editValue.trim()
+  );
+  const acceptedCount = card.proposals.filter(p =>
+    p.state === 'accepted' && p.acceptedValue !== undefined && String(p.acceptedValue).trim()
+  ).length;
   const fields = card.proposals.map((p, i) => {
     const label = ({ label: 'Title', year: 'Year', format: 'Format', value_low: 'Estimated low value', value_high: 'Estimated high value' })[p.field];
     const original = p.originalValue.trim() ? p.originalValue : '—';
     const state = fillProposalStateLabel(p.state);
     const inputId = 'fill-proposal-' + card.uid + '-' + i;
+    const locked = p.state === 'applied' || p.state === 'conflict';
+    const acceptDisabled = ['accepted', 'rejected', 'applied', 'conflict', 'invalid'].includes(p.state) || !p.editValue.trim();
+    const rejectDisabled = ['rejected', 'applied', 'conflict'].includes(p.state);
     return '<section class="fill-proposal-field" data-field="' + p.field + '" data-state="' + p.state + '">' +
       '<div class="fill-proposal-field-head"><strong>' + esc(label) + '</strong><span class="fill-confidence fill-confidence-' + p.confidence + '">' + esc(p.confidence) + '</span>' +
       (p.confidence === 'low' ? '<span class="fill-confidence-note">Low confidence — review carefully</span>' : '') + '</div>' +
       '<div class="fill-proposal-values"><div class="fill-proposal-original"><span>Original</span><strong>' + esc(original) + '</strong></div>' +
-      '<div class="fill-proposal-new"><label for="' + inputId + '">Proposed</label><input id="' + inputId + '" class="fill-proposal-input" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="Proposed ' + esc(label) + ' for ' + title + '" value="' + esc(p.editValue) + '"' + (p.editing ? '' : ' readonly') + '></div></div>' +
+      '<div class="fill-proposal-new"><label for="' + inputId + '">Proposed</label><input id="' + inputId + '" class="fill-proposal-input" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="Proposed ' + esc(label) + ' for ' + title + '" value="' + esc(p.editValue) + '"' + (p.editing && !locked ? '' : ' readonly') + '></div></div>' +
       '<div class="fill-proposal-meta"><span>Source: ' + esc(p.source) + '</span><span>Reason: ' + esc(p.reasons.join(' · ') || 'candidate field') + '</span></div>' +
       '<div class="fill-proposal-actions"><span class="fill-proposal-state" data-state="' + p.state + '" role="status" aria-live="polite">' + esc(state) + '</span>' +
-      '<button type="button" class="hbtn fill-proposal-edit" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="' + (p.editing ? 'Finish editing' : 'Edit proposed ' + label + ' for ' + title) + '">' + (p.editing ? 'Done' : 'Edit') + '</button>' +
-      '<button type="button" class="btn btn-sm btn-ok fill-proposal-accept" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="Accept proposed ' + esc(label) + ' for ' + title + '"' + (p.state === 'accepted' || !p.editValue.trim() ? ' disabled' : '') + '>Accept</button>' +
-      '<button type="button" class="btn btn-sm btn-x fill-proposal-reject" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="Reject proposed ' + esc(label) + ' for ' + title + '"' + (p.state === 'rejected' ? ' disabled' : '') + '>Reject</button></div></section>';
+      '<button type="button" class="hbtn fill-proposal-edit" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="' + (p.editing ? 'Finish editing' : 'Edit proposed ' + label + ' for ' + title) + '"' + (locked ? ' disabled' : '') + '>' + (p.editing ? 'Done' : 'Edit') + '</button>' +
+      '<button type="button" class="btn btn-sm btn-ok fill-proposal-accept" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="Accept proposed ' + esc(label) + ' for ' + title + '"' + (acceptDisabled ? ' disabled' : '') + '>Accept</button>' +
+      '<button type="button" class="btn btn-sm btn-x fill-proposal-reject" data-uid="' + card.uid + '" data-index="' + i + '" aria-label="Reject proposed ' + esc(label) + ' for ' + title + '"' + (rejectDisabled ? ' disabled' : '') + '>Reject</button></div></section>';
   }).join('');
   return '<tr class="rev-card fill-proposal-card" data-uid="' + card.uid + '"><td colspan="3"><div class="fill-proposal-wrap">' +
-    '<div class="fill-proposal-header"><div><strong>' + title + '</strong><span class="fill-proposal-tape-id">' + esc(card.data.tape_id) + '</span></div><span>Review only · nothing saved</span>' +
+    '<div class="fill-proposal-header"><div><strong>' + title + '</strong><span class="fill-proposal-tape-id">' + esc(card.data.tape_id) + '</span></div><span>' + (card.hasApplied ? 'Applied results' : 'Review only · nothing saved') + '</span>' +
     (bulk ? '<button type="button" class="hbtn fill-proposal-accept-high" data-uid="' + card.uid + '" aria-label="Accept verified and inferred proposals for ' + title + '">Accept verified/inferred</button>' : '') +
+    '<button type="button" class="hbtn fill-proposal-apply" data-uid="' + card.uid + '" aria-label="Apply accepted fields for ' + title + '"' + (acceptedCount === 0 || card.applying ? ' disabled' : '') + '>' + (card.applying ? 'Applying…' : 'Apply accepted fields (' + acceptedCount + ')') + '</button>' +
     '<button type="button" class="hbtn fill-proposal-dismiss" data-uid="' + card.uid + '" aria-label="Dismiss proposals for ' + title + '">Dismiss</button></div>' +
     (card.partialFailures ? '<div class="fill-proposal-status" role="status">Provider status: ' + esc(card.partialFailures) + '</div>' : '') +
+    (card.applyStatus ? '<div class="fill-proposal-status fill-proposal-apply-status" role="status">' + esc(card.applyStatus) + '</div>' : '') +
     '<div class="fill-proposal-fields">' + fields + '</div></div></td></tr>';
 }
 
@@ -278,12 +295,105 @@ function fillProposalAt(uid, index) {
   return { card, proposal: card?.proposals[index] };
 }
 
+async function applyFillProposal(uid) {
+  const card = cards.find(c => c.uid === uid && c.source === 'fill-proposal');
+  if (!card || card.applying) return;
+  const selected = card.proposals.filter(p =>
+    p.state === 'accepted' &&
+    FILL_PROPOSAL_FIELDS.has(p.field) &&
+    p.acceptedValue !== undefined &&
+    String(p.acceptedValue).trim()
+  );
+  if (!selected.length) return;
+
+  const expected = {};
+  const updates = {};
+  selected.forEach(p => {
+    expected[p.field] = p.originalValue;
+    updates[p.field] = p.acceptedValue;
+  });
+
+  card.applying = true;
+  card.applyStatus = 'Applying accepted fields…';
+  renderCards();
+
+  let results;
+  try {
+    const response = await fetch(`/api/tapes/${encodeURIComponent(card.data.tape_id)}/fill-proposals`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ expected, updates }),
+    });
+    if (!response.ok) throw new Error('apply request failed');
+    const payload = await response.json();
+    if (!payload || !payload.results || typeof payload.results !== 'object' || Array.isArray(payload.results)) {
+      throw new Error('invalid apply response');
+    }
+    results = payload.results;
+  } catch {
+    card.applying = false;
+    card.applyStatus = 'Apply failed. No local changes were made; retry or refresh before applying again.';
+    renderCards();
+    return;
+  }
+
+  const applied = {};
+  let conflicts = 0;
+  let invalid = 0;
+  let unknown = 0;
+  selected.forEach(p => {
+    const outcome = results[p.field];
+    if (outcome === 'applied') {
+      p.state = 'applied';
+      p.appliedValue = updates[p.field];
+      applied[p.field] = updates[p.field];
+    } else if (outcome === 'stale_value_conflict') {
+      p.state = 'conflict';
+      conflicts++;
+    } else if (outcome === 'invalid_value' || outcome === 'invalid_value_range') {
+      p.state = 'invalid';
+      invalid++;
+    } else {
+      p.state = 'invalid';
+      unknown++;
+    }
+    p.editing = false;
+  });
+
+  const tape = inventory.find(t => String(t.id) === String(card.data.tape_id));
+  const appliedCount = Object.keys(applied).length;
+  if (appliedCount) {
+    card.hasApplied = true;
+    if (tape) {
+      Object.assign(tape, applied);
+      renderInv();
+      updateCount();
+    }
+  }
+
+  const reviewCount = conflicts + invalid + unknown;
+  if (appliedCount && reviewCount) {
+    card.applyStatus = `${appliedCount} accepted field${appliedCount === 1 ? '' : 's'} applied; ${reviewCount} need review.`;
+  } else if (appliedCount) {
+    card.applyStatus = `${appliedCount} accepted field${appliedCount === 1 ? '' : 's'} applied.`;
+  } else if (conflicts) {
+    card.applyStatus = `No fields applied; ${conflicts} changed since proposal. Refresh proposals before retrying.`;
+  } else if (invalid || unknown) {
+    card.applyStatus = 'No fields applied. One or more accepted values need correction.';
+  } else {
+    card.applyStatus = 'No fields were applied. Review the accepted values and try again.';
+  }
+  card.applying = false;
+  renderCards();
+}
+
 function attachFillProposalHandlers() {
   revCardsEl.querySelectorAll('.fill-proposal-input').forEach(input => input.addEventListener('input', () => {
-    const { proposal } = fillProposalAt(+input.dataset.uid, +input.dataset.index);
+    const { card, proposal } = fillProposalAt(+input.dataset.uid, +input.dataset.index);
     if (!proposal) return;
     proposal.editValue = input.value;
     proposal.state = proposal.editValue === String(proposal.value) ? 'pending' : 'edited';
+    if (card) card.applyStatus = '';
     const field = input.closest('.fill-proposal-field');
     if (field) {
       field.dataset.state = proposal.state;
@@ -292,33 +402,40 @@ function attachFillProposalHandlers() {
     }
   }));
   revCardsEl.querySelectorAll('.fill-proposal-edit').forEach(btn => btn.addEventListener('click', () => {
-    const { proposal } = fillProposalAt(+btn.dataset.uid, +btn.dataset.index);
+    const { card, proposal } = fillProposalAt(+btn.dataset.uid, +btn.dataset.index);
     if (!proposal) return;
     proposal.editing = !proposal.editing;
+    if (card) card.applyStatus = '';
     renderCards();
     if (proposal.editing) revCardsEl.querySelector('.fill-proposal-input[data-uid="' + btn.dataset.uid + '"][data-index="' + btn.dataset.index + '"]')?.focus();
   }));
   revCardsEl.querySelectorAll('.fill-proposal-accept').forEach(btn => btn.addEventListener('click', () => {
-    const { proposal } = fillProposalAt(+btn.dataset.uid, +btn.dataset.index);
+    const { card, proposal } = fillProposalAt(+btn.dataset.uid, +btn.dataset.index);
     if (!proposal || !proposal.editValue.trim()) return;
     proposal.state = 'accepted'; proposal.acceptedValue = proposal.editValue; proposal.editing = false;
+    if (card) card.applyStatus = '';
     renderCards();
   }));
   revCardsEl.querySelectorAll('.fill-proposal-reject').forEach(btn => btn.addEventListener('click', () => {
-    const { proposal } = fillProposalAt(+btn.dataset.uid, +btn.dataset.index);
+    const { card, proposal } = fillProposalAt(+btn.dataset.uid, +btn.dataset.index);
     if (!proposal) return;
     proposal.state = 'rejected'; proposal.editing = false;
+    if (card) card.applyStatus = '';
     renderCards();
   }));
   revCardsEl.querySelectorAll('.fill-proposal-accept-high').forEach(btn => btn.addEventListener('click', () => {
     const card = cards.find(c => c.uid === +btn.dataset.uid && c.source === 'fill-proposal');
     if (!card) return;
     card.proposals.forEach(p => {
-      if (p.confidence !== 'low' && p.state !== 'rejected' && p.editValue.trim()) {
+      if (p.confidence !== 'low' && ['pending', 'edited'].includes(p.state) && p.editValue.trim()) {
         p.state = 'accepted'; p.acceptedValue = p.editValue; p.editing = false;
       }
     });
+    card.applyStatus = '';
     renderCards();
+  }));
+  revCardsEl.querySelectorAll('.fill-proposal-apply').forEach(btn => btn.addEventListener('click', () => {
+    applyFillProposal(+btn.dataset.uid);
   }));
   revCardsEl.querySelectorAll('.fill-proposal-dismiss').forEach(btn => btn.addEventListener('click', () => discardCard(+btn.dataset.uid)));
 }
