@@ -99,7 +99,7 @@ test('Fill proposals show provenance and keep accept/reject/edit decisions per f
 test('proposal review controls fit a mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const { card } = await openFillReview(page);
-  await expect(card.locator('.fill-proposal-accept')).toBeVisible();
+  await expect(card.locator('.fill-proposal-accept').first()).toBeVisible();
   const overflow = await card.evaluate(el => el.scrollWidth > el.clientWidth);
   expect(overflow).toBe(false);
 });
