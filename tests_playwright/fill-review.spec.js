@@ -15,7 +15,12 @@ const PROPOSALS = [
 ];
 
 async function openFillReview(page) {
-  await page.addInitScript(() => localStorage.setItem('vhs-apikey', 'test-only'));
+  await page.addInitScript(() => {
+    localStorage.setItem('vhs-apikey', 'test-only');
+    // Collection defaults to Stacks mode (1); this test intentionally uses
+    // the table-row selector, so pin the view before app modules initialize.
+    localStorage.setItem('vhs-wall-mode', '0');
+  });
   const writes = [];
   let payload = null;
   await page.route('**/api/**', async route => {
