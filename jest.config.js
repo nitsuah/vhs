@@ -1,5 +1,5 @@
 'use strict';
-export default {
+module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.js', '**/tests/**/*.spec.js'],
   testPathIgnorePatterns: ['/node_modules/', '/app/tests/playwright/', '/tests/playwright/', '/tests/journeys/'],
