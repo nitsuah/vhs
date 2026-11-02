@@ -2,6 +2,7 @@
   "name": "vhs-shelf-scanner",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "start": "node src/server.js",
     "lint": "eslint src/server.js",
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@playwright/test": "^1.44.0",
     "eslint": "^10.14.0",
+    "globals": "^17.13.0",
     "jest": "^30.5.2",
     "supertest": "^7.0.0"
   },
