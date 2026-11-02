@@ -143,6 +143,7 @@ async function tapesFillProposalsHandler(req, res) {
   const ownerScoped = ENABLED && req.user;
   let client;
   let inTransaction = false;
+  let discardClient = false;
   try {
     client = await pool.connect();
     await client.query('BEGIN');
@@ -229,13 +230,14 @@ async function tapesFillProposalsHandler(req, res) {
       try {
         await client.query('ROLLBACK');
       } catch {
+        discardClient = true;
         console.error('Fill proposal apply rollback failed');
       }
     }
     console.error('Fill proposal apply failed');
     return res.status(500).json({ error: 'internal server error' });
   } finally {
-    if (client) client.release();
+    if (client) client.release(discardClient);
   }
 }
 
