@@ -9,6 +9,8 @@ on:
       - 'tests_playwright/fill-review.spec.js'
       - 'playwright.config.js'
       - 'package-lock.json'
+      - 'package.json'
+      - 'eslint.config.mjs'
       - '.github/workflows/fill-review.yml'
   push:
     branches: [main]
@@ -63,7 +65,12 @@ jobs:
           npx playwright test tests_playwright/fill-review.spec.js --reporter=line
 
       - name: Lint proposal-review UI and spec
-        run: npx eslint --env browser --parser-options '{"sourceType":"module"}' --config ./.eslintrc.json public/js/review.js public/js/capture.js tests_playwright/fill-review.spec.js
+        run: |
+          if [ -f eslint.config.mjs ]; then
+            npx eslint --config ./eslint.config.mjs public/js/review.js public/js/capture.js tests_playwright/fill-review.spec.js
+          else
+            npx eslint --env browser --parser-options '{"sourceType":"module"}' --config ./.eslintrc.json public/js/review.js public/js/capture.js tests_playwright/fill-review.spec.js
+          fi
 
       - name: Upload Playwright diagnostics
         if: failure()
