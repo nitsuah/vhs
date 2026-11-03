@@ -707,6 +707,15 @@ describe('GET /api/artwork/search', () => {
     expect(res.status).toBe(502);
     expect(res.body).toEqual({ error: 'artwork search unavailable' });
     expect(JSON.stringify(res.body)).not.toContain('private upstream detail');
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ error: { info: 'private upstream detail' } }),
+    });
+    const apiError = await request(app).get('/api/artwork/search?title=Alien&role=spine');
+    expect(apiError.status).toBe(502);
+    expect(apiError.body).toEqual({ error: 'artwork search unavailable' });
+    expect(JSON.stringify(apiError.body)).not.toContain('private upstream detail');
   });
 });
 
