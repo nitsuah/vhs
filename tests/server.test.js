@@ -636,6 +636,78 @@ describe('GET /api/lookup', () => {
   });
 });
 
+// ── Wikimedia Commons artwork search ─────────────────────────────────────────
+describe('GET /api/artwork/search', () => {
+  const origFetch = global.fetch;
+  afterEach(() => { global.fetch = origFetch; });
+
+  const commonsPage = (licenseName = 'CC BY 4.0', licenseUrl = 'https://creativecommons.org/licenses/by/4.0/') => ({
+    title: 'File:Example.jpg',
+    imageinfo: [{
+      url: 'https://upload.wikimedia.org/wikipedia/commons/a/ab/Example.jpg',
+      thumburl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Example.jpg/320px-Example.jpg',
+      descriptionurl: 'https://commons.wikimedia.org/wiki/File:Example.jpg',
+      extmetadata: {
+        LicenseShortName: { value: licenseName },
+        LicenseUrl: { value: licenseUrl },
+        Attribution: { value: 'Example Artist' },
+      },
+    }],
+  });
+
+  it('uses the fixed Commons API and returns only normalized allowed metadata', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ query: { pages: [
+        commonsPage(),
+        commonsPage('CC BY-NC 4.0', 'https://creativecommons.org/licenses/by-nc/4.0/'),
+      ] } }),
+    });
+    const res = await request(app).get('/api/artwork/search?title=Alien%20VHS&role=cover');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      role: 'cover',
+      items: [{
+        title: 'File:Example.jpg',
+        previewUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Example.jpg/320px-Example.jpg',
+        originalUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/ab/Example.jpg',
+        sourceUrl: 'https://commons.wikimedia.org/wiki/File:Example.jpg',
+        license: 'CC BY 4.0',
+        licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+        attribution: 'Example Artist',
+      }],
+    });
+    const [url, options] = global.fetch.mock.calls[0];
+    const parsed = new URL(url);
+    expect(parsed.origin).toBe('https://commons.wikimedia.org');
+    expect(parsed.pathname).toBe('/w/api.php');
+    expect(parsed.searchParams.get('gsrsearch')).toBe('Alien VHS');
+    expect(parsed.searchParams.get('gsrnamespace')).toBe('6');
+    expect(parsed.searchParams.get('gsrlimit')).toBe('8');
+    expect(parsed.searchParams.get('iiprop')).toBe('url|extmetadata');
+    expect(options.signal).toBeDefined();
+  });
+
+  it('rejects invalid title or role before any fetch', async () => {
+    const responses = await Promise.all([
+      request(app).get('/api/artwork/search?role=cover'),
+      request(app).get('/api/artwork/search?title=%20%20&role=cover'),
+      request(app).get('/api/artwork/search?title=Alien&role=poster'),
+      request(app).get(`/api/artwork/search?title=${'x'.repeat(201)}&role=cover`),
+    ]);
+    expect(responses.every((res) => res.status === 400)).toBe(true);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('returns a generic 502 without exposing upstream errors', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('private upstream detail'));
+    const res = await request(app).get('/api/artwork/search?title=Alien&role=spine');
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual({ error: 'artwork search unavailable' });
+    expect(JSON.stringify(res.body)).not.toContain('private upstream detail');
+  });
+});
+
 // ── Proposal-only Fill API ────────────────────────────────────────────────────
 
 describe('POST /api/fill/proposals', () => {
