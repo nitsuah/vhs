@@ -473,6 +473,7 @@ app.get('/api/artwork/search', defaultLimiter, async (req, res) => {
     });
     if (!upstream.ok) return res.status(502).json({ error: 'artwork search unavailable' });
     const payload = await upstream.json();
+    if (payload?.error) return res.status(502).json({ error: 'artwork search unavailable' });
     const items = normalizeWikimediaArtworkResults(payload).slice(0, 8);
     return res.json({ role, items });
   } catch {
