@@ -689,6 +689,8 @@ describe('GET /api/artwork/search', () => {
   });
 
   it('rejects invalid title or role before any fetch', async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock;
     const responses = await Promise.all([
       request(app).get('/api/artwork/search?role=cover'),
       request(app).get('/api/artwork/search?title=%20%20&role=cover'),
@@ -696,7 +698,7 @@ describe('GET /api/artwork/search', () => {
       request(app).get(`/api/artwork/search?title=${'x'.repeat(201)}&role=cover`),
     ]);
     expect(responses.every((res) => res.status === 400)).toBe(true);
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('returns a generic 502 without exposing upstream errors', async () => {
