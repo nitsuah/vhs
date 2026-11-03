@@ -28,6 +28,7 @@ const { healthHandler } = require('./modules/routes/health');
 const { jobId, reviewItemId, analyticsId } = require('./modules/ids');
 const { enhancedLookup, callOmdb, normalizeTitleForLookup, levenshteinDistance } = require('./modules/omdb');
 const { tmdbLookup } = require('./modules/tmdb');
+const { normalizeWikimediaArtworkResults } = require('./modules/wikimedia-artwork');
 const { buildFieldProposals } = require('./modules/fill-proposals');
 const { logScanAnalytics } = require('./modules/analytics');
 const { processJobs } = require('./modules/worker');
@@ -442,6 +443,42 @@ Omit fields you're unsure about. Return {} if completely unknown.`;
   if (result.poster === undefined) delete result.poster;
 
   res.json(result);
+});
+
+// ── Wikimedia Commons artwork search ─────────────────────────────────────────
+app.get('/api/artwork/search', defaultLimiter, async (req, res) => {
+  const title = typeof req.query.title === 'string' ? req.query.title.trim() : '';
+  const role = typeof req.query.role === 'string' ? req.query.role : '';
+  if (!title || title.length > 200 || !['cover', 'spine'].includes(role)) {
+    return res.status(400).json({ error: 'title and role required' });
+  }
+
+  const params = new URLSearchParams({
+    action: 'query',
+    generator: 'search',
+    gsrsearch: title,
+    gsrnamespace: '6',
+    gsrlimit: '8',
+    prop: 'imageinfo',
+    iiprop: 'url|extmetadata',
+    iiurlwidth: '320',
+    format: 'json',
+    formatversion: '2',
+  });
+
+  try {
+    const upstream = await fetch(`https://commons.wikimedia.org/w/api.php?${params}`, {
+      headers: { 'User-Agent': 'VHS Shelf Scanner/1.0 (https://github.com/nitsuah/vhs)' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!upstream.ok) return res.status(502).json({ error: 'artwork search unavailable' });
+    const payload = await upstream.json();
+    if (payload?.error) return res.status(502).json({ error: 'artwork search unavailable' });
+    const items = normalizeWikimediaArtworkResults(payload).slice(0, 8);
+    return res.json({ role, items });
+  } catch {
+    return res.status(502).json({ error: 'artwork search unavailable' });
+  }
 });
 
 // ── Proposal-only Fill API ────────────────────────────────────────────────────
