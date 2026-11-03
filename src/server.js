@@ -468,7 +468,7 @@ app.get('/api/artwork/search', defaultLimiter, async (req, res) => {
 
   try {
     const upstream = await fetch(`https://commons.wikimedia.org/w/api.php?${params}`, {
-      headers: { 'User-Agent': 'VHS Shelf Scanner/1.0' },
+      headers: { 'User-Agent': 'VHS Shelf Scanner/1.0 (https://github.com/nitsuah/vhs)' },
       signal: AbortSignal.timeout(8000),
     });
     if (!upstream.ok) return res.status(502).json({ error: 'artwork search unavailable' });
