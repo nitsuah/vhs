@@ -38,7 +38,7 @@ jobs:
     with:
       # Keep in step with @playwright/test in package-lock.json and
       # config/Dockerfile.playwright.
-      image: mcr.microsoft.com/playwright:v1.61.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
       command: npm run test:journeys
       features: promo/spots.json
       repro: |
