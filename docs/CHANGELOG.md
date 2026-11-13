@@ -8,6 +8,7 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- **Changed:** Playwright 1.65.0: `@playwright/test`, the Journeys image and `config/Dockerfile.playwright` now use the same version (`v1.65.0-noble`), which fixes the nightly Journeys run that could not start Chromium (#161). The jest `glob` override moves to `^14.0.6` (GHSA-3g3m-2fjr-6pw4).
 - **Changed:** `netlify.toml` gains a production-only `ignore` command, so a push to `main` deploys only when something outside docs, tests, CI config or promo assets changed. Each production deploy costs 15 Netlify credits, and docs/test-only merges no longer spend them. Deploy previews are unaffected, and a missing `CACHED_COMMIT_REF` makes the check fail open so the build still runs.
 - Google sign-in no longer requests `access_type=offline`: the app never stores a refresh token (sign-in only, scopes `openid email profile`), so the flag was unused. `.env.example` now documents the Google auth, JWT, legacy-owner, and external API (TMDb, OMDb, eBay) variables.
 
