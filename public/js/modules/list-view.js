@@ -160,7 +160,21 @@ export function updateBulkBar() {
   }
 }
 
+export function renderStatsChips() {
+  const root = document.getElementById('stats-chips');
+  if (!root) return;
+  const inventory = getInventory();
+  const filters = getColFilters();
+  root.querySelectorAll('button[data-stats-filter]').forEach(button => {
+    const key = button.dataset.statsFilter;
+    const value = button.dataset.value;
+    button.querySelector('.stats-count').textContent = inventory.filter(t => t[key] === value).length;
+    button.setAttribute('aria-pressed', String(filters[key] === value));
+  });
+}
+
 export function updateCount() {
+  renderStatsChips();
   const all = getInventory().length;
   const filtered = getFiltered();
   const n = filtered.length;
@@ -216,4 +230,13 @@ document.getElementById('fbi-youtube-close')?.addEventListener('click', () => {
     const iframe = wrap.querySelector('iframe');
     if (iframe) iframe.remove();
   }
+});
+
+document.getElementById('stats-chips')?.addEventListener('click', event => {
+  const button = event.target.closest('button[data-stats-filter]');
+  if (!button) return;
+  const filters = getColFilters();
+  const key = button.dataset.statsFilter;
+  filters[key] = filters[key] === button.dataset.value ? '' : button.dataset.value;
+  window.quickFilter(null, null);
 });
