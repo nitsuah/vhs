@@ -111,7 +111,7 @@ test('spine mode renders spine-card elements', async ({ page }) => {
   await expect(cards).toHaveCount(2, { timeout: 3000 });
 });
 
-// ── STACKSUP MODE CARDS ───────────────────────────────────────────────────────
+// ── COVERS MODE CARDS ───────────────────────────────────────────────────────
 
 test('covers mode renders cover-card elements', async ({ page }) => {
   const tapes = [
