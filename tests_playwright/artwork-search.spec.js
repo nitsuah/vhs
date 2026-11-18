@@ -1,6 +1,5 @@
 'use strict';
-const { test, expect } = require('@playwright/test');
-const { setupBasicMocks, gotoCollect } = require('./helpers');
+const { test, expect } = require('@playwright/test'); const { setupBasicMocks, gotoCollect } = require('./helpers');
 async function openApp(page) {
   await setupBasicMocks(page, { tapes: [] });
   await gotoCollect(page);
