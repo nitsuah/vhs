@@ -1,6 +1,8 @@
 name: Wall-view Playwright gate
 
 on:
+  push:
+    branches: [fix/rebaseline-wall-view-playwright]
   pull_request:
     branches: [main]
     paths:
