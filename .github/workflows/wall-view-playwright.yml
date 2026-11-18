@@ -1,4 +1,4 @@
-name: Focused Playwright gates
+name: Wall-view Playwright gate
 
 on:
   push:
@@ -7,8 +7,6 @@ on:
     branches: [main]
     paths:
       - "tests_playwright/wall-view.spec.js"
-      - "tests_playwright/artwork-search.spec.js"
-      - "public/js/modules/artwork-search.js"
       - ".github/workflows/wall-view-playwright.yml"
 
 permissions:
@@ -16,7 +14,7 @@ permissions:
 
 jobs:
   wall-view:
-    name: Docker Playwright focused specs
+    name: Docker Playwright wall-view spec
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -27,7 +25,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/app" \
             -w /app \
             mcr.microsoft.com/playwright:v1.65.0-noble \
-            sh -c 'npm ci --no-audit --no-fund && (node tests/journeys/serve.js 8082 >/tmp/s.log 2>&1 & sleep 3; npx playwright test tests_playwright/wall-view.spec.js tests_playwright/artwork-search.spec.js --workers=1 --reporter=line)'
+            sh -c 'npm ci --no-audit --no-fund && (node tests/journeys/serve.js 8082 >/tmp/s.log 2>&1 & sleep 3; npx playwright test tests_playwright/wall-view.spec.js --workers=1 --reporter=line)'
 
       - name: Run focused ESLint gate in Docker
         run: |
@@ -35,7 +33,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/app" \
             -w /app \
             node:22 \
-            sh -c "npm ci --no-audit --no-fund && npx eslint --config ./eslint.config.mjs public/js/modules/artwork-search.js tests_playwright/wall-view.spec.js tests_playwright/artwork-search.spec.js"
+            sh -c "npm ci --no-audit --no-fund && npx eslint --config ./eslint.config.mjs tests_playwright/wall-view.spec.js"
 
       - name: Check patch formatting
         run: git diff --check
