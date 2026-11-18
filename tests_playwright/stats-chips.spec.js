@@ -32,9 +32,11 @@ test('condition filters combine with status and clear independently', async ({ p
   ]);
   await expect(chip(page, 'condition', 'fair').locator('.stats-count')).toHaveText('2');
   await chip(page, 'status', 'for_sale').click();
+  await expect(chip(page, 'condition', 'fair').locator('.stats-count')).toHaveText('1');
   await chip(page, 'condition', 'fair').click();
   await expect(page.locator('.tape-row')).toHaveCount(1);
   await chip(page, 'status', 'for_sale').click();
+  await expect(chip(page, 'status', 'for_sale').locator('.stats-count')).toHaveText('1');
   await expect(chip(page, 'condition', 'fair')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.tape-row')).toHaveCount(2);
 });
