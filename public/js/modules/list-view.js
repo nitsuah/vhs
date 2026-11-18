@@ -163,18 +163,24 @@ export function updateBulkBar() {
 export function renderStatsChips() {
   const root = document.getElementById('stats-chips');
   if (!root) return;
-  const inventory = getInventory();
   const filters = getColFilters();
+  const status = filters.status, condition = filters.condition;
+  filters.status = '';
+  const statusItems = getFiltered();
+  filters.status = status;
+  filters.condition = '';
+  const conditionItems = getFiltered();
+  filters.condition = condition;
   root.querySelectorAll('button[data-stats-filter]').forEach(button => {
     const key = button.dataset.statsFilter;
     const value = button.dataset.value;
-    button.querySelector('.stats-count').textContent = inventory.filter(t => t[key] === value).length;
+    const items = key === 'status' ? statusItems : conditionItems;
+    button.querySelector('.stats-count').textContent = items.filter(t => t[key] === value).length;
     button.setAttribute('aria-pressed', String(filters[key] === value));
   });
 }
 
 export function updateCount() {
-  renderStatsChips();
   const all = getInventory().length;
   const filtered = getFiltered();
   const n = filtered.length;
@@ -204,6 +210,7 @@ window.quickFilter = function (status, cond) {
 };
 
 export function renderInv() {
+  renderStatsChips();
   if (document.body.dataset.tab === 'collect') {
     const list = document.getElementById('inv-list');
     const wall = document.getElementById('wall-view');
