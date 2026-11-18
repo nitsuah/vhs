@@ -162,8 +162,10 @@ test('zoom slider persists to localStorage and CSS variable', async ({ page }) =
   await gotoCollect(page);
 
   const slider = page.locator('#zoom-slider');
-  await slider.fill('1.8');
-  await slider.dispatchEvent('input');
+  await slider.evaluate(el => {
+    el.value = '1.8';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
 
   const cssVar = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue('--inv-zoom').trim(),
