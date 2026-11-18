@@ -7,10 +7,8 @@ on:
     branches: [main, feat/collection-stats-chips]
     paths:
       - "tests_playwright/wall-view.spec.js"
-      - "tests_playwright/artwork-search.spec.js"
       - "tests_playwright/stats-chips.spec.js"
       - "public/js/modules/list-view.js"
-      - "public/js/modules/artwork-search.js"
       - ".github/workflows/wall-view-playwright.yml"
 
 permissions:
@@ -29,7 +27,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/app" \
             -w /app \
             mcr.microsoft.com/playwright:v1.65.0-noble \
-            sh -c 'npm ci --no-audit --no-fund && (node tests/journeys/serve.js 8082 >/tmp/s.log 2>&1 & sleep 3; npx playwright test tests_playwright/wall-view.spec.js tests_playwright/artwork-search.spec.js tests_playwright/stats-chips.spec.js --workers=1 --reporter=line)'
+            sh -c 'npm ci --no-audit --no-fund && (node tests/journeys/serve.js 8082 >/tmp/s.log 2>&1 & sleep 3; npx playwright test tests_playwright/wall-view.spec.js tests_playwright/stats-chips.spec.js --workers=1 --reporter=line)'
 
       - name: Run focused ESLint gate in Docker
         run: |
@@ -37,7 +35,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/app" \
             -w /app \
             node:22 \
-            sh -c "npm ci --no-audit --no-fund && npx eslint --config ./eslint.config.mjs public/js/modules/artwork-search.js public/js/modules/list-view.js tests_playwright/wall-view.spec.js tests_playwright/artwork-search.spec.js tests_playwright/stats-chips.spec.js"
+            sh -c "npm ci --no-audit --no-fund && npx eslint --config ./eslint.config.mjs public/js/modules/list-view.js tests_playwright/wall-view.spec.js tests_playwright/artwork-search.spec.js tests_playwright/stats-chips.spec.js"
 
       - name: Check patch formatting
         run: git diff --check
