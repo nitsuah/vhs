@@ -76,7 +76,7 @@ test('fourth click returns to list mode', async ({ page }) => {
   await expect(page.locator('#inv-list')).toBeVisible({ timeout: 2000 });
 });
 
-// ── COVER MODE CARDS ──────────────────────────────────────────────────────────
+// ── STACKSUP MODE CARDS ──────────────────────────────────────────────────────────
 
 test('StacksUp mode renders su-card elements for each tape', async ({ page }) => {
   const tapes = [
@@ -194,7 +194,7 @@ test('zoom slider restores saved value on reload', async ({ page }) => {
   expect(cssVar).toBe('2.1');
 });
 
-// ── WALL CARD CLICK OPENS DETAIL ──────────────────────────────────────────────
+// ── WALL CARD MULTI-SELECT ──────────────────────────────────────────────
 
 test('double-clicking a wall card toggles multi-select without opening detail', async ({ page }) => {
   const tape = makeTape({ id: 'VHS-0001', title: 'Alien' });
@@ -204,7 +204,7 @@ test('double-clicking a wall card toggles multi-select without opening detail', 
   );
   await gotoCollect(page);
 
-  await page.click('#btn-wall'); // enter cover wall mode
+  await page.click('#btn-wall'); // enter StacksUp mode
   await page.waitForTimeout(200);
 
   const card = page.locator('#wall-view .su-card').first();
