@@ -160,6 +160,26 @@ export function updateBulkBar() {
   }
 }
 
+export function renderStatsChips() {
+  const root = document.getElementById('stats-chips');
+  if (!root) return;
+  const filters = getColFilters();
+  const status = filters.status, condition = filters.condition;
+  filters.status = '';
+  const statusItems = getFiltered();
+  filters.status = status;
+  filters.condition = '';
+  const conditionItems = getFiltered();
+  filters.condition = condition;
+  root.querySelectorAll('button[data-stats-filter]').forEach(button => {
+    const key = button.dataset.statsFilter;
+    const value = button.dataset.value;
+    const items = key === 'status' ? statusItems : conditionItems;
+    button.querySelector('.stats-count').textContent = items.filter(t => t[key] === value).length;
+    button.setAttribute('aria-pressed', String(filters[key] === value));
+  });
+}
+
 export function updateCount() {
   const all = getInventory().length;
   const filtered = getFiltered();
@@ -190,6 +210,7 @@ window.quickFilter = function (status, cond) {
 };
 
 export function renderInv() {
+  renderStatsChips();
   if (document.body.dataset.tab === 'collect') {
     const list = document.getElementById('inv-list');
     const wall = document.getElementById('wall-view');
@@ -216,4 +237,13 @@ document.getElementById('fbi-youtube-close')?.addEventListener('click', () => {
     const iframe = wrap.querySelector('iframe');
     if (iframe) iframe.remove();
   }
+});
+
+document.getElementById('stats-chips')?.addEventListener('click', event => {
+  const button = event.target.closest('button[data-stats-filter]');
+  if (!button) return;
+  const filters = getColFilters();
+  const key = button.dataset.statsFilter;
+  filters[key] = filters[key] === button.dataset.value ? '' : button.dataset.value;
+  window.quickFilter(null, null);
 });
