@@ -2,6 +2,11 @@
 const { test, expect } = require('@playwright/test');
 const { makeTape, setupBasicMocks, gotoCollect } = require('./helpers');
 
+test.beforeEach(async ({ page }) => {
+  // Keep each test independent of the persisted user preference/default view.
+  await page.addInitScript(() => localStorage.setItem('vhs-wall-mode', '0'));
+});
+
 // ── WALL MODE CYCLING ─────────────────────────────────────────────────────────
 
 test('initial view is list (inv-list visible, wall-view empty)', async ({ page }) => {
@@ -13,7 +18,7 @@ test('initial view is list (inv-list visible, wall-view empty)', async ({ page }
   await expect(page.locator('#wall-view')).not.toHaveClass(/on/);
 });
 
-test('first click of btn-wall switches to cover wall mode', async ({ page }) => {
+test('first click of btn-wall switches to StacksUp mode', async ({ page }) => {
   const tapes = [makeTape({ id: 'VHS-0001', title: 'Alien' })];
   await setupBasicMocks(page, { tapes });
   await gotoCollect(page);
@@ -23,8 +28,9 @@ test('first click of btn-wall switches to cover wall mode', async ({ page }) => 
 
   const wall = page.locator('#wall-view');
   await expect(wall).toHaveClass(/on/, { timeout: 3000 });
+  await expect(wall).toHaveClass(/stacksup-mode/);
   await expect(wall).not.toHaveClass(/spine-mode/);
-  await expect(wall).not.toHaveClass(/stacksup-mode/);
+  await expect(wall).not.toHaveClass(/covers-mode/);
 
   // List should be hidden
   const listEl = page.locator('#inv-list');
@@ -44,7 +50,7 @@ test('second click switches to spine mode', async ({ page }) => {
   await expect(page.locator('#wall-view')).toHaveClass(/spine-mode/, { timeout: 3000 });
 });
 
-test('third click switches to stacksup mode', async ({ page }) => {
+test('third click switches to covers mode', async ({ page }) => {
   const tapes = [makeTape({ id: 'VHS-0001', title: 'Alien' })];
   await setupBasicMocks(page, { tapes });
   await gotoCollect(page);
@@ -54,7 +60,7 @@ test('third click switches to stacksup mode', async ({ page }) => {
   await page.click('#btn-wall');
   await page.waitForTimeout(200);
 
-  await expect(page.locator('#wall-view')).toHaveClass(/stacksup-mode/, { timeout: 3000 });
+  await expect(page.locator('#wall-view')).toHaveClass(/covers-mode/, { timeout: 3000 });
 });
 
 test('fourth click returns to list mode', async ({ page }) => {
@@ -70,9 +76,9 @@ test('fourth click returns to list mode', async ({ page }) => {
   await expect(page.locator('#inv-list')).toBeVisible({ timeout: 2000 });
 });
 
-// ── COVER MODE CARDS ──────────────────────────────────────────────────────────
+// ── STACKSUP MODE CARDS ──────────────────────────────────────────────────────────
 
-test('cover mode renders su-card elements for each tape', async ({ page }) => {
+test('StacksUp mode renders su-card elements for each tape', async ({ page }) => {
   const tapes = [
     makeTape({ id: 'VHS-0001', title: 'Alien' }),
     makeTape({ id: 'VHS-0002', title: 'Jaws' }),
@@ -80,7 +86,7 @@ test('cover mode renders su-card elements for each tape', async ({ page }) => {
   await setupBasicMocks(page, { tapes });
   await gotoCollect(page);
 
-  await page.click('#btn-wall'); // mode 1: cover
+  await page.click('#btn-wall'); // mode 1: StacksUp
   await page.waitForTimeout(200);
 
   const cards = page.locator('#wall-view .su-card');
@@ -105,9 +111,9 @@ test('spine mode renders spine-card elements', async ({ page }) => {
   await expect(cards).toHaveCount(2, { timeout: 3000 });
 });
 
-// ── STACKSUP MODE CARDS ───────────────────────────────────────────────────────
+// ── COVERS MODE CARDS ───────────────────────────────────────────────────────
 
-test('stacksup mode renders su-card elements with stacksup-mode class', async ({ page }) => {
+test('covers mode renders cover-card elements', async ({ page }) => {
   const tapes = [
     makeTape({ id: 'VHS-0001', title: 'Alien' }),
     makeTape({ id: 'VHS-0002', title: 'Jaws' }),
@@ -117,11 +123,11 @@ test('stacksup mode renders su-card elements with stacksup-mode class', async ({
 
   await page.click('#btn-wall'); // mode 1
   await page.click('#btn-wall'); // mode 2
-  await page.click('#btn-wall'); // mode 3: stacksup
+  await page.click('#btn-wall'); // mode 3: Covers
   await page.waitForTimeout(200);
 
-  await expect(page.locator('#wall-view')).toHaveClass(/stacksup-mode/, { timeout: 3000 });
-  const cards = page.locator('#wall-view .su-card');
+  await expect(page.locator('#wall-view')).toHaveClass(/covers-mode/, { timeout: 3000 });
+  const cards = page.locator('#wall-view .cover-card');
   await expect(cards).toHaveCount(2, { timeout: 3000 });
 });
 
@@ -133,19 +139,19 @@ test('btn-wall label cycles through view names', async ({ page }) => {
   await gotoCollect(page);
 
   const btn = page.locator('#btn-wall');
-  await expect(btn).toHaveText('⊞ Wall');
+  await expect(btn).toHaveText('📋 Table');
 
   await btn.click();
-  await expect(btn).toHaveText('⊟ Covers');
+  await expect(btn).toHaveText('📚 StacksUp');
 
   await btn.click();
   await expect(btn).toHaveText('⊠ Spines');
 
   await btn.click();
-  await expect(btn).toHaveText('📚 Stacks');
+  await expect(btn).toHaveText('⊟ Covers');
 
   await btn.click();
-  await expect(btn).toHaveText('⊞ Wall');
+  await expect(btn).toHaveText('📋 Table');
 });
 
 // ── ZOOM SLIDER ───────────────────────────────────────────────────────────────
@@ -164,7 +170,7 @@ test('zoom slider persists to localStorage and CSS variable', async ({ page }) =
   );
   expect(cssVar).toBe('1.8');
 
-  const stored = await page.evaluate(() => localStorage.getItem('vhs-zoom'));
+  const stored = await page.evaluate(() => localStorage.getItem('vhs-collection-zoom'));
   expect(stored).toBe('1.8');
 });
 
@@ -173,7 +179,7 @@ test('zoom slider restores saved value on reload', async ({ page }) => {
   await setupBasicMocks(page, { tapes });
   await page.goto('/');
   await page.waitForLoadState('networkidle');
-  await page.evaluate(() => localStorage.setItem('vhs-zoom', '2.1'));
+  await page.evaluate(() => localStorage.setItem('vhs-collection-zoom', '2.1'));
 
   await page.reload();
   await page.waitForLoadState('networkidle');
@@ -188,9 +194,9 @@ test('zoom slider restores saved value on reload', async ({ page }) => {
   expect(cssVar).toBe('2.1');
 });
 
-// ── WALL CARD CLICK OPENS DETAIL ──────────────────────────────────────────────
+// ── WALL CARD MULTI-SELECT ──────────────────────────────────────────────
 
-test('double-clicking a wall card opens the detail modal', async ({ page }) => {
+test('double-clicking a wall card toggles multi-select without opening detail', async ({ page }) => {
   const tape = makeTape({ id: 'VHS-0001', title: 'Alien' });
   await setupBasicMocks(page, { tapes: [tape] });
   await page.route('**/api/tapes/**', route =>
@@ -198,11 +204,12 @@ test('double-clicking a wall card opens the detail modal', async ({ page }) => {
   );
   await gotoCollect(page);
 
-  await page.click('#btn-wall'); // enter cover wall mode
+  await page.click('#btn-wall'); // enter StacksUp mode
   await page.waitForTimeout(200);
 
   const card = page.locator('#wall-view .su-card').first();
   await card.dblclick();
 
-  await expect(page.locator('#m-detail')).toBeVisible({ timeout: 5000 });
+  await expect(card).toHaveClass(/bulk-sel/, { timeout: 3000 });
+  await expect(page.locator('#m-detail')).not.toBeVisible();
 });
