@@ -1,6 +1,9 @@
 // ── DETAIL MODAL ──────────────────────────────────────────────────────────────
-import { getInventory, setSelectedId, getSelectedId, setIsNewTape } from './inventory-state.js';
+import { getInventory, setSelectedId, getSelectedId, setIsNewTape, getIsReadOnly } from './inventory-state.js';
 import { esc, renderTagChips } from './render-helpers.js';
+import { searchArtwork, renderArtworkCandidates } from './artwork-search.js';
+import { dbPut } from '../db.js';
+import { toast } from '../utils.js';
 
 export function initTagChips(container, getTags, setTags) {
   function bindInput() {
@@ -39,7 +42,12 @@ export function renderDetailPhotos(t) {
   wrap.style.display = photos.length ? 'flex' : 'none';
   const countEl = document.getElementById('d-photo-count');
   if (countEl) countEl.textContent = photos.length ? `${photos.length} photo${photos.length !== 1 ? 's' : ''}` : '';
-  wrap.innerHTML = photos.map((p, i) => {
+
+  const readOnly = getIsReadOnly();
+  const artworkLinks = t.artwork_links || {};
+
+  // Build photo cards
+  const photoCards = photos.map((p, i) => {
     const isFace = t.photo_face === p;
     const isSpine = t.photo_spine === p;
     return `<div class="d-photo" data-idx="${i}">
@@ -52,7 +60,120 @@ export function renderDetailPhotos(t) {
       </div>
     </div>`;
   }).join('');
+
+  // Build artwork link sections for cover and spine
+  const roles = [
+    { key: 'face', label: 'Cover', localPin: t.photo_face },
+    { key: 'spine', label: 'Spine', localPin: t.photo_spine }
+  ];
+
+  const artworkSections = roles.map(({ key, label, localPin }) => {
+    const link = artworkLinks[key];
+    const hasLocalPin = !!localPin;
+    const showFind = !hasLocalPin && !readOnly;
+    const showLink = !!link;
+
+    if (!showFind && !showLink) return '';
+
+    if (showLink) {
+      // Show existing link with preview and clear button
+      return `
+        <div class="d-artwork-link" data-role="${key}" style="margin-top:8px;padding:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;">
+          <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+            <img src="${esc(link.url)}" alt="${esc(link.title || '')}" style="width:80px;height:56px;object-fit:cover;border-radius:4px;border:1px solid var(--border2);flex-shrink:0" loading="lazy">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:600;font-size:12px;color:var(--text);margin-bottom:4px">${esc(label)} Artwork</div>
+              <div style="font-size:11px;color:var(--text2);margin-bottom:2px">${esc(link.title || '')}</div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:6px">
+                ${link.license ? `${esc(link.license)}${link.licenseUrl ? ` <a href="${esc(link.licenseUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue)">License</a>` : ''}` : ''}
+                ${link.attribution ? ` — ${esc(link.attribution)}` : ''}
+                ${link.sourceUrl ? ` <a href="${esc(link.sourceUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue)">Source</a>` : ''}
+              </div>
+              ${!readOnly ? `<button class="btn-x" onclick="window.clearArtworkLink?.('${key}')" style="font-size:11px;padding:3px 8px;background:var(--bg4);border:1px solid var(--border2);color:var(--text3);border-radius:3px;cursor:pointer">Clear link</button>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Show Find artwork button
+    return `
+      <div class="d-artwork-find" data-role="${key}" style="margin-top:8px;">
+        <button class="btn-lookup" onclick="window.findArtwork?.('${key}')" style="font-size:11px;padding:4px 10px;background:var(--bg4);border:1px solid var(--border2);color:var(--blue);border-radius:5px;cursor:pointer">${esc('Find artwork (' + label + ')')}</button>
+        <div id="artwork-results-${key}" style="margin-top:6px;display:none"></div>
+        <div id="artwork-error-${key}" style="margin-top:4px;color:var(--red);font-size:11px;display:none"></div>
+      </div>
+    `;
+  }).join('');
+
+  wrap.innerHTML = photoCards + artworkSections;
 }
+
+// Handler to search and display artwork candidates
+window.findArtwork = async (role) => {
+  const t = getInventory().find(x => x.id === getSelectedId());
+  if (!t) return;
+
+  const title = document.getElementById('d-title').value.trim();
+  const resultsContainer = document.getElementById(`artwork-results-${role}`);
+  const errorContainer = document.getElementById(`artwork-error-${role}`);
+
+  // Hide previous results/errors
+  resultsContainer.style.display = 'none';
+  errorContainer.style.display = 'none';
+  resultsContainer.innerHTML = '';
+
+  if (!title) {
+    errorContainer.textContent = 'Title required to search artwork';
+    errorContainer.style.display = 'block';
+    return;
+  }
+
+  try {
+    const items = await searchArtwork({ title, role: role === 'face' ? 'cover' : 'spine' });
+    resultsContainer.style.display = 'block';
+    renderArtworkCandidates(resultsContainer, items, {
+      onUse: (link) => window.useArtworkLink(role, link)
+    });
+  } catch (e) {
+    errorContainer.textContent = e.message || 'Search failed';
+    errorContainer.style.display = 'block';
+  }
+};
+
+// Handler to use a selected artwork link
+window.useArtworkLink = async (role, link) => {
+  const t = getInventory().find(x => x.id === getSelectedId());
+  if (!t) return;
+
+  const key = role === 'face' ? 'face' : 'spine';
+  t.artwork_links = { ...(t.artwork_links || {}), [key]: link };
+  renderDetailPhotos(t);
+  try {
+    await dbPut(t);
+    toast('Artwork link saved', 'ok');
+  } catch (e) {
+    toast('Save failed: ' + e.message, 'err');
+  }
+};
+
+// Handler to clear an artwork link
+window.clearArtworkLink = async (key) => {
+  const t = getInventory().find(x => x.id === getSelectedId());
+  if (!t || !t.artwork_links || !t.artwork_links[key]) return;
+
+  delete t.artwork_links[key];
+  if (Object.keys(t.artwork_links).length === 0) {
+    delete t.artwork_links;
+  }
+  renderDetailPhotos(t);
+  try {
+    await dbPut(t);
+    toast('Artwork link cleared', 'ok');
+  } catch (e) {
+    toast('Save failed: ' + e.message, 'err');
+  }
+};
 
 export function openDetail(id) {
   const t = getInventory().find(x => x.id === id);
