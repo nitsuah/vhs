@@ -65,7 +65,10 @@ function enqueueTapeWrite(id, buildRecord, fallback) {
   const previous = tapeWriteQueues.get(id) || Promise.resolve();
   const next = previous.catch(() => {}).then(async () => {
     const current = getInventory().find(t => t.id === id);
-    const base = current || fallback || {};
+    if (!current && !fallback) {
+      throw new Error(`Cannot update missing tape ${id}: no complete record is available`);
+    }
+    const base = current || fallback;
     const record = buildRecord(base);
     const saved = await apiReq(`/api/tapes/${encodeURIComponent(id)}`, {
       method: 'PUT',
