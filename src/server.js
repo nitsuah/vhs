@@ -22,6 +22,7 @@ const {
   optionalAuth, requireAuth,
 } = require('./modules/auth');
 const { pool, runMigrations } = require('./modules/db');
+const { isPrivateAddress } = require('./modules/ip-guard');
 // certs.js shells out to openssl (child_process + fs). Load it lazily so the
 // Cloudflare Worker bundle (worker/index.js) never executes it.
 const ensureCerts = (...args) => require('./modules/certs').ensureCerts(...args);
@@ -183,9 +184,10 @@ app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
 
     // Claim any null-owner (pre-auth) tapes for the designated legacy owner.
     // Idempotent: new tapes always get owner_id from the auth layer, so after the
-    // first login only 0 rows match and subsequent runs are no-ops.
+    // first login only 0 rows match and subsequent runs are no-ops. Requires a
+    // verified email on the Google token.
     const legacyEmail = (process.env.LEGACY_OWNER_EMAIL || '').trim().toLowerCase();
-    if (legacyEmail && payload.email.toLowerCase() === legacyEmail) {
+    if (legacyEmail && payload.email_verified === true && String(payload.email || '').toLowerCase() === legacyEmail) {
       const { rowCount } = await pool.query(
         'UPDATE tapes SET owner_id = $1 WHERE owner_id IS NULL',
         [payload.sub]
@@ -293,7 +295,7 @@ app.get('/api/valuate', valuateLimiter, requireAuth, valuatePreviewHandler);
 app.post('/api/tapes/:id/valuate', valuateLimiter, requireAuth, valuateTapeHandler);
 
 // ── Lookup endpoints ───────────────────────────────────────────────────────────
-app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {
+app.get('/api/lookup/barcode/:code', defaultLimiter, requireAuth, async (req, res) => {
   const code = req.params.code.trim().replace(/\s/g, '');
   if (!code) return res.status(400).json({ error: 'code required' });
   const omdbKey = (req.headers['x-omdb-key'] || OMDB_API_KEY).trim();
@@ -372,7 +374,7 @@ app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {
   res.json(found);
 });
 
-app.get('/api/lookup', defaultLimiter, async (req, res) => {
+app.get('/api/lookup', defaultLimiter, requireAuth, async (req, res) => {
   const title = (req.query.title || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
   const provider = (req.query.provider || 'omdb').toLowerCase(); // 'omdb' or 'tmdb'
@@ -467,7 +469,7 @@ Omit fields you're unsure about. Return {} if completely unknown.`;
 });
 
 // ── Wikimedia Commons artwork search ─────────────────────────────────────────
-app.get('/api/artwork/search', defaultLimiter, async (req, res) => {
+app.get('/api/artwork/search', defaultLimiter, requireAuth, async (req, res) => {
   const title = typeof req.query.title === 'string' ? req.query.title.trim() : '';
   const role = typeof req.query.role === 'string' ? req.query.role : '';
   if (!title || title.length > 200 || !['cover', 'spine'].includes(role)) {
@@ -731,7 +733,7 @@ app.post('/api/jobs', jobsCreateLimiter, requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
+app.get('/api/fetch-image', defaultLimiter, requireAuth, async (req, res) => {
   const rawUrl = req.query.url;
   if (!rawUrl) return res.status(400).json({ error: 'url required' });
   // Coerce to string to prevent type confusion
@@ -759,6 +761,7 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
   if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
   if (/^192\.168\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
   if (/^169\.254\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
+  if (/^[0-9.]+$/.test(host) && isPrivateAddress(host)) return res.status(403).json({ error: 'url not allowed' });
   if (host.endsWith('.local') || host.endsWith('.internal')) return res.status(403).json({ error: 'url not allowed' });
   // 7. Validate port
   if (port && port !== '80' && port !== '443') return res.status(403).json({ error: 'url not allowed' });
@@ -775,14 +778,7 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
   const resolved = await dns.lookup(host, { all: true });
   for (const rec of resolved) {
     const ip = rec.address;
-    if (
-      ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' ||
-      /^10\.\d+\.\d+\.\d+$/.test(ip) ||
-      /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(ip) ||
-      /^192\.168\.\d+\.\d+$/.test(ip) ||
-      /^169\.254\.\d+\.\d+$/.test(ip) ||
-      /^fc00:/i.test(ip) || /^fd/i.test(ip) || /^fe80:/i.test(ip)
-    ) {
+    if (isPrivateAddress(ip)) {
       return res.status(403).json({ error: 'url not allowed' });
     }
   }
