@@ -43,6 +43,7 @@ export async function _cacheSetAll(tapes){const db=await _openCache();return new
 
 // ── DB OPERATIONS ────────────────────────────────────────────────────────
 import { inventory, setInventory } from './inventory.js';
+import { getInventory } from './modules/inventory-state.js';
 
 export async function dbAll(){
   try{
@@ -58,7 +59,38 @@ export async function dbAll(){
   }
 }
 export async function dbAdd(v){const r=await apiReq('/api/tapes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});_cachePut(v).catch(()=>{});return r;}
-export async function dbPut(v){const r=await apiReq(`/api/tapes/${encodeURIComponent(v.id)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});_cachePut(v).catch(()=>{});return r;}
+const tapeWriteQueues = new Map();
+
+function enqueueTapeWrite(id, buildRecord) {
+  const previous = tapeWriteQueues.get(id) || Promise.resolve();
+  const next = previous.catch(() => {}).then(async () => {
+    const current = getInventory().find(t => t.id === id);
+    const base = current || {};
+    const record = buildRecord(base);
+    const saved = await apiReq(`/api/tapes/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
+    });
+    if (current && record !== current) Object.assign(current, record);
+    _cachePut(record).catch(() => {});
+    return saved;
+  });
+  tapeWriteQueues.set(id, next);
+  return next.finally(() => {
+    if (tapeWriteQueues.get(id) === next) tapeWriteQueues.delete(id);
+  });
+}
+
+// Every tape mutation shares one per-ID queue. The record is built only when
+// its turn starts, from the latest in-memory inventory object, so artwork and
+// photo writes cannot persist competing stale snapshots.
+export function dbUpdateTape(id, update) {
+  return enqueueTapeWrite(id, current => update({ ...current }));
+}
+export function dbPut(v) {
+  return enqueueTapeWrite(v.id, current => current);
+}
 export async function dbDel(k){const r=await apiReq(`/api/tapes/${encodeURIComponent(k)}`,{method:'DELETE'});_cacheDel(k).catch(()=>{});return r;}
 
 export async function nextId() {
