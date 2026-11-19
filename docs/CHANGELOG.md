@@ -9,6 +9,7 @@ All notable changes to this project are documented here.
 ### Changed
 
 - **Changed:** Protected API routes require sign-in whenever Google auth is enabled, independent of `NODE_ENV`.
+- **Changed:** The `Dockerfile` is now multi-stage. The default (`prod`) image installs runtime dependencies only (`npm ci --omit=dev`) and leaves out tests and lint/test config; run the test suite with `docker build --target test -t vhs-test . && docker run --rm -e NODE_ENV=test vhs-test npx jest --coverage`.
 - **Changed:** `repo-health` workflow pins the shared kit to `nitsuah/.github@a0df883` (kit lockfile now has msgpack 1.2.4, urllib3 2.8.0, certifi 2026.10.23). Adds `tests/glob-graph.test.js`, a nested `**/*.js` glob regression that also guards the minimatch >= 11.0.1 floor (#160, #153).
 
 - **Changed:** Playwright 1.65.0: `@playwright/test`, the Journeys image and `config/Dockerfile.playwright` now use the same version (`v1.65.0-noble`), which fixes the nightly Journeys run that could not start Chromium (#161). The jest `glob` override moves to `^14.0.6` (GHSA-3g3m-2fjr-6pw4).

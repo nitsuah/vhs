@@ -51,4 +51,4 @@ enforce the coverage thresholds.
 
 ---
 
-Last Validated: 2026-09-23 (Docker `node:22-alpine` image from repo `Dockerfile`, `NODE_ENV=test npx jest --coverage`)
+Last Validated: 2026-09-23 (Docker `node:22-alpine` image from repo `Dockerfile` `test` target, `NODE_ENV=test npx jest --coverage`)
