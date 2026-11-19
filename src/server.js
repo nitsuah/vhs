@@ -36,6 +36,7 @@ const { buildFieldProposals } = require('./modules/fill-proposals');
 const { logScanAnalytics } = require('./modules/analytics');
 const { processJobs } = require('./modules/worker');
 const { callOllamaServer, pingOllama, resolveOllamaUrl } = require('./modules/ollama');
+const { getVisionBackends, normalizeBackend, normalizeModel, VISION_BACKENDS } = require('./modules/vision');
 const { parseJsonArray } = require('./modules/json-parser');
 const { withRetry } = require('./modules/retry');
 const {
@@ -716,18 +717,37 @@ const jobsCreateLimiter = rateLimit({
 });
 
 // ── Job endpoints ──────────────────────────────────────────────────────────────
+// Which scan backends can run right now (Workers AI + remaining daily cap,
+// Ollama + its models, manual review). Drives the UI backend selector.
+app.get('/api/vision/backends', defaultLimiter, async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json(await getVisionBackends());
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
 app.post('/api/jobs', jobsCreateLimiter, requireAuth, async (req, res) => {
-  const { image, barcode } = req.body;
+  const { image, thumb, backend, model } = req.body || {};
   if (!image) return res.status(400).json({ error: 'image required' });
+  let visionBackend = null;
+  if (backend !== undefined && backend !== null && backend !== '') {
+    visionBackend = normalizeBackend(backend);
+    if (!visionBackend) return res.status(400).json({ error: `backend must be one of ${VISION_BACKENDS.join(', ')}` });
+  }
+  const visionModel = visionBackend === 'ollama' ? normalizeModel(model) : null;
   const id = jobId();
   const now = new Date().toISOString();
   try {
+    // Columns match migrations/001 (image_data, thumb, updated_at NOT NULL)
+    // and 010 (vision_backend, vision_model).
     await pool.query(
-      'INSERT INTO upload_jobs(id,image,barcode,status,created_at,owner_id) VALUES($1,$2,$3,$4,$5,$6)',
-      [id, image, barcode || null, 'pending', now, queueOwnerId(req)]
+      'INSERT INTO upload_jobs(id,image_data,thumb,status,created_at,updated_at,owner_id,vision_backend,vision_model) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+      [id, String(image), typeof thumb === 'string' ? thumb : null, 'pending', now, now, queueOwnerId(req), visionBackend, visionModel]
     );
-    logActivity('info', `Upload job created: ${id}`);
-    res.status(201).json({ id });
+    logActivity('info', `Upload job created: ${id} (backend: ${visionBackend || 'auto'})`);
+    res.status(201).json({ id, backend: visionBackend || 'auto' });
   } catch (err) {
     serverError(res, err);
   }

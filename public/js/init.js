@@ -4,7 +4,7 @@ import { dbAll } from './db.js';
 import { _cacheGetAll } from './db.js';
 import { retryWithBackoff, toast } from './utils.js';
 import { setDbDot } from './db.js';
-import { updateAiBadge, checkOllama } from './ai.js';
+import { updateAiBadge, checkOllama, checkVisionBackends } from './ai.js';
 import { renderInv, updateCount } from './inventory.js';
 import { startJobPoller } from './capture.js';
 import { initAuth, loadPublicCollection } from './auth.js';
@@ -37,6 +37,7 @@ async function init() {
   updateAiBadge();
   const _aiFallback = setTimeout(updateAiBadge, 6000);
   checkOllama(true).then(() => { clearTimeout(_aiFallback); updateAiBadge(); });
+  checkVisionBackends().catch(() => {});
   // Only signal ok from the health ping — apiReq handles err to avoid a race
   // where a slow health SELECT 1 overrides a successful /api/tapes call
   fetch('/api/health', { signal: AbortSignal.timeout(5000) }).then(r => r.json()).then(h => {

@@ -99,7 +99,7 @@ describe('processJobs pending-job pipeline', () => {
 
     await processJobs();
 
-    expect(mockRecognizeTapes).toHaveBeenCalledWith('b64data');
+    expect(mockRecognizeTapes).toHaveBeenCalledWith('b64data', { backend: undefined, model: undefined });
     expect(mockEnhancedLookup).toHaveBeenCalled();
     expect(mockLogScanAnalytics).toHaveBeenCalledWith(
       expect.objectContaining({ jobId: 'job_1', omdbVerified: true })
@@ -278,5 +278,77 @@ describe('processJobs deferred vision results', () => {
 
     const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO review_items/.test(sql));
     expect(insert[1].join(' ')).toMatch(/manual review/);
+  });
+});
+
+describe('processJobs backend selection', () => {
+  function withPendingRow(row) {
+    mockQuery
+      .mockResolvedValueOnce({ rowCount: 0 })
+      .mockResolvedValueOnce({ rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [row] });
+  }
+
+  it('passes the backend and model chosen in the UI through to recognizeTapes', async () => {
+    withPendingRow({ id: 'job_b', image_data: 'b64', thumb: null, vision_backend: 'ollama', vision_model: 'moondream' });
+    mockQuery
+      .mockResolvedValueOnce({ rowCount: 1 }) // claim
+      .mockResolvedValueOnce({ rows: [] })    // existing review_items
+      .mockResolvedValueOnce({ rows: [] })    // insert
+      .mockResolvedValueOnce({ rows: [] });   // delete
+    mockRecognizeTapes.mockResolvedValue({ items: [{ title: 'Alien' }], model: 'moondream', backend: 'ollama' });
+    mockEnhancedLookup.mockResolvedValue(null);
+
+    await processJobs();
+
+    expect(mockRecognizeTapes).toHaveBeenCalledWith('b64', { backend: 'ollama', model: 'moondream' });
+    expect(mockQuery.mock.calls[3][0]).toMatch(/vision_backend, vision_model/);
+  });
+
+  it('claims the job atomically and skips it when another isolate already did', async () => {
+    withPendingRow({ id: 'job_c', image_data: 'b64', thumb: null });
+    mockQuery.mockResolvedValueOnce({ rowCount: 0 }); // claim lost
+
+    await processJobs();
+
+    expect(mockQuery.mock.calls[4][0]).toMatch(/WHERE id=\$2 AND status='pending'/);
+    expect(mockRecognizeTapes).not.toHaveBeenCalled();
+  });
+
+  it('turns a manual-review job into a pending review item without calling AI', async () => {
+    withPendingRow({ id: 'job_m', image_data: 'b64', thumb: 't', vision_backend: 'manual' });
+    mockQuery
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    mockRecognizeTapes.mockResolvedValue({ items: [], model: null, backend: 'manual', deferred: 'manual', message: 'Manual review selected — add the title from the picture.' });
+
+    await processJobs();
+
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO review_items/.test(sql));
+    expect(insert[1].join(' ')).toMatch(/Manual review selected/);
+  });
+});
+
+describe('processJobs busy guard', () => {
+  it('ignores a busy flag left behind by an abandoned pass', async () => {
+    const realNow = Date.now;
+    let release;
+    mockQuery.mockImplementationOnce(() => new Promise(r => { release = r; })); // first pass hangs
+    const first = processJobs();
+    expect(isWorkerBusy()).toBe(true);
+    // A concurrent pass is skipped while the first one is fresh.
+    await processJobs();
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    // Two minutes later the flag is treated as stale and a new pass runs.
+    Date.now = () => realNow() + 3 * 60 * 1000;
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+    await processJobs();
+    expect(mockQuery.mock.calls.length).toBeGreaterThan(1);
+    Date.now = realNow;
+    release({ rowCount: 0 });
+    await first;
   });
 });

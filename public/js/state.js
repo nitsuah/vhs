@@ -49,6 +49,12 @@ export let ollamaAvail = false;
 // Settings → Find Local AI (browser-side discovery, see ai.js).
 export let localAiUrl   = localStorage.getItem('vhs-local-ai-url')   || '';
 export let localAiModel = localStorage.getItem('vhs-local-ai-model') || '';
+// Server-side scan backend chosen in Settings: 'auto' | 'workers-ai' |
+// 'ollama' | 'manual'. visionModel is the Ollama model for 'ollama'.
+// visionBackends is the last GET /api/vision/backends response.
+export let visionBackend  = localStorage.getItem('vhs-vision-backend') || 'auto';
+export let visionModel    = localStorage.getItem('vhs-vision-model') || '';
+export let visionBackends = null;
 export let cards          = [];   // pending review: [{uid, data, thumb, expanded, source}]
 export let captureQueue   = [];   // staged captures: [{base64, thumb}]
 export let uidSeq         = 0;
@@ -67,6 +73,9 @@ export function setApiProvider(v) { apiProvider = v; }
 export function setOllamaAvail(v) { ollamaAvail = v; }
 export function setLocalAiUrl(v) { localAiUrl = v; }
 export function setLocalAiModel(v) { localAiModel = v; }
+export function setVisionBackend(v) { visionBackend = v || 'auto'; }
+export function setVisionModel(v) { visionModel = v || ''; }
+export function setVisionBackends(v) { visionBackends = v; }
 export let cropFrac       = { x:.12, y:.08, w:.76, h:.84 };
 export let editingId      = null;
 export const pendingEdits = new Map();

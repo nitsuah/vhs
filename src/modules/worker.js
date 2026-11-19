@@ -8,10 +8,16 @@ const { logActivity } = require('./activity-log');
 const { OMDB_API_KEY, MAX_RETRIES } = require('./config');
 
 let workerBusy = false;
+let busySince = 0;
+// On Cloudflare a pass runs in ctx.waitUntil, which can be cut off (30 s
+// limit) before `finally` resets the flag. Treat a pass older than this as
+// abandoned so the isolate doesn't stop processing jobs forever.
+const BUSY_STALE_MS = 2 * 60 * 1000;
 
 async function processJobs() {
-  if (workerBusy) return;
+  if (workerBusy && Date.now() - busySince < BUSY_STALE_MS) return;
   workerBusy = true;
+  busySince = Date.now();
 
   try {
     const nowMs = Date.now();
@@ -47,12 +53,18 @@ async function processJobs() {
 
     // 4. Pick next pending job
     const { rows } = await pool.query(
-      "SELECT id, image_data, thumb, owner_id FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
+      "SELECT id, image_data, thumb, owner_id, vision_backend, vision_model FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
     );
     if (!rows.length) return;
 
     const job = rows[0];
-    await pool.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [now, job.id]);
+    // Claim atomically: on Cloudflare several isolates can run processJobs at
+    // once, so only the one whose UPDATE matched a still-pending row proceeds.
+    const claim = await pool.query(
+      "UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2 AND status='pending'",
+      [now, job.id]
+    );
+    if (claim && claim.rowCount === 0) return;
     console.log(`⟳ Vision: sending job ${job.id}`);
 
     try {
@@ -66,7 +78,10 @@ async function processJobs() {
         return;
       }
 
-      const result = await recognizeTapes(job.image_data);
+      const result = await recognizeTapes(job.image_data, {
+        backend: job.vision_backend,
+        model: job.vision_model,
+      });
       if (result.deferred) {
         const ts = new Date().toISOString();
         await pool.query(

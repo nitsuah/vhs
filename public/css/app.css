@@ -18,6 +18,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 #ai-badge:hover{max-width:90px;border-radius:12px;padding:1px 8px;color:#fff}
 #ai-badge.claude{background:var(--blue)}
 #ai-badge.ollama{background:var(--green)}
+#ai-badge.workersai{background:#f38020}
 #ai-badge.noai{background:var(--yellow)}
 #ai-badge.noai:hover{color:#333}
 #ai-badge.loading{background:var(--purple);animation:pulse-ai 1.2s ease-in-out infinite}

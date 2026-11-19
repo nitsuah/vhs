@@ -29,12 +29,12 @@ async function resolveOllamaUrl() {
   return OLLAMA; // nothing responded yet — fall back to the configured default
 }
 
-async function callOllamaServer(base64) {
+async function callOllamaServer(base64, model = OLLAMA_MODEL) {
   const upstream = await resolveOllamaUrl();
   const res = await fetch(`${upstream}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: OLLAMA_MODEL, prompt: SCAN_PROMPT, images: [base64], stream: false }),
+    body: JSON.stringify({ model: model || OLLAMA_MODEL, prompt: SCAN_PROMPT, images: [base64], stream: false }),
     signal: AbortSignal.timeout(120000),
   });
   if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);

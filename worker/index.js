@@ -19,9 +19,9 @@ const load = () => (loaded ??= Promise.all([
   import('../src/server.js'),
   import('../src/modules/db.js'),
 ]).then(([server, db]) => {
-  const { app } = server.default;
+  const { app, processJobs } = server.default;
   app.set('env', 'production'); // no stack traces in Express' default error page
-  return { app, db: db.default };
+  return { app, db: db.default, processJobs };
 }));
 
 const PORT = 8080;
@@ -54,12 +54,46 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT);
 
+// Workers have no long-lived process, so the Node server's setInterval job
+// loop (src/server.js start()) never runs here. Instead, every successful
+// /api/jobs* request (create, status poll, inflight, retry) kicks one pass of
+// processJobs() in ctx.waitUntil with its own pg Pool, so queued scans are
+// actually sent to the vision backend while the UI polls.
+function shouldKickJobs(req, res) {
+  if (!res || res.status >= 400) return false;
+  try {
+    return new URL(req.url).pathname.startsWith('/api/jobs');
+  } catch {
+    return false;
+  }
+}
+
+async function runJobsInBackground() {
+  const { db, processJobs } = await load();
+  if (typeof processJobs !== 'function') return;
+  const pool = db.createPool();
+  try {
+    await db.requestPool.run(pool, async () => {
+      if (migrated) await migrated;
+      await processJobs();
+    });
+  } catch (err) {
+    console.warn('[worker] background job pass failed:', err.message);
+  } finally {
+    await pool.end().catch(() => {});
+  }
+}
+
 // Capture the Worker env (AI binding, secrets) for CommonJS modules that
 // cannot receive env from httpServerHandler themselves.
 const api = httpServerHandler({ port: PORT });
 export default {
-  fetch(req, env, ctx) {
+  async fetch(req, env, ctx) {
     globalThis.__CF_ENV = env;
-    return api.fetch(req, env, ctx);
+    const res = await api.fetch(req, env, ctx);
+    if (ctx && typeof ctx.waitUntil === 'function' && shouldKickJobs(req, res)) {
+      ctx.waitUntil(runJobsInBackground());
+    }
+    return res;
   },
 };

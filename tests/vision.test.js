@@ -140,7 +140,7 @@ describe('recognizeTapes', () => {
     mockCallOllamaServer.mockResolvedValue([{ title: 'Jaws' }]);
     const result = await recognizeTapes('b64');
     expect(result).toMatchObject({ items: [{ title: 'Jaws' }], backend: 'ollama', deferred: null });
-    expect(mockCallOllamaServer).toHaveBeenCalledWith('b64');
+    expect(mockCallOllamaServer).toHaveBeenCalledWith('b64', 'llava:7b');
   });
 
   it('returns a deferred cap result when the daily reserve is rejected and Ollama is down', async () => {
@@ -181,7 +181,7 @@ describe('recognizeTapes', () => {
     expect(run.mock.calls[0][0]).toBe(WORKERS_AI_MODEL);
     expect(run.mock.calls[0][1]).toEqual({ prompt: 'agree' });
     expect(run.mock.calls[1][1].prompt).toMatch(/cataloging VHS tapes/);
-    expect(run.mock.calls[1][1].image).toEqual(Array.from(Buffer.from('fakeimg')));
+    expect(run.mock.calls[1][1].image).toBe(`data:image/jpeg;base64,${Buffer.from('fakeimg').toString('base64')}`);
     expect(result).toMatchObject({
       backend: 'workers-ai',
       deferred: null,
