@@ -60,6 +60,8 @@ test('failed artwork persistence leaves the shared tape unchanged', async ({ pag
   await page.evaluate(() => window.openDetail('VHS-ART-FAIL'));
   await page.getByRole('button', { name: 'Find artwork (cover)' }).click();
   await page.getByRole('button', { name: 'Use link' }).click();
+  await expect(page.getByText(/Save failed:/)).toBeVisible();
+  await page.evaluate(() => window.openDetail('VHS-ART-FAIL'));
   await expect(page.getByRole('button', { name: 'Find artwork (cover)' })).toBeVisible();
   await expect(page.locator('#detail-photos .d-artwork-link')).toHaveCount(0);
 });
@@ -86,8 +88,9 @@ test('concurrent face and spine saves serialize without dropping either link', a
   await page.evaluate(() => window.openDetail('VHS-ART-QUEUE'));
   await page.getByRole('button', { name: 'Find artwork (cover)' }).click();
   await page.getByRole('button', { name: 'Use link' }).click();
-  await page.getByRole('button', { name: 'Find artwork (spine)' }).click();
-  await page.getByRole('button', { name: 'Use link' }).click();
+  const spineSection = page.locator('.d-artwork-search').nth(1);
+  await spineSection.getByRole('button', { name: 'Find artwork (spine)' }).click();
+  await spineSection.getByRole('button', { name: 'Use link' }).click();
   await expect.poll(() => puts.length).toBe(1);
   releaseFirst();
   await expect.poll(() => puts.length).toBe(2);
@@ -117,7 +120,10 @@ test('a late save does not replace a different tape opened in the modal', async 
   await page.getByRole('button', { name: 'Find artwork (cover)' }).click();
   await page.getByRole('button', { name: 'Use link' }).click();
   await page.evaluate(() => window.openDetail('VHS-ART-B'));
+  const completedSave = page.waitForResponse(response =>
+    response.url().includes('/api/tapes/VHS-ART-A') && response.request().method() === 'PUT');
   releasePut();
+  await completedSave;
   await expect(page.locator('#d-title')).toHaveValue('Blade Runner');
   await expect(page.locator('#detail-photos .d-artwork-link')).toHaveCount(0);
   expect(saved.id).toBe('VHS-ART-A');
