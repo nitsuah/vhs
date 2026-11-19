@@ -5,6 +5,10 @@ import { esc, _cropStyle, _eggAttrs, _genresAttr, statusLabel } from './render-h
 import { attachCardInteraction } from './selection.js';
 import { attachTitleEggHover, startTitleEggPreview, stopTitleEggPreview } from './title-eggs.js';
 
+function httpsArtwork(url) {
+  return typeof url === 'string' && url.startsWith('https://') ? url : '';
+}
+
 export function renderWall() {
   const items = getFiltered();
   const selectedId = getSelectedId();
@@ -19,10 +23,11 @@ export function renderWall() {
     wall.innerHTML = items.map(t => {
       const sel = t.id === selectedId;
       const bulk = selectedIds.has(t.id);
-      const isSpine = !!t.photo_spine;
-      const src = t.photo_spine || t.photo_thumbnail;
+      const pinned = t.photo_spine;
+      const external = httpsArtwork(t.artwork_links?.spine?.url);
+      const src = pinned || external || t.photo_thumbnail;
       const inner = src
-        ? `<img class="su-img${isSpine ? ' su-img-spine' : ''}" src="${esc(src)}" alt=""${_cropStyle(t, 'spine', isSpine)}>`
+        ? `<img class="su-img${pinned ? ' su-img-spine' : ''}" src="${esc(src)}" alt=""${pinned ? _cropStyle(t, 'spine', true) : ''}>`
         : `<div class="su-ph"><span class="su-ph-txt">${esc(t.title)}</span></div>`;
       return `<div class="su-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}${_genresAttr(t)}><div class="cover-wrap">${inner}</div><div class="su-lbl">${esc(t.title)}</div></div>`;
     }).join('');
@@ -32,11 +37,11 @@ export function renderWall() {
     wall.innerHTML = items.map(t => {
       const sel = t.id === selectedId;
       const bulk = selectedIds.has(t.id);
-      const src = t.photo_spine || t.photo_thumbnail;
-      // .spine-img never gets the StacksUp sideways layout rotation, so the
-      // crop-adjustment style must not include one either (includeRotate=false).
+      const pinned = t.photo_spine;
+      const src = pinned || httpsArtwork(t.artwork_links?.spine?.url) || t.photo_thumbnail;
+      // External artwork is a raw link: only local pins receive crop metadata.
       const inner = src
-        ? `<img class="spine-img" src="${esc(src)}" alt=""${_cropStyle(t, 'spine', false)}>`
+        ? `<img class="spine-img" src="${esc(src)}" alt=""${pinned ? _cropStyle(t, 'spine', false) : ''}>`
         : `<div class="spine-ph"><span>${esc(t.title)}</span></div>`;
       return `<div class="spine-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}${_genresAttr(t)}><div class="cover-wrap">${inner}</div></div>`;
     }).join('');
@@ -46,9 +51,10 @@ export function renderWall() {
     wall.innerHTML = items.map(t => {
       const sel = t.id === selectedId;
       const bulk = selectedIds.has(t.id);
-      const src = t.photo_face || t.photo_thumbnail;
+      const pinned = t.photo_face;
+      const src = pinned || httpsArtwork(t.artwork_links?.face?.url) || t.photo_thumbnail;
       const inner = src
-        ? `<img class="cover-img" src="${esc(src)}" alt=""${_cropStyle(t, 'face', false)}>`
+        ? `<img class="cover-img" src="${esc(src)}" alt=""${pinned ? _cropStyle(t, 'face', false) : ''}>`
         : `<div class="cover-ph"><span class="cover-ph-txt">${esc(t.title)}</span></div>`;
       return `<div class="cover-card${sel ? ' sel' : ''}${bulk ? ' bulk-sel' : ''}" data-id="${esc(t.id)}"${_eggAttrs(t)}${_genresAttr(t)}><div class="cover-wrap">${inner}</div><div class="cover-lbl">${esc(t.title)}</div></div>`;
     }).join('');
