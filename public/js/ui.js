@@ -468,7 +468,7 @@ document.getElementById('d-photo-input')?.addEventListener('change', async e => 
     });
     const saved = inventory.find(x => x.id === id);
     if (saved) {
-      renderDetailPhotos(saved);
+      if (getSelectedId() === id) renderDetailPhotos(saved);
       renderInv();
     }
   } catch (err) {
