@@ -140,7 +140,7 @@ describe('recognizeTapes', () => {
     mockCallOllamaServer.mockResolvedValue([{ title: 'Jaws' }]);
     const result = await recognizeTapes('b64');
     expect(result).toMatchObject({ items: [{ title: 'Jaws' }], backend: 'ollama', deferred: null });
-    expect(mockCallOllamaServer).toHaveBeenCalledWith('b64');
+    expect(mockCallOllamaServer).toHaveBeenCalledWith('b64', 'llava:7b');
   });
 
   it('returns a deferred cap result when the daily reserve is rejected and Ollama is down', async () => {

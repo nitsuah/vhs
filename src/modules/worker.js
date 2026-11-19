@@ -47,12 +47,18 @@ async function processJobs() {
 
     // 4. Pick next pending job
     const { rows } = await pool.query(
-      "SELECT id, image_data, thumb, owner_id FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
+      "SELECT id, image_data, thumb, owner_id, vision_backend, vision_model FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
     );
     if (!rows.length) return;
 
     const job = rows[0];
-    await pool.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [now, job.id]);
+    // Claim atomically: on Cloudflare several isolates can run processJobs at
+    // once, so only the one whose UPDATE matched a still-pending row proceeds.
+    const claim = await pool.query(
+      "UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2 AND status='pending'",
+      [now, job.id]
+    );
+    if (claim && claim.rowCount === 0) return;
     console.log(`⟳ Vision: sending job ${job.id}`);
 
     try {
@@ -66,7 +72,10 @@ async function processJobs() {
         return;
       }
 
-      const result = await recognizeTapes(job.image_data);
+      const result = await recognizeTapes(job.image_data, {
+        backend: job.vision_backend,
+        model: job.vision_model,
+      });
       if (result.deferred) {
         const ts = new Date().toISOString();
         await pool.query(

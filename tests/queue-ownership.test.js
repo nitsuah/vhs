@@ -62,7 +62,8 @@ describe('queue routes with auth enabled', () => {
     const res = await request(app).post('/api/jobs').set('Cookie', cookie).send({ image: 'data:x' });
     expect(res.status).toBe(201);
     expect(mockQuery.mock.calls[0][0]).toMatch(/INSERT INTO upload_jobs\(.*owner_id/);
-    expect(mockQuery.mock.calls[0][1].at(-1)).toBe('u1');
+    const cols = mockQuery.mock.calls[0][0].match(/upload_jobs\(([^)]*)\)/)[1].split(',');
+    expect(mockQuery.mock.calls[0][1][cols.indexOf('owner_id')]).toBe('u1');
   });
 
   it('POST /api/review sets owner_id', async () => {

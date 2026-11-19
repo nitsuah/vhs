@@ -113,6 +113,13 @@
         <div style="font-size:11px;color:var(--text3)" id="health-db-msg">Checking…</div>
       </div>
     </div>
+    <div id="health-vision" class="ai-status-row">
+      <div class="ai-dot off" id="health-vision-dot"></div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:12px">Workers AI (scan vision)</div>
+        <div style="font-size:11px;color:var(--text3)" id="health-vision-msg">Checking…</div>
+      </div>
+    </div>
     <div id="health-ollama" class="ai-status-row">
       <div class="ai-dot off" id="health-ollama-dot"></div>
       <div style="flex:1">
@@ -359,6 +366,14 @@
 <div class="backdrop" id="m-settings" style="display:none">
   <div class="modal">
     <h2>⚙ Settings</h2>
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Scan backend (server)</div>
+    <div class="sfield">
+      <label for="s-vision-backend">Analyze queued photos with</label>
+      <select id="s-vision-backend"><option value="auto">Auto — checking…</option></select>
+      <span class="shint" id="vision-backend-status">Checking which backends this server can run…</span>
+      <span class="shint">Detected live from the server: Workers AI (free daily scans on Cloudflare), Ollama (when reachable), or manual review. Auto picks the best available. Choosing a specific backend sends scans to the server even if a Claude key or local AI is set below.</span>
+    </div>
+    <hr class="ssep">
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Claude API (tier 1)</div>
     <div class="sfield">
       <label>Anthropic API Key</label>

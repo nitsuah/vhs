@@ -8,11 +8,13 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Added:** Settings → Scan backend selector driven by the new `GET /api/vision/backends` (Workers AI availability + free scans left today, Ollama reachability + pulled models, manual review). Unavailable options are disabled with the reason, Auto picks the best available, and the choice is stored on the job (migration `010_upload_job_backend.sql`) so the worker uses it. The header badge and System Health now show Workers AI.
 - **Added:** Cloudflare Workers AI tape/cover recognition (`@cf/meta/llama-3.2-11b-vision-instruct`) as the default vision backend on vhs.nitsuah.io, with a 200-scan/day cap so usage stays inside the free 10,000 neuron allocation. Caps and Workers AI errors queue the photo for manual review, or fall back to Ollama when it is configured. Local Docker still defaults to Ollama. Migration `009_vision_daily_usage.sql`.
 - **Added:** On-demand cover/spine artwork search in the tape detail modal, storing source/license/attribution metadata independently of local photos (#169).
 
 ### Fixed
 
+- **Fixed:** Server-side scans never ran: `POST /api/jobs` inserted into columns that don't exist (`image`, `barcode`, no `updated_at`), and on Cloudflare Workers nothing ever called `processJobs()`. Jobs now insert into `image_data`/`thumb`, and each `/api/jobs*` request kicks one claim-safe job pass via `ctx.waitUntil`.
 - **Fixed:** Serialize tape writes per ID so concurrent artwork and photo updates cannot overwrite one another; failed artwork saves leave shared inventory unchanged.
 
 ### Changed

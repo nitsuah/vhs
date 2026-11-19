@@ -2,7 +2,7 @@
 import { inventory, renderInv, updateCount, getSelectedIds } from './inventory.js';
 import { dbAdd, nextId } from './db.js';
 import { findDup } from './utils.js';
-import { lookupBarcode, callAI, getLastLookupFailure } from './ai.js';
+import { lookupBarcode, callAI, getLastLookupFailure, visionJobOptions, serverBackendForced, visionBackendLabel, checkVisionBackends } from './ai.js';
 import { addCard, addProposalCard, showRevPanel, renderCards, setRevLoading, setRevMsg, showRevErr, cards, _seenAdd, _seenDel, seenJobIds } from './review.js';
 import { captureQueue, setCaptureQueue, nextUidSeq } from './state.js';
 import { apiKey, localAiUrl, apiProvider, omdbKey, tmdbKey } from './state.js';
@@ -140,7 +140,10 @@ async function processQueue() {
 
   if (!imageItems.length) return;
 
-  if (apiKey || localAiUrl) {
+  // Browser-side Claude / local AI handles scans unless the user picked a
+  // specific server backend in Settings (Workers AI, Ollama, manual).
+  await checkVisionBackends().catch(() => null);
+  if ((apiKey || localAiUrl) && !serverBackendForced()) {
     showRevPanel(); setRevLoading(true);
     for (let i = 0; i < imageItems.length; i++) {
       setRevMsg(`Analyzing image ${i + 1} of ${imageItems.length}…`);
@@ -157,10 +160,11 @@ async function processQueue() {
   }
 
   let submitted = 0;
+  const jobOpts = visionJobOptions();
   for (const item of imageItems) {
     try {
       const r = await fetch('/api/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: item.base64, thumb: item.thumb }) });
+        body: JSON.stringify({ image: item.base64, thumb: item.thumb, ...jobOpts }) });
       if (r.status === 401) { toast('Sign in to queue scans', 'err', 4000); break; }
       if (r.ok) {
         const { id: uploadJobId } = await r.json();
@@ -173,7 +177,9 @@ async function processQueue() {
   if (submitted) {
     showRevPanel();
     renderCards();
-    toast(`${submitted} image${submitted > 1 ? 's' : ''} queued — Ollama is analyzing…`, 'ok', 4000);
+    toast(jobOpts.backend === 'manual'
+      ? `${submitted} image${submitted > 1 ? 's' : ''} saved for manual review`
+      : `${submitted} image${submitted > 1 ? 's' : ''} queued — ${visionBackendLabel()} is analyzing…`, 'ok', 4000);
   }
 }
 window.processQueue = processQueue;

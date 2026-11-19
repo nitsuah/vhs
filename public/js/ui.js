@@ -3,9 +3,9 @@ import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNew
 import { dbAdd, dbPut, dbDel, dbUpdateTape, nextId } from './db.js';
 import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound, fileToThumb } from './utils.js';
 import { revPanel, showRevPanel, hideRevPanel } from './review.js';
-import { apiKey, omdbKey, tmdbKey, apiProvider, ollamaUrl, ollamaModel, fastMode, cards, captureQueue, setApiKey, setOmdbKey, setTmdbKey, setApiProvider, setOllamaUrl, setOllamaModel, setFastMode, localAiUrl, setLocalAiUrl, setLocalAiModel } from './state.js';
+import { apiKey, omdbKey, tmdbKey, apiProvider, ollamaUrl, ollamaModel, fastMode, cards, captureQueue, setApiKey, setOmdbKey, setTmdbKey, setApiProvider, setOllamaUrl, setOllamaModel, setFastMode, localAiUrl, setLocalAiUrl, setLocalAiModel, setVisionBackend, setVisionModel } from './state.js';
 import { barcodeMode } from './camera.js';
-import { checkOllama, updateAiBadge, callAI, lookupMetadata, getLastLookupFailure, findLocalAI } from './ai.js';
+import { checkOllama, updateAiBadge, callAI, lookupMetadata, getLastLookupFailure, findLocalAI, checkVisionBackends, populateVisionSelector, parseVisionSelection } from './ai.js';
 import { setDbDot } from './db.js';
 import { initTableUX, updateSortIndicators } from './modules/table-ux.js';
 import { setSortValue, getSortValue, getIsReadOnly } from './modules/inventory-state.js';
@@ -119,6 +119,8 @@ document.getElementById('btn-settings').addEventListener('click',()=>{
   document.getElementById('s-ollama-model').value=ollamaModel;
   document.getElementById('s-fast-mode').checked=fastMode;
   checkOllama();
+  populateVisionSelector();
+  checkVisionBackends().then(()=>populateVisionSelector());
   const localAiResults=document.getElementById('local-ai-results');
   if(localAiResults){
     if(localAiUrl){localAiResults.style.display='block';localAiResults.textContent=`Connected to local AI at ${localAiUrl}`;}
@@ -135,6 +137,13 @@ document.getElementById('s-save').addEventListener('click',()=>{
   const newUrl=document.getElementById('s-ollama-url').value.trim()||(location.protocol==='file:'?'http://localhost:11434':'/api/ollama');
   const newModel=document.getElementById('s-ollama-model').value;
   const newFast=document.getElementById('s-fast-mode').checked;
+  const visionSel=document.getElementById('s-vision-backend');
+  if(visionSel){
+    const {backend,model}=parseVisionSelection(visionSel.value);
+    setVisionBackend(backend);setVisionModel(model);
+    localStorage.setItem('vhs-vision-backend',backend);
+    model?localStorage.setItem('vhs-vision-model',model):localStorage.removeItem('vhs-vision-model');
+  }
   setApiKey(newKey); setOmdbKey(newOmdb); setTmdbKey(newTmdb); setApiProvider(newProvider); setOllamaUrl(newUrl); setOllamaModel(newModel); setFastMode(newFast);
   newKey?localStorage.setItem('vhs-apikey',newKey):localStorage.removeItem('vhs-apikey'); // codeql[js/clear-text-storage-of-sensitive-data]
   newOmdb?localStorage.setItem('vhs-omdb-key',newOmdb):localStorage.removeItem('vhs-omdb-key'); // codeql[js/clear-text-storage-of-sensitive-data]
@@ -261,7 +270,10 @@ async function runHealthCheck(){
   const remedEl=document.getElementById('health-remediation');
   const tsEl=document.getElementById('health-ts');
   dbDotEl.className='ai-dot spin2';dbMsg.textContent='Checking…';
+  const visionDotEl=document.getElementById('health-vision-dot');
+  const visionMsg=document.getElementById('health-vision-msg');
   ollamaDotEl.className='ai-dot spin2';ollamaMsg.textContent='Checking…';
+  if(visionDotEl){visionDotEl.className='ai-dot spin2';visionMsg.textContent='Checking…';}
   remedEl.style.display='none';
   try{
     const h=await fetch('/api/health',{signal:AbortSignal.timeout(8000)}).then(r=>r.json());
@@ -275,15 +287,28 @@ async function runHealthCheck(){
       ollamaDotEl.className='ai-dot off';
       ollamaMsg.textContent='Unreachable: '+(h.ollamaError||'unknown');
     }
+    const v=h.vision||{};
+    if(visionDotEl){
+      if(v.workersAi==='ok'){
+        visionDotEl.className='ai-dot ok';
+        const left=(v.scansToday!==null&&v.scansToday!==undefined)?` · ${Math.max(0,(v.scanCap||0)-v.scansToday)}/${v.scanCap} free scans left today`:'';
+        visionMsg.textContent=`Ready · ${v.model||'Llama 3.2 Vision'}${left}`;
+      }else if(v.workersAi==='capped'){
+        visionDotEl.className='ai-dot off';visionMsg.textContent=`Daily free cap of ${v.scanCap} scans reached — resets 00:00 UTC`;
+      }else{
+        visionDotEl.className='ai-dot off';visionMsg.textContent='Not available here (Cloudflare deployment only)';
+      }
+    }
     const remeds=[];
     if(h.db!=='ok')remeds.push('• DB: Check DATABASE_URL in .env and that Neon is reachable.');
-    if(h.ollama!=='ok')remeds.push('• Ollama: Ensure the ollama container is running. Pull a model with "ollama pull llava:7b".');
+    if(h.ollama!=='ok'&&v.workersAi!=='ok')remeds.push('• Ollama: Ensure the ollama container is running. Pull a model with "ollama pull llava:7b".');
     if(remeds.length){remedEl.style.display='';remedEl.innerHTML=remeds.join('<br>');}
     if(h.ts)tsEl.textContent='Checked '+new Date(h.ts).toLocaleTimeString();
     setDbDot(h.db==='ok'?'ok':'err');
   }catch(e){
     dbDotEl.className='ai-dot off';dbMsg.textContent='Health check failed: '+e.message;
     ollamaDotEl.className='ai-dot off';ollamaMsg.textContent='Could not reach server';
+    if(visionDotEl){visionDotEl.className='ai-dot off';visionMsg.textContent='Could not reach server';}
     remedEl.style.display='';remedEl.textContent='• Server may be down or unreachable. Try refreshing the page.';
   }
 }
