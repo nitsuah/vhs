@@ -4,7 +4,15 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased] — 2026-09-11 → 2026-10-07
+## [Unreleased] — 2026-09-11 → 2026-11-19
+
+### Added
+
+- **Added:** On-demand cover/spine artwork search in the tape detail modal, storing source/license/attribution metadata independently of local photos (#169).
+
+### Fixed
+
+- **Fixed:** Serialize tape writes per ID so concurrent artwork and photo updates cannot overwrite one another; failed artwork saves leave shared inventory unchanged.
 
 ### Changed
 
