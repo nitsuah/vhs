@@ -161,6 +161,7 @@ async function processQueue() {
     try {
       const r = await fetch('/api/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: item.base64, thumb: item.thumb }) });
+      if (r.status === 401) { toast('Sign in to queue scans', 'err', 4000); break; }
       if (r.ok) {
         const { id: uploadJobId } = await r.json();
         const card = { uid: nextUidSeq(), data: { format: 'VHS', condition: 'good', status: 'in_collection', notes: '' }, source: null, thumb: item.thumb, expanded: false, jobId: uploadJobId, srcJobId: uploadJobId, processingState: submitted === 0 && !barcodeItems.length ? 'processing' : 'queued', failReason: '', inflightSince: new Date().toISOString() };
@@ -256,7 +257,7 @@ let jobPollTimer = null;
 
 async function pollReviewItems() {
   try {
-    const items = await fetch('/api/review/pending').then(r => r.json());
+    const items = await fetch('/api/review/pending').then(r => (r.status === 401 ? null : r.json()));
     if (!Array.isArray(items)) return;
     let changed = 0;
     for (const item of items) {
@@ -285,7 +286,7 @@ async function pollReviewItems() {
 
 async function resumeInflightJobs() {
   try {
-    const jobs = await fetch('/api/jobs/inflight').then(r => r.json());
+    const jobs = await fetch('/api/jobs/inflight').then(r => (r.status === 401 ? null : r.json()));
     if (!Array.isArray(jobs) || !jobs.length) return;
     let added = 0;
     for (let i = 0; i < jobs.length; i++) {
@@ -327,7 +328,8 @@ let queueBusy = false;
 async function updateQueueStatus() {
   if (queueBusy) return; queueBusy = true;
   try {
-    const s = await fetch('/api/jobs/status').then(r => r.json());
+    const s = await fetch('/api/jobs/status').then(r => (r.status === 401 ? null : r.json()));
+    if (!s) { queueStatusEl.style.display = 'none'; return; }
     const active = (s.pending || 0) + (s.processing || 0);
     const retrying = s.failed || 0;
     const newReady = s.review_pending || 0;

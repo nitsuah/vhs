@@ -191,3 +191,33 @@ describe('processJobs resilience', () => {
     expect(isWorkerBusy()).toBe(false);
   });
 });
+
+describe('processJobs owner propagation', () => {
+  it('copies owner_id onto review items created from a permanently failed job', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'J1', thumb: 't', error: 'boom', owner_id: 'u1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    await processJobs();
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO review_items/.test(sql));
+    expect(insert[0]).toContain('owner_id');
+    expect(insert[1].at(-1)).toBe('u1');
+  });
+
+  it('copies owner_id onto review items and analytics for a processed job', async () => {
+    mockCallOllamaServer.mockResolvedValue([{ title: 'Jaws' }]);
+    mockEnhancedLookup.mockResolvedValue(null);
+    mockQuery.mockImplementation(async (sql) => {
+      if (/SELECT id, image_data/.test(sql)) return { rows: [{ id: 'J1', image_data: 'x', thumb: 't', owner_id: 'u1' }] };
+      return { rows: [] };
+    });
+    await processJobs();
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO review_items/.test(sql));
+    expect(insert[1].at(-1)).toBe('u1');
+    expect(mockLogScanAnalytics).toHaveBeenCalledWith(expect.objectContaining({ jobId: 'J1', ownerId: 'u1' }));
+    mockQuery.mockReset();
+  });
+});
