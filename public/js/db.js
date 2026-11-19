@@ -72,7 +72,11 @@ function enqueueTapeWrite(id, buildRecord, fallback) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(record),
     });
-    if (current && record !== current) Object.assign(current, record);
+    // A concurrent dbAll() can replace the inventory array while the PUT is
+    // in flight. Reflect the committed server record onto the currently-held
+    // object, not only the stale object captured when this queued write began.
+    const latest = getInventory().find(t => t.id === id);
+    if (latest) Object.assign(latest, record);
     _cachePut(record).catch(() => {});
     return saved;
   });
