@@ -331,3 +331,24 @@ describe('processJobs backend selection', () => {
     expect(insert[1].join(' ')).toMatch(/Manual review selected/);
   });
 });
+
+describe('processJobs busy guard', () => {
+  it('ignores a busy flag left behind by an abandoned pass', async () => {
+    const realNow = Date.now;
+    let release;
+    mockQuery.mockImplementationOnce(() => new Promise(r => { release = r; })); // first pass hangs
+    const first = processJobs();
+    expect(isWorkerBusy()).toBe(true);
+    // A concurrent pass is skipped while the first one is fresh.
+    await processJobs();
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    // Two minutes later the flag is treated as stale and a new pass runs.
+    Date.now = () => realNow() + 3 * 60 * 1000;
+    mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+    await processJobs();
+    expect(mockQuery.mock.calls.length).toBeGreaterThan(1);
+    Date.now = realNow;
+    release({ rowCount: 0 });
+    await first;
+  });
+});

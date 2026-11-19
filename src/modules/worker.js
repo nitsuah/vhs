@@ -8,10 +8,16 @@ const { logActivity } = require('./activity-log');
 const { OMDB_API_KEY, MAX_RETRIES } = require('./config');
 
 let workerBusy = false;
+let busySince = 0;
+// On Cloudflare a pass runs in ctx.waitUntil, which can be cut off (30 s
+// limit) before `finally` resets the flag. Treat a pass older than this as
+// abandoned so the isolate doesn't stop processing jobs forever.
+const BUSY_STALE_MS = 2 * 60 * 1000;
 
 async function processJobs() {
-  if (workerBusy) return;
+  if (workerBusy && Date.now() - busySince < BUSY_STALE_MS) return;
   workerBusy = true;
+  busySince = Date.now();
 
   try {
     const nowMs = Date.now();
