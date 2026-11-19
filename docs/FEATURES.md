@@ -48,6 +48,7 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 
 ## Enrichment & Verification
 
+- `[shipped]` **Artwork Search & Links** — on-demand cover/spine artwork search with source, license and attribution metadata; independent Use/Clear controls
 - `[shipped]` **StacksUp Integration** — spine rotation enrichment
 - `[shipped]` **OMDb Verification** — AI scan results cross-checked against movie database
 - `[shipped]` **Batch AI Metadata Fill** — ⚡ Fill button auto-fills year, label, value for incomplete tapes
