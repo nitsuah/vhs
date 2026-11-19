@@ -70,7 +70,7 @@ describe('external-API routes require sign-in', () => {
 
 describe('fetch-image private address checks', () => {
   it.each([
-    '::ffff:127.0.0.1', '::ffff:10.1.2.3', '::ffff:7f00:1', '100.64.0.1', '100.127.255.254', '0.1.2.3', '0.0.0.0',
+    '::ffff:127.0.0.1', '::ffff:10.1.2.3', '::ffff:7f00:1', '100.64.0.1', '198.18.0.1', '224.0.0.1', '240.0.0.1', '255.255.255.255', '100.127.255.254', '0.1.2.3', '0.0.0.0',
     '169.254.169.254', 'fc00::1', 'fd12:3456::1', 'fe80::1', 'febf::1', '::1', '::', 'not-an-ip', '1.2.3', '',
   ])('rejects resolved address %p', async (addr) => {
     mockLookup.mockResolvedValue([{ address: addr }]);
