@@ -254,6 +254,15 @@ async function getUsageToday() {
 const CAP_MESSAGE = 'Daily free Workers AI scan cap reached. This photo was saved for manual review — add the title from the picture.';
 const AI_ERROR_PREFIX = 'Workers AI could not read this photo';
 
+// 'auto' follows the same availability policy as getVisionBackends(): the
+// configured preference, unless it is Ollama and Ollama is down while Workers
+// AI is bound (then Workers AI). Workers AI cap/error fallbacks still apply.
+async function resolveAutoBackend() {
+  const preferred = resolveBackend();
+  if (preferred === 'ollama' && getAiBinding() && !(await pingOllama())) return 'workers-ai';
+  return preferred;
+}
+
 const MANUAL_MESSAGE = 'Manual review selected — add the title from the picture.';
 
 // opts.backend: 'auto' | 'workers-ai' | 'ollama' | 'manual' (chosen in the UI
@@ -263,7 +272,7 @@ async function recognizeTapes(base64, opts = {}) {
   if (requested === 'manual') {
     return { items: [], model: null, backend: 'manual', deferred: 'manual', message: MANUAL_MESSAGE, fallback: null };
   }
-  const backend = requested === 'auto' ? resolveBackend() : requested;
+  const backend = requested === 'auto' ? await resolveAutoBackend() : requested;
   const ollamaModel = (requested === 'ollama' && normalizeModel(opts.model)) || OLLAMA_MODEL;
 
   if (backend === 'ollama') {
@@ -456,6 +465,7 @@ module.exports = {
   normalizeBackend,
   normalizeModel,
   getVisionBackends,
+  resolveAutoBackend,
   getOllamaStatus,
   resetVisionStateForTests,
 };

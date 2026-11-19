@@ -40,27 +40,41 @@ export async function checkVisionBackends(){
   return visionBackends;
 }
 function backendById(id){return (visionBackends?.backends||[]).find(b=>b.id===id)||null;}
-// The server backend a scan will use: the saved choice when it is available,
-// otherwise the server's best available one ('auto' lets the server decide).
-export function effectiveVisionBackend(){
-  if(visionBackend&&visionBackend!=='auto'){
-    const b=backendById(visionBackend);
-    if(!visionBackends||b?.available)return visionBackend;
+function ollamaModelsOf(b){return b?.available?(b.models?.length?b.models:[b.model].filter(Boolean)):[];}
+// The one rule shared by the selector, the badge and POST /api/jobs: the saved
+// choice ({backend, model}) when the server reports it can run it, else Auto.
+// While discovery is unknown (request failed) the saved choice is kept.
+export function resolvedVisionChoice(){
+  const saved={backend:visionBackend||'auto',model:visionBackend==='ollama'?(visionModel||''):''};
+  if(saved.backend==='auto'||!visionBackends)return saved;
+  const b=backendById(saved.backend);
+  if(!b?.available)return {backend:'auto',model:''};
+  if(saved.backend==='ollama'){
+    const models=ollamaModelsOf(b);
+    if(!saved.model)return {backend:'ollama',model:models[0]||''};
+    return models.includes(saved.model)?saved:{backend:'auto',model:''};
   }
-  return visionBackends?.default||'auto';
+  return saved;
+}
+// The server backend a scan will use: the resolved choice, or for Auto the
+// server's best available one.
+export function effectiveVisionBackend(){
+  const c=resolvedVisionChoice();
+  return c.backend!=='auto'?c.backend:(visionBackends?.default||'auto');
 }
 export function visionBackendLabel(id=effectiveVisionBackend()){
   if(id==='auto')return 'the server';
-  const b=backendById(id);
-  if(id==='ollama')return `Ollama (${(visionBackend==='ollama'&&visionModel)||b?.model||ollamaModel})`;
+  if(id==='ollama'){
+    const c=resolvedVisionChoice();
+    return `Ollama (${(c.backend==='ollama'&&c.model)||backendById('ollama')?.model||ollamaModel})`;
+  }
   return BACKEND_LABELS[id]||id;
 }
-// Payload for POST /api/jobs: explicit backend only when the user chose one
-// that is available; otherwise 'auto'.
+// Payload for POST /api/jobs.
 export function visionJobOptions(){
-  const chosen=visionBackend&&visionBackend!=='auto'&&(!visionBackends||backendById(visionBackend)?.available)?visionBackend:'auto';
-  const opts={backend:chosen};
-  if(chosen==='ollama'&&visionModel)opts.model=visionModel;
+  const c=resolvedVisionChoice();
+  const opts={backend:c.backend};
+  if(c.backend==='ollama'&&c.model)opts.model=c.model;
   return opts;
 }
 // True when the user picked a server backend explicitly, so scans go to the
@@ -72,9 +86,11 @@ function serverAiBackend(){
   const id=visionBackends?.default;
   return id&&id!=='manual'?id:null;
 }
+function choiceValue(c){return c.backend==='ollama'?'ollama|'+(c.model||''):c.backend;}
 // Fill <select id="s-vision-backend"> from the backends report: unavailable
 // options are disabled and labelled with the reason; 'auto' names the default.
-export function populateVisionSelector(sel=document.getElementById('s-vision-backend'),statusEl=document.getElementById('vision-backend-status')){
+// preferValue keeps a selection the user made while discovery was in flight.
+export function populateVisionSelector(sel=document.getElementById('s-vision-backend'),statusEl=document.getElementById('vision-backend-status'),preferValue=null){
   if(!sel)return;
   const data=visionBackends;
   const opts=[];
@@ -85,7 +101,7 @@ export function populateVisionSelector(sel=document.getElementById('s-vision-bac
       const left=(b.remaining!==null&&b.remaining!==undefined)?` · ${b.remaining}/${b.scanCap} free scans left today`:'';
       opts.push({value:'workers-ai',label:`Workers AI · Llama 3.2 Vision${b.available?left:` (${b.status==='capped'?'daily cap reached':'unavailable'})`}`,disabled:!b.available,title:b.reason||''});
     }else if(b.id==='ollama'){
-      const models=b.available?(b.models?.length?b.models:[b.model]):[];
+      const models=ollamaModelsOf(b);
       if(models.length){
         for(const m of models)opts.push({value:'ollama|'+m,label:`Ollama · ${m}`,disabled:false});
       }else{
@@ -95,6 +111,13 @@ export function populateVisionSelector(sel=document.getElementById('s-vision-bac
       opts.push({value:'manual',label:'Manual review (no AI)',disabled:false});
     }
   }
+  const choice=resolvedVisionChoice();
+  // Discovery unknown: keep the saved choice selectable so saving other
+  // settings doesn't silently reset it to Auto.
+  if(!data&&choice.backend!=='auto'){
+    const v=choiceValue(choice);
+    opts.push({value:v,label:`${BACKEND_LABELS[choice.backend]||choice.backend}${choice.model?' · '+choice.model:''} (saved)`,disabled:false});
+  }
   sel.innerHTML='';
   for(const o of opts){
     const el=document.createElement('option');
@@ -102,19 +125,14 @@ export function populateVisionSelector(sel=document.getElementById('s-vision-bac
     if(o.title)el.title=o.title;
     sel.appendChild(el);
   }
-  // Select the saved choice when it is still available, else Auto.
-  let want=visionBackend==='ollama'?'ollama|'+visionModel:visionBackend;
-  if(visionBackend==='ollama'&&!visionModel){
-    const first=opts.find(o=>o.value.startsWith('ollama|')&&!o.disabled);
-    if(first)want=first.value;
-  }
-  const match=opts.find(o=>o.value===want&&!o.disabled);
+  const pick=v=>v&&opts.find(o=>o.value===v&&!o.disabled);
+  const match=pick(preferValue)||pick(choiceValue(choice));
   sel.value=match?match.value:'auto';
   if(statusEl){
-    if(!data){statusEl.textContent='Could not read server scan backends — scans will use the server default.';}
+    if(!data){statusEl.textContent='Could not read server scan backends — scans will use your saved choice or the server default.';}
     else{
       const unavailable=(data.backends||[]).filter(b=>!b.available&&b.reason).map(b=>`${BACKEND_LABELS[b.id]||b.id}: ${b.reason}`);
-      const fellBack=visionBackend!=='auto'&&!match?` Saved choice (${BACKEND_LABELS[visionBackend]||visionBackend}) is unavailable, using Auto.`:'';
+      const fellBack=visionBackend&&visionBackend!=='auto'&&choice.backend==='auto'?` Saved choice (${BACKEND_LABELS[visionBackend]||visionBackend}${visionModel?' · '+visionModel:''}) is unavailable, using Auto.`:'';
       statusEl.textContent=`Default: ${BACKEND_LABELS[def]||def}.${fellBack}${unavailable.length?' '+unavailable.join(' · '):''}`;
     }
   }
@@ -129,11 +147,14 @@ export function updateAiBadge(){
   const serverAi = serverAiBackend();
   const hasAi = !!(apiKey || ollamaAvail || localAiUrl || serverAi);
   const forced = serverBackendForced();
+  // Badge mirrors where processQueue() actually sends scans: browser-side
+  // Claude / local AI first unless a server backend is chosen explicitly.
   if(apiKey&&!forced)setAiBadge('claude','CLAUDE');
+  else if(localAiUrl&&!forced)setAiBadge('ollama','LOCAL AI');
   else if(serverAi||forced){
     const id=effectiveVisionBackend();
     if(id==='workers-ai')setAiBadge('workersai','WORKERS AI');
-    else if(id==='ollama')setAiBadge('ollama',(visionBackend==='ollama'&&visionModel)||backendById('ollama')?.model||'OLLAMA');
+    else if(id==='ollama'){const c=resolvedVisionChoice();setAiBadge('ollama',(c.backend==='ollama'&&c.model)||backendById('ollama')?.model||'OLLAMA');}
     else if(id==='manual')setAiBadge('noai','MANUAL');
     else setAiBadge('ollama','SERVER AI');
   }

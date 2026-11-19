@@ -181,3 +181,24 @@ describe('migration 010', () => {
     expect(sql).toMatch(/ADD COLUMN IF NOT EXISTS vision_model TEXT/);
   });
 });
+
+describe('auto resolution matches discovery', () => {
+  it('uses Workers AI when VISION_BACKEND=ollama but Ollama is down and the AI binding exists', async () => {
+    process.env.VISION_BACKEND = 'ollama';
+    setAi();
+    mockPingOllama.mockResolvedValue(false);
+    await expect(vision.resolveAutoBackend()).resolves.toBe('workers-ai');
+  });
+
+  it('keeps Ollama when it is the preference and reachable', async () => {
+    process.env.VISION_BACKEND = 'ollama';
+    setAi();
+    mockPingOllama.mockResolvedValue(true);
+    await expect(vision.resolveAutoBackend()).resolves.toBe('ollama');
+  });
+
+  it('keeps Ollama off Cloudflare (no binding to fall back to)', async () => {
+    mockPingOllama.mockResolvedValue(false);
+    await expect(vision.resolveAutoBackend()).resolves.toBe('ollama');
+  });
+});

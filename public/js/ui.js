@@ -119,8 +119,11 @@ document.getElementById('btn-settings').addEventListener('click',()=>{
   document.getElementById('s-ollama-model').value=ollamaModel;
   document.getElementById('s-fast-mode').checked=fastMode;
   checkOllama();
+  const visionSelEl=document.getElementById('s-vision-backend');
+  if(visionSelEl)delete visionSelEl.dataset.touched;
   populateVisionSelector();
-  checkVisionBackends().then(()=>populateVisionSelector());
+  // Don't clobber a choice made while discovery is still in flight.
+  checkVisionBackends().then(()=>populateVisionSelector(undefined,undefined,visionSelEl?.dataset.touched?visionSelEl.value:null));
   const localAiResults=document.getElementById('local-ai-results');
   if(localAiResults){
     if(localAiUrl){localAiResults.style.display='block';localAiResults.textContent=`Connected to local AI at ${localAiUrl}`;}
@@ -128,6 +131,7 @@ document.getElementById('btn-settings').addEventListener('click',()=>{
   }
   document.getElementById('m-settings').style.display='flex';
 });
+document.getElementById('s-vision-backend')?.addEventListener('change',e=>{e.target.dataset.touched='1';});
 document.getElementById('s-cancel').addEventListener('click',()=>document.getElementById('m-settings').style.display='none');
 document.getElementById('s-save').addEventListener('click',()=>{
   const newKey=document.getElementById('s-apikey').value.trim();
@@ -138,7 +142,9 @@ document.getElementById('s-save').addEventListener('click',()=>{
   const newModel=document.getElementById('s-ollama-model').value;
   const newFast=document.getElementById('s-fast-mode').checked;
   const visionSel=document.getElementById('s-vision-backend');
-  if(visionSel){
+  // Only persist the scan backend when the user actually changed it, so a
+  // failed or partial discovery can't overwrite the saved choice.
+  if(visionSel&&visionSel.dataset.touched){
     const {backend,model}=parseVisionSelection(visionSel.value);
     setVisionBackend(backend);setVisionModel(model);
     localStorage.setItem('vhs-vision-backend',backend);
