@@ -215,3 +215,73 @@ test('double-clicking a wall card toggles multi-select without opening detail', 
   await expect(card).toHaveClass(/bulk-sel/, { timeout: 3000 });
   await expect(page.locator('#m-detail')).not.toBeVisible();
 });
+
+
+// ── EXTERNAL ARTWORK LINKS ────────────────────────────────────────────────────
+
+test('local role pins win over external links and keep their crop metadata', async ({ page }) => {
+  const tape = makeTape({
+    photo_spine: 'https://local.example/spine.jpg',
+    photo_face: 'https://local.example/face.jpg',
+    photo_thumbnail: 'https://local.example/thumb.jpg',
+    artwork_links: {
+      spine: { url: 'https://external.example/spine.jpg' },
+      face: { url: 'https://external.example/face.jpg' },
+    },
+    photo_crop: { spine: { x: 20, y: 30, s: 2, r: 1 }, face: { x: 25, y: 40, s: 2, r: 1 } },
+  });
+  await setupBasicMocks(page, { tapes: [tape] });
+  await gotoCollect(page);
+  for (const [clicks, selector, expected] of [
+    [1, '.su-card img', 'https://local.example/spine.jpg'],
+    [2, '.spine-card img', 'https://local.example/spine.jpg'],
+    [3, '.cover-card img', 'https://local.example/face.jpg'],
+  ]) {
+    for (let i = 0; i < clicks - (await page.locator('#btn-wall').getAttribute('data-test-clicks') || 0); i++) await page.click('#btn-wall');
+    await expect(page.locator('#wall-view '+selector)).toHaveAttribute('src', expected);
+  }
+});
+
+test('external face and spine links are used without crop or layout transforms', async ({ page }) => {
+  const tape = makeTape({
+    artwork_links: {
+      spine: { url: 'https://commons.example/spine.jpg' },
+      face: { url: 'https://commons.example/face.jpg' },
+    },
+    photo_crop: { spine: { x: 10, y: 20, s: 3, r: 2 }, face: { x: 30, y: 40, s: 2, r: 1 } },
+  });
+  await setupBasicMocks(page, { tapes: [tape] });
+  await page.route('https://commons.example/**', route => route.fulfill({ status: 200, contentType: 'image/jpeg', body: '' }));
+  await gotoCollect(page);
+  await page.click('#btn-wall');
+  const stacks = page.locator('#wall-view .su-card img');
+  await expect(stacks).toHaveAttribute('src', 'https://commons.example/spine.jpg');
+  await expect(stacks).not.toHaveAttribute('style', /./);
+  await expect(stacks).not.toHaveClass(/su-img-spine/);
+  await page.click('#btn-wall');
+  const spine = page.locator('#wall-view .spine-card img');
+  await expect(spine).toHaveAttribute('src', 'https://commons.example/spine.jpg');
+  await expect(spine).not.toHaveAttribute('style', /./);
+  await page.click('#btn-wall');
+  const cover = page.locator('#wall-view .cover-card img');
+  await expect(cover).toHaveAttribute('src', 'https://commons.example/face.jpg');
+  await expect(cover).not.toHaveAttribute('style', /./);
+});
+
+test('thumbnail is the final fallback and non-HTTPS links are ignored', async ({ page }) => {
+  const tape = makeTape({
+    photo_thumbnail: 'https://local.example/thumb.jpg',
+    artwork_links: {
+      spine: { url: 'http://insecure.example/spine.jpg' },
+      face: { url: 'javascript:alert(1)' },
+    },
+  });
+  await setupBasicMocks(page, { tapes: [tape] });
+  await gotoCollect(page);
+  await page.click('#btn-wall');
+  await expect(page.locator('#wall-view .su-card img')).toHaveAttribute('src', tape.photo_thumbnail);
+  await page.click('#btn-wall');
+  await expect(page.locator('#wall-view .spine-card img')).toHaveAttribute('src', tape.photo_thumbnail);
+  await page.click('#btn-wall');
+  await expect(page.locator('#wall-view .cover-card img')).toHaveAttribute('src', tape.photo_thumbnail);
+});
