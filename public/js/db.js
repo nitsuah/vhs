@@ -61,11 +61,11 @@ export async function dbAll(){
 export async function dbAdd(v){const r=await apiReq('/api/tapes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});_cachePut(v).catch(()=>{});return r;}
 const tapeWriteQueues = new Map();
 
-function enqueueTapeWrite(id, buildRecord) {
+function enqueueTapeWrite(id, buildRecord, fallback) {
   const previous = tapeWriteQueues.get(id) || Promise.resolve();
   const next = previous.catch(() => {}).then(async () => {
     const current = getInventory().find(t => t.id === id);
-    const base = current || {};
+    const base = current || fallback || {};
     const record = buildRecord(base);
     const saved = await apiReq(`/api/tapes/${encodeURIComponent(id)}`, {
       method: 'PUT',
@@ -89,7 +89,7 @@ export function dbUpdateTape(id, update) {
   return enqueueTapeWrite(id, current => update({ ...current }));
 }
 export function dbPut(v) {
-  return enqueueTapeWrite(v.id, current => current);
+  return enqueueTapeWrite(v.id, current => current, v);
 }
 export async function dbDel(k){const r=await apiReq(`/api/tapes/${encodeURIComponent(k)}`,{method:'DELETE'});_cacheDel(k).catch(()=>{});return r;}
 
