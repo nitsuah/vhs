@@ -6,7 +6,7 @@
 
 const { pool } = require('./db');
 const { callOllamaServer, pingOllama } = require('./ollama');
-const { parseJsonArray } = require('./json-parser');
+const { parseJsonArray, parseJsonObject } = require('./json-parser');
 const {
   SCAN_PROMPT,
   OLLAMA_MODEL,
@@ -41,28 +41,50 @@ function toImageBytes(base64) {
   return Array.from(buf);
 }
 
+function unwrapAiResult(result) {
+  if (result && result.result && (result.result.response !== undefined || result.result.usage)) {
+    return result.result;
+  }
+  return result;
+}
+
 function textFromAiResult(result) {
   if (result == null) return '';
   if (typeof result === 'string') return result;
-  if (typeof result.response === 'string') return result.response;
-  if (typeof result.result === 'string') return result.result;
-  if (result.result && typeof result.result.response === 'string') return result.result.response;
-  if (Array.isArray(result)) return result.map(textFromAiResult).filter(Boolean).join('\n');
+  const body = unwrapAiResult(result);
+  const response = body && body.response !== undefined ? body.response : body;
+  if (typeof response === 'string') return response;
+  if (Array.isArray(response) || (response && typeof response === 'object')) {
+    try { return JSON.stringify(response); } catch { return ''; }
+  }
   return '';
 }
 
+function itemsFromAiText(text) {
+  const arr = parseJsonArray(text).filter((item) => item && item.title);
+  if (arr.length) return arr;
+  const obj = parseJsonObject(text);
+  if (obj && obj.title) return [obj];
+  return [];
+}
+
 function usageFromAiResult(result) {
-  const u = (result && (result.usage || result.result?.usage)) || null;
+  const body = unwrapAiResult(result) || {};
+  const u = (result && (result.usage || body.usage)) || null;
   if (!u) return null;
   return {
     input_tokens: u.prompt_tokens || u.input_tokens || u.promptTokens || 0,
     output_tokens: u.completion_tokens || u.output_tokens || u.completionTokens || 0,
+    neurons: u.neurons || u.neuron || null,
   };
 }
 
 function neuronsFromUsage(usage) {
   // @cf/meta/llama-3.2-11b-vision-instruct: 4410 neu/M input, 61493 neu/M output
   if (!usage) return NEURONS_PER_SCAN_EST;
+  if (Number.isFinite(Number(usage.neurons)) && Number(usage.neurons) > 0) {
+    return Number(usage.neurons);
+  }
   const input = Number(usage.input_tokens) || 0;
   const output = Number(usage.output_tokens) || 0;
   return (input * 4410 + output * 61493) / 1e6;
@@ -131,7 +153,7 @@ async function callWorkersAiVision(base64) {
     }
   }
   const text = textFromAiResult(result);
-  const items = parseJsonArray(text).filter((item) => item && item.title);
+  const items = itemsFromAiText(text);
   const usage = usageFromAiResult(result);
   return { items, usage, raw: text };
 }
@@ -309,6 +331,7 @@ module.exports = {
   utcDay,
   toImageBytes,
   textFromAiResult,
+  itemsFromAiText,
   neuronsFromUsage,
   isLicenseError,
   isLicenseAccepted,

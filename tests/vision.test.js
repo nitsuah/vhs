@@ -18,6 +18,7 @@ const {
   resolveBackend,
   getAiBinding,
   textFromAiResult,
+  itemsFromAiText,
   neuronsFromUsage,
   isLicenseError,
   isLicenseAccepted,
@@ -77,6 +78,22 @@ describe('helpers', () => {
     expect(textFromAiResult('plain')).toBe('plain');
     expect(textFromAiResult({ response: 'from-response' })).toBe('from-response');
     expect(textFromAiResult({ result: { response: 'nested' } })).toBe('nested');
+  });
+
+  it('accepts a single JSON object response, not only an array', () => {
+    const envelope = {
+      result: {
+        response: { title: 'Akira', year: '1988', label: 'Streamline', format: 'VHS', confidence: 'high' },
+        usage: { prompt_tokens: 1689, completion_tokens: 26, neurons: 9.048 },
+      },
+      success: true,
+    };
+    const items = itemsFromAiText(textFromAiResult(envelope));
+    expect(items).toEqual([expect.objectContaining({ title: 'Akira', label: 'Streamline' })]);
+  });
+
+  it('prefers an API-reported neuron count when present', () => {
+    expect(neuronsFromUsage({ neurons: 9.048, input_tokens: 1689, output_tokens: 26 })).toBeCloseTo(9.048, 3);
   });
 
   it('estimates neurons from token usage, falling back to the safe default', () => {

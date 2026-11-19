@@ -34,7 +34,7 @@ For each tape visible, extract:
 - condition_notes: a short note on damage, fading, or tears only if visible
 Output ONLY a JSON array — no other text:
 [{"title":"Title Here","year":"1984","label":"Orion","format":"VHS","confidence":"high"}]
-Rules: SPINE = mentally rotate 90° to read vertical text. COVER = largest/most prominent text is the title.
+Rules: SPINE = mentally rotate 90° to read vertical text. COVER = the largest title treatment is the title; a smaller studio or distributor name at the top or bottom is the label, not the title.
 Do NOT hallucinate titles — only output text you can actually see in the image.
 A "low" confidence entry is better than omitting it. Return [] only if truly unreadable.`;
 
