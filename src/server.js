@@ -22,6 +22,7 @@ const {
   optionalAuth, requireAuth,
 } = require('./modules/auth');
 const { pool, runMigrations } = require('./modules/db');
+const { isPrivateAddress } = require('./modules/ip-guard');
 // certs.js shells out to openssl (child_process + fs). Load it lazily so the
 // Cloudflare Worker bundle (worker/index.js) never executes it.
 const ensureCerts = (...args) => require('./modules/certs').ensureCerts(...args);
@@ -97,13 +98,29 @@ const defaultLimiter = rateLimit({
 // ── Health ─────────────────────────────────────────────────────────────────────
 app.get('/api/health', healthHandler);
 
+// ── Queue ownership ────────────────────────────────────────────────────────────
+// When sign-in is enabled the scan queue (upload_jobs, review_items, scan_analytics)
+// is scoped to the signed-in user. When disabled, nothing is filtered.
+function queueOwnerId(req) {
+  return AUTH_ENABLED && req.user ? req.user.sub : null;
+}
+// Returns { sql, params } to append to a WHERE clause; the placeholder is $n.
+function ownerFilter(req, n) {
+  const owner = queueOwnerId(req);
+  return owner ? { sql: ` AND owner_id = $${n}`, params: [owner] } : { sql: '', params: [] };
+}
+
 // ── System info ────────────────────────────────────────────────────────────────
-app.get('/api/system', defaultLimiter, async (req, res) => {
+app.get('/api/system', defaultLimiter, requireAuth, async (req, res) => {
   try {
     const ollamaOk = await pingOllama();
-    const { rows: tapeCount } = await pool.query('SELECT COUNT(*) FROM tapes');
-    const { rows: reviewCount } = await pool.query("SELECT COUNT(*) FROM review_items WHERE status='pending'");
-    const { rows: jobStats } = await pool.query('SELECT status, COUNT(*) c FROM upload_jobs GROUP BY status');
+    const f = ownerFilter(req, 1);
+    const { rows: tapeCount } = await pool.query(
+      `SELECT COUNT(*) FROM tapes WHERE TRUE${f.sql}`, f.params);
+    const { rows: reviewCount } = await pool.query(
+      `SELECT COUNT(*) FROM review_items WHERE status='pending'${f.sql}`, f.params);
+    const { rows: jobStats } = await pool.query(
+      `SELECT status, COUNT(*) c FROM upload_jobs WHERE TRUE${f.sql} GROUP BY status`, f.params);
     const stats = { pending: 0, processing: 0, done: 0, failed: 0 };
     jobStats.forEach(r => { stats[r.status] = parseInt(r.c, 10); });
 
@@ -167,14 +184,18 @@ app.get('/auth/google/callback', defaultLimiter, async (req, res) => {
 
     // Claim any null-owner (pre-auth) tapes for the designated legacy owner.
     // Idempotent: new tapes always get owner_id from the auth layer, so after the
-    // first login only 0 rows match and subsequent runs are no-ops.
+    // first login only 0 rows match and subsequent runs are no-ops. Requires a
+    // verified email on the Google token.
     const legacyEmail = (process.env.LEGACY_OWNER_EMAIL || '').trim().toLowerCase();
-    if (legacyEmail && payload.email.toLowerCase() === legacyEmail) {
+    if (legacyEmail && payload.email_verified === true && String(payload.email || '').toLowerCase() === legacyEmail) {
       const { rowCount } = await pool.query(
         'UPDATE tapes SET owner_id = $1 WHERE owner_id IS NULL',
         [payload.sub]
       );
       if (rowCount > 0) console.log(`✓ Claimed ${rowCount} legacy tapes for the designated legacy owner`);
+      for (const table of ['upload_jobs', 'review_items', 'scan_analytics']) {
+        await pool.query(`UPDATE ${table} SET owner_id = $1 WHERE owner_id IS NULL`, [payload.sub]);
+      }
     }
 
     setAuthCookie(res, mintJWT(payload));
@@ -274,7 +295,7 @@ app.get('/api/valuate', valuateLimiter, requireAuth, valuatePreviewHandler);
 app.post('/api/tapes/:id/valuate', valuateLimiter, requireAuth, valuateTapeHandler);
 
 // ── Lookup endpoints ───────────────────────────────────────────────────────────
-app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {
+app.get('/api/lookup/barcode/:code', defaultLimiter, requireAuth, async (req, res) => {
   const code = req.params.code.trim().replace(/\s/g, '');
   if (!code) return res.status(400).json({ error: 'code required' });
   const omdbKey = (req.headers['x-omdb-key'] || OMDB_API_KEY).trim();
@@ -353,7 +374,7 @@ app.get('/api/lookup/barcode/:code', defaultLimiter, async (req, res) => {
   res.json(found);
 });
 
-app.get('/api/lookup', defaultLimiter, async (req, res) => {
+app.get('/api/lookup', defaultLimiter, requireAuth, async (req, res) => {
   const title = (req.query.title || '').trim();
   if (!title) return res.status(400).json({ error: 'title required' });
   const provider = (req.query.provider || 'omdb').toLowerCase(); // 'omdb' or 'tmdb'
@@ -448,7 +469,7 @@ Omit fields you're unsure about. Return {} if completely unknown.`;
 });
 
 // ── Wikimedia Commons artwork search ─────────────────────────────────────────
-app.get('/api/artwork/search', defaultLimiter, async (req, res) => {
+app.get('/api/artwork/search', defaultLimiter, requireAuth, async (req, res) => {
   const title = typeof req.query.title === 'string' ? req.query.title.trim() : '';
   const role = typeof req.query.role === 'string' ? req.query.role : '';
   if (!title || title.length > 200 || !['cover', 'spine'].includes(role)) {
@@ -610,7 +631,7 @@ Rules: year is a four-digit release year; value_low/value_high are USD resale ra
   return { candidate, partialFailures };
 }
 
-app.post('/api/fill/proposals', defaultLimiter, async (req, res) => {
+app.post('/api/fill/proposals', defaultLimiter, requireAuth, async (req, res) => {
   const body = req.body;
   if (!isPlainJsonObject(body) || Object.keys(body).some((key) => !FILL_PROPOSAL_REQUEST_FIELDS.has(key))) {
     return res.status(400).json({ error: 'invalid request' });
@@ -695,15 +716,15 @@ const jobsCreateLimiter = rateLimit({
 });
 
 // ── Job endpoints ──────────────────────────────────────────────────────────────
-app.post('/api/jobs', jobsCreateLimiter, async (req, res) => {
+app.post('/api/jobs', jobsCreateLimiter, requireAuth, async (req, res) => {
   const { image, barcode } = req.body;
   if (!image) return res.status(400).json({ error: 'image required' });
   const id = jobId();
   const now = new Date().toISOString();
   try {
     await pool.query(
-      'INSERT INTO upload_jobs(id,image,barcode,status,created_at) VALUES($1,$2,$3,$4,$5)',
-      [id, image, barcode || null, 'pending', now]
+      'INSERT INTO upload_jobs(id,image,barcode,status,created_at,owner_id) VALUES($1,$2,$3,$4,$5,$6)',
+      [id, image, barcode || null, 'pending', now, queueOwnerId(req)]
     );
     logActivity('info', `Upload job created: ${id}`);
     res.status(201).json({ id });
@@ -712,7 +733,7 @@ app.post('/api/jobs', jobsCreateLimiter, async (req, res) => {
   }
 });
 
-app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
+app.get('/api/fetch-image', defaultLimiter, requireAuth, async (req, res) => {
   const rawUrl = req.query.url;
   if (!rawUrl) return res.status(400).json({ error: 'url required' });
   // Coerce to string to prevent type confusion
@@ -740,6 +761,7 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
   if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
   if (/^192\.168\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
   if (/^169\.254\.\d+\.\d+$/.test(host)) return res.status(403).json({ error: 'url not allowed' });
+  if (/^[0-9.]+$/.test(host) && isPrivateAddress(host)) return res.status(403).json({ error: 'url not allowed' });
   if (host.endsWith('.local') || host.endsWith('.internal')) return res.status(403).json({ error: 'url not allowed' });
   // 7. Validate port
   if (port && port !== '80' && port !== '443') return res.status(403).json({ error: 'url not allowed' });
@@ -756,14 +778,7 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
   const resolved = await dns.lookup(host, { all: true });
   for (const rec of resolved) {
     const ip = rec.address;
-    if (
-      ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0' ||
-      /^10\.\d+\.\d+\.\d+$/.test(ip) ||
-      /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(ip) ||
-      /^192\.168\.\d+\.\d+$/.test(ip) ||
-      /^169\.254\.\d+\.\d+$/.test(ip) ||
-      /^fc00:/i.test(ip) || /^fd/i.test(ip) || /^fe80:/i.test(ip)
-    ) {
+    if (isPrivateAddress(ip)) {
       return res.status(403).json({ error: 'url not allowed' });
     }
   }
@@ -784,38 +799,20 @@ app.get('/api/fetch-image', defaultLimiter, async (req, res) => {
   }
 });
 
-app.delete('/api/jobs/:id', defaultLimiter, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
-    res.json({ ok: true });
-  } catch (err) {
-    serverError(res, err);
-  }
-});
-
-app.post('/api/jobs/retry-failed', defaultLimiter, async (_req, res) => {
-  try {
-    const { rowCount } = await pool.query("UPDATE upload_jobs SET status='pending' WHERE status='failed' AND retry_count<3");
-    res.json({ ok: true, requeued: rowCount });
-  } catch (err) {
-    serverError(res, err);
-  }
-});
-
-app.get('/api/jobs/ready', defaultLimiter, async (_req, res) => {
+app.get('/api/jobs/ready', defaultLimiter, requireAuth, async (_req, res) => {
   res.json([]);
 });
 
 // ── Review endpoints ───────────────────────────────────────────────────────────
-app.post('/api/review', defaultLimiter, async (req, res) => {
+app.post('/api/review', defaultLimiter, requireAuth, async (req, res) => {
   const { data, source, thumb } = req.body;
   if (!data) return res.status(400).json({ error: 'data required' });
   const id = reviewItemId();
   const now = new Date().toISOString();
   try {
     await pool.query(
-      'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
-      [id, null, JSON.stringify(data), thumb || null, source || 'manual', 'pending', now]
+      'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at,owner_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+      [id, null, JSON.stringify(data), thumb || null, source || 'manual', 'pending', now, queueOwnerId(req)]
     );
     logActivity('info', `Review proposal created: ${id} source=${source || 'manual'} title=${data.title || '?'}`);
     res.status(201).json({ id });
@@ -824,10 +821,12 @@ app.post('/api/review', defaultLimiter, async (req, res) => {
   }
 });
 
-app.get('/api/review/pending', defaultLimiter, async (_req, res) => {
+app.get('/api/review/pending', defaultLimiter, requireAuth, async (req, res) => {
   try {
+    const f = ownerFilter(req, 1);
     const { rows } = await pool.query(
-      "SELECT id, job_id, data, thumb, source, status, fail_reason, created_at FROM review_items WHERE status IN ('pending','failed') ORDER BY created_at DESC"
+      `SELECT id, job_id, data, thumb, source, status, fail_reason, created_at FROM review_items WHERE status IN ('pending','failed')${f.sql} ORDER BY created_at DESC`,
+      f.params
     );
     res.json(rows);
   } catch (err) {
@@ -835,20 +834,25 @@ app.get('/api/review/pending', defaultLimiter, async (_req, res) => {
   }
 });
 
-app.delete('/api/review/:id', defaultLimiter, async (req, res) => {
+app.delete('/api/review/:id', defaultLimiter, requireAuth, async (req, res) => {
   try {
-    await pool.query('DELETE FROM review_items WHERE id=$1', [req.params.id]);
+    const f = ownerFilter(req, 2);
+    const { rowCount } = await pool.query(
+      `DELETE FROM review_items WHERE id=$1${f.sql}`, [req.params.id, ...f.params]
+    );
+    if (AUTH_ENABLED && !rowCount) return res.status(404).json({ error: 'not found' });
     res.json({ ok: true });
   } catch (err) {
     serverError(res, err);
   }
 });
 
-app.get('/api/jobs/status', defaultLimiter, async (_req, res) => {
+app.get('/api/jobs/status', defaultLimiter, requireAuth, async (req, res) => {
   try {
+    const f = ownerFilter(req, 1);
     const [jobsRes, reviewRes] = await Promise.all([
-      pool.query('SELECT status, COUNT(*) c FROM upload_jobs GROUP BY status'),
-      pool.query("SELECT COUNT(*) c FROM review_items WHERE status='pending'")
+      pool.query(`SELECT status, COUNT(*) c FROM upload_jobs WHERE TRUE${f.sql} GROUP BY status`, f.params),
+      pool.query(`SELECT COUNT(*) c FROM review_items WHERE status='pending'${f.sql}`, f.params)
     ]);
     const counts = { pending: 0, processing: 0, done: 0, failed: 0, review_pending: 0 };
     jobsRes.rows.forEach(r => { counts[r.status] = parseInt(r.c || r.count || '0', 10); });
@@ -859,10 +863,12 @@ app.get('/api/jobs/status', defaultLimiter, async (_req, res) => {
   }
 });
 
-app.get('/api/jobs/inflight', defaultLimiter, async (_req, res) => {
+app.get('/api/jobs/inflight', defaultLimiter, requireAuth, async (req, res) => {
   try {
+    const f = ownerFilter(req, 1);
     const { rows } = await pool.query(
-      "SELECT id, thumb, created_at FROM upload_jobs WHERE status IN ('pending','processing') ORDER BY created_at"
+      `SELECT id, thumb, created_at FROM upload_jobs WHERE status IN ('pending','processing')${f.sql} ORDER BY created_at`,
+      f.params
     );
     res.json(rows);
   } catch (err) {
@@ -870,11 +876,24 @@ app.get('/api/jobs/inflight', defaultLimiter, async (_req, res) => {
   }
 });
 
-app.post('/api/jobs/:id/retry', defaultLimiter, async (req, res) => {
+app.post('/api/jobs/retry-failed', defaultLimiter, requireAuth, async (req, res) => {
   try {
+    const f = ownerFilter(req, 1);
     const { rowCount } = await pool.query(
-      "UPDATE upload_jobs SET status='pending', error=NULL, retry_count=retry_count+1 WHERE id=$1 AND status='failed' AND retry_count<3",
-      [req.params.id]
+      `UPDATE upload_jobs SET status='pending' WHERE status='failed' AND retry_count<3${f.sql}`, f.params
+    );
+    res.json({ ok: true, requeued: rowCount });
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+app.post('/api/jobs/:id/retry', defaultLimiter, requireAuth, async (req, res) => {
+  try {
+    const f = ownerFilter(req, 2);
+    const { rowCount } = await pool.query(
+      `UPDATE upload_jobs SET status='pending', error=NULL, retry_count=retry_count+1 WHERE id=$1 AND status='failed' AND retry_count<3${f.sql}`,
+      [req.params.id, ...f.params]
     );
     if (!rowCount) return res.status(404).json({ error: 'not found or not retryable' });
     res.json({ ok: true });
@@ -883,9 +902,13 @@ app.post('/api/jobs/:id/retry', defaultLimiter, async (req, res) => {
   }
 });
 
-app.get('/api/jobs/:id', defaultLimiter, async (req, res) => {
+app.get('/api/jobs/:id', defaultLimiter, requireAuth, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT id, status, result, error, retry_count FROM upload_jobs WHERE id=$1', [req.params.id]);
+    const f = ownerFilter(req, 2);
+    const { rows } = await pool.query(
+      `SELECT id, status, result, error, retry_count FROM upload_jobs WHERE id=$1${f.sql}`,
+      [req.params.id, ...f.params]
+    );
     if (!rows.length) return res.status(404).json({ error: 'not found' });
     res.json(rows[0]);
   } catch (err) {
@@ -893,32 +916,28 @@ app.get('/api/jobs/:id', defaultLimiter, async (req, res) => {
   }
 });
 
-app.delete('/api/jobs/:id', defaultLimiter, async (req, res) => {
+app.delete('/api/jobs/:id', defaultLimiter, requireAuth, async (req, res) => {
   try {
-    await pool.query('DELETE FROM upload_jobs WHERE id=$1', [req.params.id]);
+    const f = ownerFilter(req, 2);
+    const { rowCount } = await pool.query(
+      `DELETE FROM upload_jobs WHERE id=$1${f.sql}`, [req.params.id, ...f.params]
+    );
+    if (AUTH_ENABLED && !rowCount) return res.status(404).json({ error: 'not found' });
     res.json({ ok: true });
   } catch (err) {
     serverError(res, err);
   }
 });
 
-app.post('/api/jobs/retry-failed', defaultLimiter, async (_req, res) => {
-  try {
-    const { rowCount } = await pool.query("UPDATE upload_jobs SET status='pending' WHERE status='failed' AND retry_count<3");
-    res.json({ ok: true, requeued: rowCount });
-  } catch (err) {
-    serverError(res, err);
-  }
-});
-
 // ── Analytics ──────────────────────────────────────────────────────────────────
-app.post('/api/analytics/outcome', defaultLimiter, async (req, res) => {
+app.post('/api/analytics/outcome', defaultLimiter, requireAuth, async (req, res) => {
   const { job_id, action, final_title, final_year, final_label, imdb_id } = req.body;
   if (!job_id || !action) return res.status(400).json({ error: 'job_id & action required' });
   try {
+    const f = ownerFilter(req, 7);
     await pool.query(
-      `UPDATE scan_analytics SET action=$1, final_title=$2, final_year=$3, final_label=$4, imdb_id=$5 WHERE job_id=$6`,
-      [action, final_title || null, final_year || null, final_label || null, imdb_id || null, job_id]
+      `UPDATE scan_analytics SET action=$1, final_title=$2, final_year=$3, final_label=$4, imdb_id=$5 WHERE job_id=$6${f.sql}`,
+      [action, final_title || null, final_year || null, final_label || null, imdb_id || null, job_id, ...f.params]
     );
     res.json({ ok: true });
   } catch (err) {
@@ -941,15 +960,15 @@ if (require.main === module) {
   runMigrations()
     .then(async () => {
       // Backfill: convert pre-migration 'done' upload_jobs into review_items
-      const { rows: done } = await pool.query("SELECT id, result, thumb, created_at FROM upload_jobs WHERE status='done'");
+      const { rows: done } = await pool.query("SELECT id, result, thumb, created_at, owner_id FROM upload_jobs WHERE status='done'");
       if (done.length) {
         console.log(`⟳ Backfilling ${done.length} done upload_jobs → review_items…`);
         for (const job of done) {
           const items = Array.isArray(job.result) ? job.result : [job.result].filter(Boolean);
           for (const item of items) {
             await pool.query(
-              'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
-              [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', job.created_at]
+              'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at,owner_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+              [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', job.created_at, job.owner_id || null]
             );
           }
         }

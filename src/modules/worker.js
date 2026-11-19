@@ -34,13 +34,13 @@ async function processJobs() {
 
     // 3. Convert permanently-failed jobs into review_items so they surface cross-session
     const { rows: permFailed } = await pool.query(
-      "SELECT id, thumb, error FROM upload_jobs WHERE status='failed' AND retry_count>=$1",
+      "SELECT id, thumb, error, owner_id FROM upload_jobs WHERE status='failed' AND retry_count>=$1",
       [MAX_RETRIES]
     );
     for (const pf of permFailed) {
       await pool.query(
-        'INSERT INTO review_items(id,job_id,data,thumb,source,status,fail_reason,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
-        [reviewItemId(), pf.id, '{}', pf.thumb, 'scan', 'failed', pf.error || 'Analysis failed max retries', now]
+        'INSERT INTO review_items(id,job_id,data,thumb,source,status,fail_reason,created_at,owner_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+        [reviewItemId(), pf.id, '{}', pf.thumb, 'scan', 'failed', pf.error || 'Analysis failed max retries', now, pf.owner_id || null]
       );
       await pool.query('DELETE FROM upload_jobs WHERE id=$1', [pf.id]);
       console.warn(`✗ Job ${pf.id} permanently failed → review_items`);
@@ -48,7 +48,7 @@ async function processJobs() {
 
     // 4. Pick next pending job
     const { rows } = await pool.query(
-      "SELECT id, image_data, thumb FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
+      "SELECT id, image_data, thumb, owner_id FROM upload_jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1"
     );
     if (!rows.length) return;
 
@@ -80,13 +80,13 @@ async function processJobs() {
       }));
 
       const omdbVerified = enriched.some(i => i.imdb_id);
-      await logScanAnalytics({ jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: enriched, omdbVerified });
+      await logScanAnalytics({ jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: enriched, omdbVerified, ownerId: job.owner_id || null });
 
       const ts = new Date().toISOString();
       for (const item of enriched) {
         await pool.query(
-          'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
-          [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', ts]
+          'INSERT INTO review_items(id,job_id,data,thumb,source,status,created_at,owner_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+          [reviewItemId(), job.id, JSON.stringify({ ...item, condition: item.condition || 'good', status: 'in_collection' }), job.thumb, 'scan', 'pending', ts, job.owner_id || null]
         );
       }
 

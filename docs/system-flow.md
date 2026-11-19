@@ -2,6 +2,8 @@
 
 > 🧭 [vhs](../README.md) · [Features](./FEATURES.md) · [Roadmap](./ROADMAP.md) · [Tasks](./TASKS.md) · [Changelog](./CHANGELOG.md) · [Metrics](./METRICS.md) <!-- nav -->
 
+> **Sign-in:** when Google auth is enabled, the queue routes (`/api/jobs*`, `/api/review*`, `/api/fill/proposals`, `/api/analytics/outcome`, `/api/system`) require sign-in and only read or change the signed-in user's own jobs and review items; another user's id returns 404. With auth disabled they behave as before.
+
 ## Diagram 1 — Capture Types & Staging States
 
 ```mermaid
