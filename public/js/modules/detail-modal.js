@@ -1,28 +1,20 @@
 // ── DETAIL MODAL ──────────────────────────────────────────────────────────────
 import { getInventory, setSelectedId, getSelectedId, setIsNewTape, getIsReadOnly } from './inventory-state.js';
 import { esc, renderTagChips } from './render-helpers.js';
-import { dbPut } from '../db.js';
+import { dbUpdateTape } from '../db.js';
 import { toast } from '../utils.js';
 import { searchArtwork, renderArtworkCandidates } from './artwork-search.js';
 
-const artworkSaveQueues = new Map();
-
-function saveArtworkLink(t, role, selected) {
+async function saveArtworkLink(t, role, selected) {
   const id = t.id;
-  const previous = artworkSaveQueues.get(id) || Promise.resolve();
-  const next = previous.catch(() => {}).then(async () => {
-    const links = { ...(t.artwork_links || {}) };
+  await dbUpdateTape(id, current => {
+    const links = { ...(current.artwork_links || {}) };
     if (selected) links[role] = selected;
     else delete links[role];
-    const updated = { ...t, artwork_links: links };
-    await dbPut(updated);
-    t.artwork_links = links;
-    if (getSelectedId() === id) renderDetailPhotos(t);
+    return { ...current, artwork_links: links };
   });
-  artworkSaveQueues.set(id, next);
-  return next.finally(() => {
-    if (artworkSaveQueues.get(id) === next) artworkSaveQueues.delete(id);
-  });
+  const current = getInventory().find(item => item.id === id);
+  if (current && getSelectedId() === id) renderDetailPhotos(current);
 }
 
 export function initTagChips(container, getTags, setTags) {
