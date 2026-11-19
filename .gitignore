@@ -22,3 +22,7 @@ brag-output*/
 
 # promo spot renders (frames, stems, mp4s); sources live in promo/<spot>/
 promo/out/
+.wrangler/
+worker/embedded.gen.js
+wrangler.embed.json
+.dev.vars
