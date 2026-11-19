@@ -259,11 +259,11 @@ test('external face and spine links are used without crop or layout transforms',
   await page.click('#btn-wall');
   const spine = page.locator('#wall-view .spine-card img');
   await expect(spine).toHaveAttribute('src', 'https://commons.example/spine.jpg');
-  await expect(spine).not.toHaveAttribute('style', /./);
+  await expect(spine).not.toHaveAttribute('style');
   await page.click('#btn-wall');
   const cover = page.locator('#wall-view .cover-card img');
   await expect(cover).toHaveAttribute('src', 'https://commons.example/face.jpg');
-  await expect(cover).not.toHaveAttribute('style', /./);
+  await expect(cover).not.toHaveAttribute('style');
 });
 
 test('thumbnail is the final fallback and non-HTTPS links are ignored', async ({ page }) => {
