@@ -2,7 +2,7 @@
 import { getInventory, setInventory, getSelectedId, setSelectedId, getIsNewTape, setIsNewTape, getSelectedIds, getWallMode, setWallMode, setIsReadOnly } from './modules/inventory-state.js';
 import { getFiltered } from './modules/filtering.js';
 import { renderList, renderInv as renderListView, openDetail, updateBulkBar, updateCount } from './modules/list-view.js';
-import { dbPut, dbUpdateTape } from './db.js';
+import { dbUpdateTape } from './db.js';
 import { toast } from './utils.js';
 import { renderWall } from './modules/wall-view.js';
 import { openDetail as openDetailModal, renderDetailPhotos, initTagChips } from './modules/detail-modal.js';
