@@ -201,7 +201,6 @@ describe('auth enabled (Google client + JWT_SECRET configured)', () => {
 
   it('requireAuth rejects with 401 when req.user is absent', () => {
     const auth = enable();
-    process.env.NODE_ENV = 'production'; // requireAuth only enforces in production
     const next = jest.fn();
     const res = { status: jest.fn(() => res), json: jest.fn() };
     auth.requireAuth({}, res, next);
@@ -212,13 +211,31 @@ describe('auth enabled (Google client + JWT_SECRET configured)', () => {
 
   it('requireAuth calls next() when req.user is present', () => {
     const auth = enable();
-    process.env.NODE_ENV = 'production'; // requireAuth only enforces in production
     const next = jest.fn();
     const res = { status: jest.fn(() => res), json: jest.fn() };
     auth.requireAuth({ user: { sub: 'u1' } }, res, next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.status).not.toHaveBeenCalled();
   });
+
+  it.each([undefined, 'development', 'test', 'staging'])(
+    'requireAuth still rejects when NODE_ENV is %s',
+    (nodeEnv) => {
+      const saved = process.env.NODE_ENV;
+      try {
+        if (nodeEnv === undefined) delete process.env.NODE_ENV;
+        else process.env.NODE_ENV = nodeEnv;
+        const auth = enable();
+        const next = jest.fn();
+        const res = { status: jest.fn(() => res), json: jest.fn() };
+        auth.requireAuth({}, res, next);
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(next).not.toHaveBeenCalled();
+      } finally {
+        process.env.NODE_ENV = saved;
+      }
+    }
+  );
 });
 
 describe('startup guard', () => {

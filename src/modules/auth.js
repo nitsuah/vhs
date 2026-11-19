@@ -87,8 +87,8 @@ function optionalAuth(req, res, next) {
 }
 
 // Rejects with 401 when auth is enabled and no valid session exists.
+// Enforced whenever auth is enabled, regardless of NODE_ENV.
 function requireAuth(req, res, next) {
-  if (process.env.NODE_ENV !== 'production') return next();
   if (!ENABLED) return next();
   if (!req.user) return res.status(401).json({ error: 'not authenticated' });
   next();
