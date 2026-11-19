@@ -19,7 +19,7 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 
 ### Capture & Scanning
 - **Barcode Scanning** — webcam-based barcode scanning with auto-confirm and staging flow
-- **AI Photo Scanning** — batch upload, AI title recognition via Ollama (llava:7b) or Claude Vision API, accuracy checking
+- **AI Photo Scanning** — batch upload, AI title recognition via Cloudflare Workers AI (`@cf/meta/llama-3.2-11b-vision-instruct` on vhs.nitsuah.io) or local Ollama (`llava:7b`), accuracy checking
 - **Capture Queue** — Space stages webcam frames; Enter sends all to AI at once
 - **UPC Lookup** — UPCitemdb.com auto-fills title on barcode scan
 - **Zoom Slider** — adjustable zoom for photo capture

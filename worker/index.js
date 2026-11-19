@@ -54,4 +54,12 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT);
 
-export default httpServerHandler({ port: PORT });
+// Capture the Worker env (AI binding, secrets) for CommonJS modules that
+// cannot receive env from httpServerHandler themselves.
+const api = httpServerHandler({ port: PORT });
+export default {
+  fetch(req, env, ctx) {
+    globalThis.__CF_ENV = env;
+    return api.fetch(req, env, ctx);
+  },
+};

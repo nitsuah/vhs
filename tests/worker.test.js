@@ -10,10 +10,9 @@
 const mockQuery = jest.fn();
 jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: mockQuery })) }));
 
-const mockCallOllamaServer = jest.fn();
-jest.mock('../src/modules/ollama', () => ({
-  callOllamaServer: (...args) => mockCallOllamaServer(...args),
-  pingOllama: jest.fn(),
+const mockRecognizeTapes = jest.fn();
+jest.mock('../src/modules/vision', () => ({
+  recognizeTapes: (...args) => mockRecognizeTapes(...args),
 }));
 
 const mockEnhancedLookup = jest.fn();
@@ -32,7 +31,7 @@ const { processJobs, isWorkerBusy } = require('../src/modules/worker');
 
 beforeEach(() => {
   mockQuery.mockReset();
-  mockCallOllamaServer.mockReset();
+  mockRecognizeTapes.mockReset();
   mockEnhancedLookup.mockReset();
   mockLogScanAnalytics.mockReset().mockResolvedValue(undefined);
 });
@@ -47,7 +46,7 @@ describe('processJobs housekeeping', () => {
     await processJobs();
     expect(mockQuery).toHaveBeenCalledTimes(4);
     expect(mockQuery.mock.calls[0][0]).toMatch(/status='pending'.*WHERE status='processing'/s);
-    expect(mockCallOllamaServer).not.toHaveBeenCalled();
+    expect(mockRecognizeTapes).not.toHaveBeenCalled();
   });
 
   it('converts permanently-failed jobs into review_items and deletes them', async () => {
@@ -95,12 +94,12 @@ describe('processJobs pending-job pipeline', () => {
       .mockResolvedValueOnce({ rows: [] }) // insert review_items
       .mockResolvedValueOnce({ rows: [] }); // delete upload_jobs
 
-    mockCallOllamaServer.mockResolvedValue([{ title: 'Jaws', confidence: 'high' }]);
+    mockRecognizeTapes.mockResolvedValue({ items: [{ title: 'Jaws', confidence: 'high' }], model: 'llava:7b', backend: 'ollama' });
     mockEnhancedLookup.mockResolvedValue({ title: 'Jaws', year: '1975', imdb_id: 'tt0073195' });
 
     await processJobs();
 
-    expect(mockCallOllamaServer).toHaveBeenCalledWith('b64data');
+    expect(mockRecognizeTapes).toHaveBeenCalledWith('b64data');
     expect(mockEnhancedLookup).toHaveBeenCalled();
     expect(mockLogScanAnalytics).toHaveBeenCalledWith(
       expect.objectContaining({ jobId: 'job_1', omdbVerified: true })
@@ -120,7 +119,7 @@ describe('processJobs pending-job pipeline', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
-    mockCallOllamaServer.mockResolvedValue([{ title: 'Unreadable Spine', confidence: 'low' }]);
+    mockRecognizeTapes.mockResolvedValue({ items: [{ title: 'Unreadable Spine', confidence: 'low' }], model: 'llava:7b', backend: 'ollama' });
     mockEnhancedLookup.mockResolvedValue(null);
 
     await processJobs();
@@ -139,7 +138,7 @@ describe('processJobs pending-job pipeline', () => {
 
     await processJobs();
 
-    expect(mockCallOllamaServer).not.toHaveBeenCalled();
+    expect(mockRecognizeTapes).not.toHaveBeenCalled();
     expect(mockQuery.mock.calls[6][0]).toMatch(/DELETE FROM upload_jobs/);
   });
 
@@ -150,7 +149,7 @@ describe('processJobs pending-job pipeline', () => {
       .mockResolvedValueOnce({ rows: [] }) // existingItems — none
       .mockResolvedValueOnce({ rows: [] }); // the failure UPDATE
 
-    mockCallOllamaServer.mockRejectedValue(new Error('ollama down'));
+    mockRecognizeTapes.mockRejectedValue(new Error('ollama down'));
 
     await processJobs();
 
@@ -208,7 +207,7 @@ describe('processJobs owner propagation', () => {
   });
 
   it('copies owner_id onto review items and analytics for a processed job', async () => {
-    mockCallOllamaServer.mockResolvedValue([{ title: 'Jaws' }]);
+    mockRecognizeTapes.mockResolvedValue({ items: [{ title: 'Jaws' }], model: 'llava:7b', backend: 'ollama' });
     mockEnhancedLookup.mockResolvedValue(null);
     mockQuery.mockImplementation(async (sql) => {
       if (/SELECT id, image_data/.test(sql)) return { rows: [{ id: 'J1', image_data: 'x', thumb: 't', owner_id: 'u1' }] };
@@ -219,5 +218,65 @@ describe('processJobs owner propagation', () => {
     expect(insert[1].at(-1)).toBe('u1');
     expect(mockLogScanAnalytics).toHaveBeenCalledWith(expect.objectContaining({ jobId: 'J1', ownerId: 'u1' }));
     mockQuery.mockReset();
+  });
+});
+
+describe('processJobs deferred vision results', () => {
+  function withPending(pendingRow) {
+    mockQuery
+      .mockResolvedValueOnce({ rowCount: 0 })
+      .mockResolvedValueOnce({ rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: pendingRow ? [pendingRow] : [] });
+  }
+
+  it('queues a pending manual-review item when the daily cap is hit, without retrying', async () => {
+    withPending({ id: 'job_cap', image_data: 'b64', thumb: 'th', owner_id: 'u1' });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // mark processing
+      .mockResolvedValueOnce({ rows: [] }) // existingItems — none
+      .mockResolvedValueOnce({ rows: [] }) // insert review_items
+      .mockResolvedValueOnce({ rows: [] }); // delete upload_jobs
+
+    mockRecognizeTapes.mockResolvedValue({
+      items: [],
+      model: '@cf/meta/llama-3.2-11b-vision-instruct',
+      backend: 'workers-ai',
+      deferred: 'cap',
+      message: 'Daily free Workers AI scan cap reached. This photo was saved for manual review — add the title from the picture.',
+    });
+
+    await processJobs();
+
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO review_items/.test(sql));
+    expect(insert).toBeTruthy();
+    expect(insert[0]).toMatch(/fail_reason/);
+    expect(insert[1].join(' ')).toContain('Daily free Workers AI scan cap reached');
+    expect(insert[1]).toContain('pending');
+    expect(insert[1].at(-1)).toBe('u1');
+    const failUpdate = mockQuery.mock.calls.find(([sql]) => /status='failed'.*retry_count=retry_count\+1/.test(sql));
+    expect(failUpdate).toBeUndefined();
+  });
+
+  it('queues a pending manual-review item when Workers AI errors and Ollama is unavailable', async () => {
+    withPending({ id: 'job_err', image_data: 'b64', thumb: null, owner_id: null });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    mockRecognizeTapes.mockResolvedValue({
+      items: [],
+      model: '@cf/meta/llama-3.2-11b-vision-instruct',
+      backend: 'workers-ai',
+      deferred: 'error',
+      message: 'Workers AI could not read this photo (boom). Saved for manual review.',
+    });
+
+    await processJobs();
+
+    const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO review_items/.test(sql));
+    expect(insert[1].join(' ')).toMatch(/manual review/);
   });
 });

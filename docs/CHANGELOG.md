@@ -8,6 +8,7 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Added:** Cloudflare Workers AI tape/cover recognition (`@cf/meta/llama-3.2-11b-vision-instruct`) as the default vision backend on vhs.nitsuah.io, with a 200-scan/day cap so usage stays inside the free 10,000 neuron allocation. Caps and Workers AI errors queue the photo for manual review, or fall back to Ollama when it is configured. Local Docker still defaults to Ollama. Migration `009_vision_daily_usage.sql`.
 - **Added:** On-demand cover/spine artwork search in the tape detail modal, storing source/license/attribution metadata independently of local photos (#169).
 
 ### Fixed
@@ -16,6 +17,7 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- **Changed:** `/api/health` now reports the active vision backend, Workers AI binding status, and today's scan count against the daily cap, while keeping the existing `ollama` fields.
 - **Changed:** The scan queue (`/api/jobs*`, `/api/review*`, `/api/fill/proposals`, `/api/analytics/outcome`, `/api/system`) is scoped to the signed-in user when Google auth is enabled; migration `008_queue_ownership.sql` adds `owner_id` to the queue tables, and the worker carries it onto review items. Unchanged when auth is disabled.
 - **Changed:** Protected API routes require sign-in whenever Google auth is enabled, independent of `NODE_ENV`.
 - **Changed:** The `Dockerfile` is now multi-stage. The default (`prod`) image installs runtime dependencies only (`npm ci --omit=dev`) and leaves out tests and lint/test config; run the test suite with `docker build --target test -t vhs-test . && docker run --rm -e NODE_ENV=test vhs-test npx jest --coverage`.

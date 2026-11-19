@@ -49,7 +49,7 @@ Shipped: `src/modules/ebay.js` + `src/modules/routes/valuate.js` call the eBay *
 | --- | --- | --- |
 | Data format | PostgreSQL (Neon) | Handles concurrent writes, user-scoped queries, upserts cleanly |
 | Version control | Git | Free history, easy backup, works on any machine |
-| AI vision | Ollama (llava:7b) / Claude API | Good at messy/worn labels |
+| AI vision | Cloudflare Workers AI (`@cf/meta/llama-3.2-11b-vision-instruct`) on vhs.nitsuah.io; Ollama (`llava:7b`) locally or as fallback | Fits the free Workers AI allocation; Ollama remains available for self-hosted GPU setups |
 | Valuation data | eBay active listings (asking price) via Browse API | Best available signal today; true sold-price data is a future target pending Marketplace Insights API access (see 2027 Q1 above) |
 | Backend | Node.js / Express | Same language as the frontend; lightweight |
 | Exports | Built into web UI | No dependency on Python; works on any device |

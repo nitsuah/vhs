@@ -43,6 +43,7 @@ export default {
 open(repo+'/worker/embedded.gen.js','w').write("\n".join(lines))
 cfg={"name":"vhsbox","main":"worker/embedded.gen.js","compatibility_date":"2026-11-01","compatibility_flags":["nodejs_compat"],
  "rules":[{"type":"Text","globs":["**/*.sql"],"fallthrough":True}],
- "vars":{"NODE_ENV":"production"}}
+ "ai":{"binding":"AI"},
+ "vars":{"NODE_ENV":"production","VISION_BACKEND":"workers-ai","VISION_DAILY_CAP":"200"}}
 json.dump(cfg, open(repo+'/wrangler.embed.json','w'), indent=2)
 print(i,'files')
