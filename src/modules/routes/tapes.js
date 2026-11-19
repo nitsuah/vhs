@@ -5,12 +5,13 @@ const { pool } = require('../db');
 const { ENABLED } = require('../auth');
 const { serverError } = require('../http-errors');
 
-// When auth is enabled: scope reads to this user's tapes only.
+// When auth is enabled: scope reads to this user's tapes only; anonymous callers get an empty list.
 // When auth is disabled: return everything (existing behaviour).
 async function tapesGetHandler(req, res) {
+  if (ENABLED && !req.user) return res.json([]);
   try {
     let rows;
-    if (ENABLED && req.user) {
+    if (ENABLED) {
       ({ rows } = await pool.query(
         'SELECT data FROM tapes WHERE owner_id = $1 ORDER BY scanned_at DESC',
         [req.user.sub]
