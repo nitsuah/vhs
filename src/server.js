@@ -22,7 +22,9 @@ const {
   optionalAuth, requireAuth,
 } = require('./modules/auth');
 const { pool, runMigrations } = require('./modules/db');
-const { ensureCerts } = require('./modules/certs');
+// certs.js shells out to openssl (child_process + fs). Load it lazily so the
+// Cloudflare Worker bundle (worker/index.js) never executes it.
+const ensureCerts = (...args) => require('./modules/certs').ensureCerts(...args);
 const { logActivity, getActivityLog, getLogClients } = require('./modules/activity-log');
 const { healthHandler } = require('./modules/routes/health');
 const { jobId, reviewItemId, analyticsId } = require('./modules/ids');
