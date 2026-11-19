@@ -118,6 +118,11 @@ export function populateVisionSelector(sel=document.getElementById('s-vision-bac
     const v=choiceValue(choice);
     opts.push({value:v,label:`${BACKEND_LABELS[choice.backend]||choice.backend}${choice.model?' · '+choice.model:''} (saved)`,disabled:false});
   }
+  // A selection the user made from an earlier report survives a failed refresh.
+  if(!data&&preferValue&&!opts.some(o=>o.value===preferValue)){
+    const p=parseVisionSelection(preferValue);
+    opts.push({value:preferValue,label:`${BACKEND_LABELS[p.backend]||p.backend}${p.model?' · '+p.model:''} (selected)`,disabled:false});
+  }
   sel.innerHTML='';
   for(const o of opts){
     const el=document.createElement('option');
