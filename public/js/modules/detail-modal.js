@@ -5,6 +5,26 @@ import { dbPut } from '../db.js';
 import { toast } from '../utils.js';
 import { searchArtwork, renderArtworkCandidates } from './artwork-search.js';
 
+const artworkSaveQueues = new Map();
+
+function saveArtworkLink(t, role, selected) {
+  const id = t.id;
+  const previous = artworkSaveQueues.get(id) || Promise.resolve();
+  const next = previous.catch(() => {}).then(async () => {
+    const links = { ...(t.artwork_links || {}) };
+    if (selected) links[role] = selected;
+    else delete links[role];
+    const updated = { ...t, artwork_links: links };
+    await dbPut(updated);
+    t.artwork_links = links;
+    if (getSelectedId() === id) renderDetailPhotos(t);
+  });
+  artworkSaveQueues.set(id, next);
+  return next.finally(() => {
+    if (artworkSaveQueues.get(id) === next) artworkSaveQueues.delete(id);
+  });
+}
+
 export function initTagChips(container, getTags, setTags) {
   function bindInput() {
     const inp = container.querySelector('.tag-add-input');
@@ -71,12 +91,8 @@ function artworkLinkCard(link, role, t, wrap) {
     clear.type = 'button';
     clear.textContent = 'Clear link';
     clear.addEventListener('click', async () => {
-      const links = { ...(t.artwork_links || {}) };
-      delete links[role];
-      t.artwork_links = links;
       try {
-        await dbPut(t);
-        renderDetailPhotos(t);
+        await saveArtworkLink(t, role, null);
       } catch (error) { toast('Save failed: ' + error.message, 'err'); }
     });
     card.appendChild(clear);
@@ -109,10 +125,8 @@ function renderArtworkLinks(t, wrap) {
       try {
         const items = await searchArtwork({ title: document.getElementById('d-title')?.value || t.title, role: label });
         renderArtworkCandidates(results, items, { onUse: async selected => {
-          t.artwork_links = { ...(t.artwork_links || {}), [role]: selected };
           try {
-            await dbPut(t);
-            renderDetailPhotos(t);
+            await saveArtworkLink(t, role, selected);
           } catch (error) { toast('Save failed: ' + error.message, 'err'); }
         } });
       } catch (error) {
