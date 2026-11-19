@@ -93,7 +93,10 @@ export function dbUpdateTape(id, update) {
   return enqueueTapeWrite(id, current => update({ ...current }));
 }
 export function dbPut(v) {
-  return enqueueTapeWrite(v.id, current => current, v);
+  // Apply the caller's explicit edits to the latest record. Detached editor
+  // records omit fields they do not edit (photos/artwork), so they cannot
+  // roll back a newer queued mutation when their PUT finally runs.
+  return enqueueTapeWrite(v.id, current => ({ ...current, ...v }), v);
 }
 export async function dbDel(k){const r=await apiReq(`/api/tapes/${encodeURIComponent(k)}`,{method:'DELETE'});_cacheDel(k).catch(()=>{});return r;}
 
