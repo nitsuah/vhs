@@ -78,11 +78,14 @@ window.pinDetailPhoto = async (idx, role) => {
   if (!t) return;
   const src = t.photos[idx];
   try {
-    await dbUpdateTape(id, current => ({
+    await dbUpdateTape(id, current => {
+      if (!(current.photos || []).includes(src)) return current;
+      return {
       ...current,
       [role === 'face' ? 'photo_face' : 'photo_spine']:
         current[role === 'face' ? 'photo_face' : 'photo_spine'] === src ? null : src,
-    }));
+      };
+    });
     const saved = inventory.find(x => x.id === id);
     if (saved && getSelectedId() === id) {
       renderDetailPhotos(saved);
@@ -98,7 +101,10 @@ window.removeDetailPhoto = async (idx) => {
   const old = t.photos[idx];
   try {
     await dbUpdateTape(id, current => {
-      const photos = (current.photos || []).filter((_, i) => i !== idx);
+      const currentPhotos = current.photos || [];
+      const currentIndex = currentPhotos.indexOf(old);
+      if (currentIndex === -1) return current;
+      const photos = currentPhotos.filter((_, i) => i !== currentIndex);
       return {
         ...current,
         photos,
