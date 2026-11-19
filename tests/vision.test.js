@@ -181,7 +181,7 @@ describe('recognizeTapes', () => {
     expect(run.mock.calls[0][0]).toBe(WORKERS_AI_MODEL);
     expect(run.mock.calls[0][1]).toEqual({ prompt: 'agree' });
     expect(run.mock.calls[1][1].prompt).toMatch(/cataloging VHS tapes/);
-    expect(run.mock.calls[1][1].image).toEqual(Array.from(Buffer.from('fakeimg')));
+    expect(run.mock.calls[1][1].image).toBe(`data:image/jpeg;base64,${Buffer.from('fakeimg').toString('base64')}`);
     expect(result).toMatchObject({
       backend: 'workers-ai',
       deferred: null,

@@ -147,8 +147,13 @@ async function ensureMetaLicense() {
 
 async function callWorkersAiVision(base64) {
   await ensureMetaLicense();
-  const image = toImageBytes(base64);
-  if (!image.length) throw new Error('Image data was empty');
+  // Send the image as a base64 data URL string (accepted by the model, see
+  // the Workers AI Llama Vision tutorial) rather than a byte array: building
+  // and serialising a ~300k-element number array costs CPU time the free
+  // Workers plan (10 ms) can't spare.
+  const raw = stripDataUrl(base64).replace(/\s+/g, '');
+  if (!raw.length) throw new Error('Image data was empty');
+  const image = `data:image/jpeg;base64,${raw}`;
   const payload = {
     prompt: SCAN_PROMPT,
     image,
