@@ -232,14 +232,12 @@ test('local role pins win over external links and keep their crop metadata', asy
   });
   await setupBasicMocks(page, { tapes: [tape] });
   await gotoCollect(page);
-  for (const [clicks, selector, expected] of [
-    [1, '.su-card img', 'https://local.example/spine.jpg'],
-    [2, '.spine-card img', 'https://local.example/spine.jpg'],
-    [3, '.cover-card img', 'https://local.example/face.jpg'],
-  ]) {
-    for (let i = 0; i < clicks - (await page.locator('#btn-wall').getAttribute('data-test-clicks') || 0); i++) await page.click('#btn-wall');
-    await expect(page.locator('#wall-view '+selector)).toHaveAttribute('src', expected);
-  }
+  await page.click('#btn-wall');
+  await expect(page.locator('#wall-view .su-card img')).toHaveAttribute('src', 'https://local.example/spine.jpg');
+  await page.click('#btn-wall');
+  await expect(page.locator('#wall-view .spine-card img')).toHaveAttribute('src', 'https://local.example/spine.jpg');
+  await page.click('#btn-wall');
+  await expect(page.locator('#wall-view .cover-card img')).toHaveAttribute('src', 'https://local.example/face.jpg');
 });
 
 test('external face and spine links are used without crop or layout transforms', async ({ page }) => {
@@ -256,7 +254,7 @@ test('external face and spine links are used without crop or layout transforms',
   await page.click('#btn-wall');
   const stacks = page.locator('#wall-view .su-card img');
   await expect(stacks).toHaveAttribute('src', 'https://commons.example/spine.jpg');
-  await expect(stacks).not.toHaveAttribute('style', /./);
+  await expect(stacks).not.toHaveAttribute('style');
   await expect(stacks).not.toHaveClass(/su-img-spine/);
   await page.click('#btn-wall');
   const spine = page.locator('#wall-view .spine-card img');
