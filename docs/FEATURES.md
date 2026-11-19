@@ -24,7 +24,7 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 ## Scanning
 
 - `[shipped]` **Barcode Scanning** — webcam-based barcode scanning with auto-confirm and staging flow
-- `[shipped]` **AI Photo Scanning** — batch photo upload; uses Claude Vision API when `ANTHROPIC_API_KEY` is set, otherwise falls back to Ollama (llava:7b) via server-side job queue
+- `[shipped]` **AI Photo Scanning** — batch photo upload; on Cloudflare uses Workers AI (`@cf/meta/llama-3.2-11b-vision-instruct`) with a 200-scan/day free-tier cap, and falls back to Ollama (`llava:7b`) when that backend is configured (`VISION_BACKEND=ollama` or as a fallback if the cap is hit or Workers AI errors)
 - `[shipped]` **Capture Queue** — Space stages frames; Enter sends all to AI at once
 - `[shipped]` **UPC Lookup** — UPCitemdb.com auto-fills title on barcode scan
 

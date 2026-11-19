@@ -1,12 +1,11 @@
 // ── BACKGROUND WORKER ─────────────────────────────────────────────────────────
 const { pool } = require('./db');
-const { callOllamaServer } = require('./ollama');
+const { recognizeTapes } = require('./vision');
 const { enhancedLookup, callOmdb } = require('./omdb');
 const { logScanAnalytics } = require('./analytics');
 const { reviewItemId } = require('./ids');
 const { logActivity } = require('./activity-log');
-const { OMDB_API_KEY, MAX_RETRIES, OLLAMA, OLLAMA_MODEL } = require('./config');
-const { parseJsonArray } = require('./json-parser');
+const { OMDB_API_KEY, MAX_RETRIES } = require('./config');
 
 let workerBusy = false;
 
@@ -54,7 +53,7 @@ async function processJobs() {
 
     const job = rows[0];
     await pool.query("UPDATE upload_jobs SET status='processing', updated_at=$1 WHERE id=$2", [now, job.id]);
-    console.log(`⟳ Ollama: sending job ${job.id} to ${OLLAMA} (model: ${OLLAMA_MODEL})`);
+    console.log(`⟳ Vision: sending job ${job.id}`);
 
     try {
       // Guard duplicate review_items if stuck-job reset caused double-processing
@@ -67,7 +66,37 @@ async function processJobs() {
         return;
       }
 
-      const raw = await callOllamaServer(job.image_data);
+      const result = await recognizeTapes(job.image_data);
+      if (result.deferred) {
+        const ts = new Date().toISOString();
+        await pool.query(
+          'INSERT INTO review_items(id,job_id,data,thumb,source,status,fail_reason,created_at,owner_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+          [
+            reviewItemId(),
+            job.id,
+            JSON.stringify({
+              title: '',
+              format: 'VHS',
+              confidence: 'low',
+              condition: 'good',
+              status: 'in_collection',
+              notes: result.message,
+              needs_manual_review: true,
+            }),
+            job.thumb,
+            'scan',
+            'pending',
+            result.message,
+            ts,
+            job.owner_id || null,
+          ]
+        );
+        await pool.query('DELETE FROM upload_jobs WHERE id=$1', [job.id]);
+        console.warn(`⚠ Job ${job.id} deferred (${result.deferred}): ${result.message}`);
+        return;
+      }
+
+      const raw = result.items || [];
 
       // Enrich each detected tape with OMDb
       const enriched = await Promise.all(raw.map(async (item) => {
@@ -80,7 +109,7 @@ async function processJobs() {
       }));
 
       const omdbVerified = enriched.some(i => i.imdb_id);
-      await logScanAnalytics({ jobId: job.id, aiModel: OLLAMA_MODEL, suggestions: enriched, omdbVerified, ownerId: job.owner_id || null });
+      await logScanAnalytics({ jobId: job.id, aiModel: result.model, suggestions: enriched, omdbVerified, ownerId: job.owner_id || null });
 
       const ts = new Date().toISOString();
       for (const item of enriched) {

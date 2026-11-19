@@ -10,6 +10,7 @@ import m005 from '../migrations/005_multi_user.sql';
 import m006 from '../migrations/006_email_not_unique.sql';
 import m007 from '../migrations/007_tmdb_lookups.sql';
 import m008 from '../migrations/008_queue_ownership.sql';
+import m009 from '../migrations/009_vision_daily_usage.sql';
 
 export const MIGRATION_FILES = [
   '001_initial_schema.sql',
@@ -21,8 +22,9 @@ export const MIGRATION_FILES = [
   '006_email_not_unique.sql',
   '007_tmdb_lookups.sql',
   '008_queue_ownership.sql',
+  '009_vision_daily_usage.sql',
 ];
 
-const SQL = [m001, m002a, m002b, m003, m004, m005, m006, m007, m008];
+const SQL = [m001, m002a, m002b, m003, m004, m005, m006, m007, m008, m009];
 
 export const migrations = MIGRATION_FILES.map((name, i) => ({ name, sql: SQL[i] }));

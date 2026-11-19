@@ -2,6 +2,8 @@
 const { pool } = require('../db');
 const { logActivity } = require('../activity-log');
 const { resolveOllamaUrl } = require('../ollama');
+const { resolveBackend, getAiBinding, getUsageToday } = require('../vision');
+const { WORKERS_AI_MODEL, OLLAMA_MODEL, VISION_DAILY_CAP } = require('../config');
 
 async function healthHandler(req, res) {
   let dbOk = false;
@@ -29,12 +31,28 @@ async function healthHandler(req, res) {
 
   logActivity('info', `Health check: DB ${dbOk ? 'ok' : 'error'}, Ollama ${ollamaOk ? 'ok' : 'unreachable'}, models: ${models.join(', ') || 'none'}`);
 
+  const backend = resolveBackend();
+  const usage = await getUsageToday();
+  const workersAi = getAiBinding()
+    ? (usage.atCap ? 'capped' : 'ok')
+    : 'unavailable';
+  const vision = {
+    backend,
+    model: backend === 'workers-ai' ? WORKERS_AI_MODEL : OLLAMA_MODEL,
+    workersAi,
+    ollama: ollamaOk ? 'ok' : 'error',
+    ollamaModels: models,
+    scansToday: usage.scansToday,
+    scanCap: usage.scanCap || VISION_DAILY_CAP,
+  };
+
   if (!dbOk) {
     return res.status(503).json({
       status: 'error',
       db: 'error',
       ollama: ollamaOk ? 'ok' : 'error',
       ollamaModels: models,
+      vision,
       ts: new Date().toISOString()
     });
   }
@@ -44,6 +62,7 @@ async function healthHandler(req, res) {
     db: 'ok',
     ollama: ollamaOk ? 'ok' : 'error',
     ollamaModels: models,
+    vision,
     ts: new Date().toISOString()
   });
 }
