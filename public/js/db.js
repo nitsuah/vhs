@@ -43,6 +43,7 @@ export async function _cacheSetAll(tapes){const db=await _openCache();return new
 
 // ── DB OPERATIONS ────────────────────────────────────────────────────────
 import { inventory, setInventory } from './inventory.js';
+import { getInventory } from './modules/inventory-state.js';
 
 export async function dbAll(){
   try{
@@ -58,7 +59,48 @@ export async function dbAll(){
   }
 }
 export async function dbAdd(v){const r=await apiReq('/api/tapes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});_cachePut(v).catch(()=>{});return r;}
-export async function dbPut(v){const r=await apiReq(`/api/tapes/${encodeURIComponent(v.id)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});_cachePut(v).catch(()=>{});return r;}
+const tapeWriteQueues = new Map();
+
+function enqueueTapeWrite(id, buildRecord, fallback) {
+  const previous = tapeWriteQueues.get(id) || Promise.resolve();
+  const next = previous.catch(() => {}).then(async () => {
+    const current = getInventory().find(t => t.id === id);
+    if (!current && !fallback) {
+      throw new Error(`Cannot update missing tape ${id}: no complete record is available`);
+    }
+    const base = current || fallback;
+    const record = buildRecord(base);
+    const saved = await apiReq(`/api/tapes/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
+    });
+    // A concurrent dbAll() can replace the inventory array while the PUT is
+    // in flight. Reflect the committed server record onto the currently-held
+    // object, not only the stale object captured when this queued write began.
+    const latest = getInventory().find(t => t.id === id);
+    if (latest) Object.assign(latest, record);
+    _cachePut(record).catch(() => {});
+    return saved;
+  });
+  tapeWriteQueues.set(id, next);
+  return next.finally(() => {
+    if (tapeWriteQueues.get(id) === next) tapeWriteQueues.delete(id);
+  });
+}
+
+// Every tape mutation shares one per-ID queue. The record is built only when
+// its turn starts, from the latest in-memory inventory object, so artwork and
+// photo writes cannot persist competing stale snapshots.
+export function dbUpdateTape(id, update) {
+  return enqueueTapeWrite(id, current => update({ ...current }));
+}
+export function dbPut(v) {
+  // Apply the caller's explicit edits to the latest record. Detached editor
+  // records omit fields they do not edit (photos/artwork), so they cannot
+  // roll back a newer queued mutation when their PUT finally runs.
+  return enqueueTapeWrite(v.id, current => ({ ...current, ...v }), v);
+}
 export async function dbDel(k){const r=await apiReq(`/api/tapes/${encodeURIComponent(k)}`,{method:'DELETE'});_cacheDel(k).catch(()=>{});return r;}
 
 export async function nextId() {

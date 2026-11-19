@@ -2,7 +2,7 @@
 import { getInventory, setInventory, getSelectedId, setSelectedId, getIsNewTape, setIsNewTape, getSelectedIds, getWallMode, setWallMode, setIsReadOnly } from './modules/inventory-state.js';
 import { getFiltered } from './modules/filtering.js';
 import { renderList, renderInv as renderListView, openDetail, updateBulkBar, updateCount } from './modules/list-view.js';
-import { dbPut } from './db.js';
+import { dbUpdateTape } from './db.js';
 import { toast } from './utils.js';
 import { renderWall } from './modules/wall-view.js';
 import { openDetail as openDetailModal, renderDetailPhotos, initTagChips } from './modules/detail-modal.js';
@@ -73,30 +73,56 @@ function renderPublicCollection(tapes) {
 window.openDetail = openDetailModal;
 window.renderDetailPhotos = renderDetailPhotos;
 window.pinDetailPhoto = async (idx, role) => {
-  const t = inventory.find(x => x.id === getSelectedId());
+  const id = getSelectedId();
+  const t = inventory.find(x => x.id === id);
   if (!t) return;
   const src = t.photos[idx];
-  if (role === 'face') { t.photo_face = (t.photo_face === src ? null : src); }
-  else { t.photo_spine = (t.photo_spine === src ? null : src); }
-  renderDetailPhotos(t);
-  renderListView();
-  try { await dbPut(t); } catch (e) { toast('Save failed: ' + e.message, 'err'); }
+  try {
+    await dbUpdateTape(id, current => {
+      if (!(current.photos || []).includes(src)) return current;
+      return {
+      ...current,
+      [role === 'face' ? 'photo_face' : 'photo_spine']:
+        current[role === 'face' ? 'photo_face' : 'photo_spine'] === src ? null : src,
+      };
+    });
+    const saved = inventory.find(x => x.id === id);
+    if (saved && getSelectedId() === id) {
+      renderDetailPhotos(saved);
+      renderListView();
+    }
+  } catch (e) { toast('Save failed: ' + e.message, 'err'); }
 };
 window.removeDetailPhoto = async (idx) => {
-  const t = inventory.find(x => x.id === getSelectedId());
+  const id = getSelectedId();
+  const t = inventory.find(x => x.id === id);
   if (!t) return;
   if (!confirm('Remove this photo? This cannot be undone.')) return;
   const old = t.photos[idx];
-  t.photos = (t.photos || []).filter((_, i) => i !== idx);
-  if (t.photo_thumbnail === old) t.photo_thumbnail = t.photos[0] || '';
-  if (t.photo_face === old) t.photo_face = null;
-  if (t.photo_spine === old) t.photo_spine = null;
-  await dbPut(t);
-  renderListView();
-  renderDetailPhotos(t);
-  const th = document.getElementById('detail-thumb');
-  if (t.photo_thumbnail) { th.src = t.photo_thumbnail; th.style.display = 'block'; }
-  else th.style.display = 'none';
+  try {
+    await dbUpdateTape(id, current => {
+      const currentPhotos = current.photos || [];
+      const currentIndex = currentPhotos.indexOf(old);
+      if (currentIndex === -1) return current;
+      const photos = currentPhotos.filter((_, i) => i !== currentIndex);
+      return {
+        ...current,
+        photos,
+        photo_thumbnail: current.photo_thumbnail === old ? (photos[0] || '') : current.photo_thumbnail,
+        photo_face: current.photo_face === old ? null : current.photo_face,
+        photo_spine: current.photo_spine === old ? null : current.photo_spine,
+      };
+    });
+    const saved = inventory.find(x => x.id === id);
+    if (!saved) return;
+    renderListView();
+    if (getSelectedId() === id) renderDetailPhotos(saved);
+    const th = document.getElementById('detail-thumb');
+    if (th && getSelectedId() === id) {
+      if (saved.photo_thumbnail) { th.src = saved.photo_thumbnail; th.style.display = 'block'; }
+      else th.style.display = 'none';
+    }
+  } catch (e) { toast('Remove photo failed: ' + e.message, 'err'); }
 };
 window.openCropOverlay = openCropOverlay;
 window.applyCrop = applyCrop;

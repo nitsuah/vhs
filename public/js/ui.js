@@ -1,6 +1,6 @@
 // ── UI MODULE ──────────────────────────────────────────────────────────────
 import { inventory, renderInv, getFiltered, updateBulkBar, updateCount, setIsNewTape, getIsNewTape, getWallMode, setWallMode, clearBulk, applyBulkStatus, deleteBulk, getSelectedId, getInventory, renderTagChips, esc, renderDetailPhotos } from './inventory.js';
-import { dbAdd, dbPut, dbDel, nextId } from './db.js';
+import { dbAdd, dbPut, dbDel, dbUpdateTape, nextId } from './db.js';
 import { toast, dl, playRewindSound, startStaticAnim, getSoundEnabled, toggleSound, fileToThumb } from './utils.js';
 import { revPanel, showRevPanel, hideRevPanel } from './review.js';
 import { apiKey, omdbKey, tmdbKey, apiProvider, ollamaUrl, ollamaModel, fastMode, cards, captureQueue, setApiKey, setOmdbKey, setTmdbKey, setApiProvider, setOllamaUrl, setOllamaModel, setFastMode, localAiUrl, setLocalAiUrl, setLocalAiModel } from './state.js';
@@ -462,12 +462,15 @@ document.getElementById('d-photo-input')?.addEventListener('change', async e => 
   if (!t) { toast('Save this tape before adding photos', 'warn'); return; }
   try {
     const thumbs = await Promise.all(files.map(f => fileToThumb(f)));
-    const photos = [...(t.photos || []), ...thumbs];
-    const updated = { ...t, photos, photo_thumbnail: t.photo_thumbnail || photos[0] };
-    await dbPut(updated); // persist before mutating shared state, so a failure leaves `t` untouched
-    Object.assign(t, updated);
-    renderDetailPhotos(t);
-    renderInv();
+    await dbUpdateTape(id, current => {
+      const photos = [...(current.photos || []), ...thumbs];
+      return { ...current, photos, photo_thumbnail: current.photo_thumbnail || photos[0] };
+    });
+    const saved = inventory.find(x => x.id === id);
+    if (saved) {
+      if (getSelectedId() === id) renderDetailPhotos(saved);
+      renderInv();
+    }
   } catch (err) {
     toast('Add photo failed: ' + err.message, 'err');
   }

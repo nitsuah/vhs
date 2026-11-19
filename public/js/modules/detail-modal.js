@@ -1,6 +1,21 @@
 // ── DETAIL MODAL ──────────────────────────────────────────────────────────────
-import { getInventory, setSelectedId, getSelectedId, setIsNewTape } from './inventory-state.js';
+import { getInventory, setSelectedId, getSelectedId, setIsNewTape, getIsReadOnly } from './inventory-state.js';
 import { esc, renderTagChips } from './render-helpers.js';
+import { dbUpdateTape } from '../db.js';
+import { toast } from '../utils.js';
+import { searchArtwork, renderArtworkCandidates } from './artwork-search.js';
+
+async function saveArtworkLink(t, role, selected) {
+  const id = t.id;
+  await dbUpdateTape(id, current => {
+    const links = { ...(current.artwork_links || {}) };
+    if (selected) links[role] = selected;
+    else delete links[role];
+    return { ...current, artwork_links: links };
+  });
+  const current = getInventory().find(item => item.id === id);
+  if (current && getSelectedId() === id) renderDetailPhotos(current);
+}
 
 export function initTagChips(container, getTags, setTags) {
   function bindInput() {
@@ -32,11 +47,94 @@ export function initTagChips(container, getTags, setTags) {
   bindInput();
 }
 
+function artworkLinkCard(link, role, t, wrap) {
+  const card = document.createElement('article');
+  card.className = 'd-artwork-link';
+  const image = document.createElement('img');
+  image.src = link.url || '';
+  image.alt = link.title || '';
+  image.loading = 'lazy';
+  image.style.cssText = 'width:80px;height:56px;object-fit:contain;border-radius:4px';
+  card.appendChild(image);
+  const title = document.createElement('p');
+  title.textContent = link.title || '';
+  card.appendChild(title);
+  const license = document.createElement('a');
+  license.textContent = link.license || 'License';
+  if (typeof link.licenseUrl === 'string' && link.licenseUrl.startsWith('https://')) {
+    license.href = link.licenseUrl;
+    license.target = '_blank';
+    license.rel = 'noopener noreferrer';
+  }
+  card.appendChild(license);
+  const attribution = document.createElement('p');
+  attribution.textContent = link.attribution || '';
+  card.appendChild(attribution);
+  if (typeof link.sourceUrl === 'string' && link.sourceUrl.startsWith('https://')) {
+    const source = document.createElement('a');
+    source.href = link.sourceUrl;
+    source.textContent = 'Source';
+    source.target = '_blank';
+    source.rel = 'noopener noreferrer';
+    card.appendChild(source);
+  }
+  if (!getIsReadOnly()) {
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.textContent = 'Clear link';
+    clear.addEventListener('click', async () => {
+      try {
+        await saveArtworkLink(t, role, null);
+      } catch (error) { toast('Save failed: ' + error.message, 'err'); }
+    });
+    card.appendChild(clear);
+  }
+  wrap.appendChild(card);
+}
+
+function renderArtworkLinks(t, wrap) {
+  const readOnly = getIsReadOnly();
+  ['face', 'spine'].forEach(role => {
+    const link = t.artwork_links?.[role];
+    if (link) {
+      artworkLinkCard(link, role, t, wrap);
+      return;
+    }
+    if (readOnly || (role === 'face' ? t.photo_face : t.photo_spine)) return;
+    const label = role === 'face' ? 'cover' : 'spine';
+    const section = document.createElement('section');
+    section.className = 'd-artwork-search';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = `Find artwork (${label})`;
+    section.appendChild(button);
+    const results = document.createElement('div');
+    results.className = 'artwork-results';
+    section.appendChild(results);
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      results.textContent = 'Searching…';
+      try {
+        const items = await searchArtwork({ title: document.getElementById('d-title')?.value || t.title, role: label });
+        renderArtworkCandidates(results, items, { onUse: async selected => {
+          try {
+            await saveArtworkLink(t, role, selected);
+          } catch (error) { toast('Save failed: ' + error.message, 'err'); }
+        } });
+      } catch (error) {
+        results.textContent = error.message || 'Artwork search unavailable';
+      } finally { button.disabled = false; }
+    });
+    wrap.appendChild(section);
+  });
+}
+
 export function renderDetailPhotos(t) {
   const wrap = document.getElementById('detail-photos');
   if (!wrap) return;
   const photos = t.photos || [];
-  wrap.style.display = photos.length ? 'flex' : 'none';
+  const links = t.artwork_links || {};
+  wrap.style.display = photos.length || links.face || links.spine || !getIsReadOnly() ? 'flex' : 'none';
   const countEl = document.getElementById('d-photo-count');
   if (countEl) countEl.textContent = photos.length ? `${photos.length} photo${photos.length !== 1 ? 's' : ''}` : '';
   wrap.innerHTML = photos.map((p, i) => {
@@ -52,6 +150,7 @@ export function renderDetailPhotos(t) {
       </div>
     </div>`;
   }).join('');
+  renderArtworkLinks(t, wrap);
 }
 
 export function openDetail(id) {
