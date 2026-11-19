@@ -59,7 +59,7 @@ server.listen(PORT);
 // /api/jobs* request (create, status poll, inflight, retry) kicks one pass of
 // processJobs() in ctx.waitUntil with its own pg Pool, so queued scans are
 // actually sent to the vision backend while the UI polls.
-export function shouldKickJobs(req, res) {
+function shouldKickJobs(req, res) {
   if (!res || res.status >= 400) return false;
   try {
     return new URL(req.url).pathname.startsWith('/api/jobs');
@@ -68,7 +68,7 @@ export function shouldKickJobs(req, res) {
   }
 }
 
-export async function runJobsInBackground() {
+async function runJobsInBackground() {
   const { db, processJobs } = await load();
   if (typeof processJobs !== 'function') return;
   const pool = db.createPool();
