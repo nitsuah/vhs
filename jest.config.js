@@ -1,6 +1,7 @@
 'use strict';
 module.exports = {
   testEnvironment: 'node',
+  setupFiles: ['<rootDir>/tests/setup-env.js'],
   testMatch: ['**/tests/**/*.test.js', '**/tests/**/*.spec.js'],
   testPathIgnorePatterns: ['/node_modules/', '/app/tests/playwright/', '/tests/playwright/', '/tests/journeys/'],
   collectCoverageFrom: [

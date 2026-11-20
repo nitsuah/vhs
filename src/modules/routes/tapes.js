@@ -2,13 +2,13 @@
 'use strict';
 
 const { pool } = require('../db');
-const { ENABLED } = require('../auth');
+const { ENABLED, LOCAL_OPEN } = require('../auth');
 const { serverError } = require('../http-errors');
 
 // When auth is enabled: scope reads to this user's tapes only; anonymous callers get an empty list.
-// When auth is disabled: return everything (existing behaviour).
+// When auth is not configured: empty list unless AUTH_DISABLED=1 (open single-user mode).
 async function tapesGetHandler(req, res) {
-  if (ENABLED && !req.user) return res.json([]);
+  if ((ENABLED && !req.user) || (!ENABLED && !LOCAL_OPEN)) return res.json([]);
   try {
     let rows;
     if (ENABLED) {

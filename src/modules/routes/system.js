@@ -12,8 +12,24 @@ const limiter = rateLimit({
 });
 
 const { OLLAMA } = require('../config');
+const { requireAuth } = require('../auth');
 const { resolveOllamaUrl } = require('../ollama');
 const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
+
+// Only the Ollama endpoints the app uses are forwarded.
+const OLLAMA_ALLOWED = [
+  ['GET', '/api/tags'],
+  ['GET', '/api/version'],
+  ['POST', '/api/generate'],
+  ['POST', '/api/chat'],
+  ['GET', '/v1/models'],
+  ['POST', '/v1/chat/completions'],
+];
+function ollamaAllowlist(req, res, next) {
+  const p = req.path.replace(/\/+$/, '');
+  if (OLLAMA_ALLOWED.some(([m, path]) => m === req.method && path === p)) return next();
+  return res.status(404).json({ error: 'not found' });
+}
 
 function registerStaticAndProxy(app) {
   app.use('/api', limiter);
@@ -27,6 +43,9 @@ function registerStaticAndProxy(app) {
   // instead of being pinned to the static config default at startup.
   app.use(
     '/api/ollama',
+    requireAuth,
+    express.json({ limit: '15mb' }),
+    ollamaAllowlist,
     createProxyMiddleware({
       target: OLLAMA,
       router: () => resolveOllamaUrl(),
@@ -43,4 +62,4 @@ function registerStaticAndProxy(app) {
   app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html'))); // codeql[js/missing-rate-limiting] app.use('/',limiter) above covers this catch-all
 }
 
-module.exports = { registerStaticAndProxy };
+module.exports = { registerStaticAndProxy, ollamaAllowlist };
