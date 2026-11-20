@@ -44,6 +44,7 @@ function registerStaticAndProxy(app) {
   app.use(
     '/api/ollama',
     requireAuth,
+    express.json({ limit: '15mb' }),
     ollamaAllowlist,
     createProxyMiddleware({
       target: OLLAMA,

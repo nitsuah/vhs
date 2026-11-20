@@ -10,7 +10,7 @@ let ENABLED = !!(CLIENT_ID && CLIENT_SECRET);
 
 // Without OAuth configured, protected routes are refused unless the operator
 // explicitly opts in to open single-user mode (local development).
-const LOCAL_OPEN = !ENABLED && /^(1|true|yes)$/i.test((process.env.AUTH_DISABLED || '').trim());
+const LOCAL_OPEN = !ENABLED && process.env.NODE_ENV !== 'production' && /^(1|true|yes)$/i.test((process.env.AUTH_DISABLED || '').trim());
 
 
 if (ENABLED && !JWT_SECRET) {

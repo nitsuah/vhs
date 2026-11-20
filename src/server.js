@@ -67,6 +67,7 @@ app.use((req, res, next) => {
     return requireAuth(req, res, err => (err ? next(err) : jsonImages(req, res, next)));
   }
   if (req.path === '/api/tapes' || req.path.startsWith('/api/tapes/')) return jsonTapes(req, res, next);
+  if (req.path === '/api/ollama' || req.path.startsWith('/api/ollama/')) return next(); // own parser after auth
   return jsonDefault(req, res, next);
 });
 

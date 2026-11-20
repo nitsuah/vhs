@@ -50,3 +50,11 @@ describe('requireAuth with OAuth configured', () => {
     expect(run(requireAuth, { user: { sub: 'u' } }).next).toHaveBeenCalled();
   });
 });
+
+describe('production never opens', () => {
+  it('ignores AUTH_DISABLED when NODE_ENV=production', () => {
+    const { requireAuth, LOCAL_OPEN } = loadAuth({ NODE_ENV: 'production', AUTH_DISABLED: '1' });
+    expect(LOCAL_OPEN).toBe(false);
+    expect(run(requireAuth).res.status).toHaveBeenCalledWith(503);
+  });
+});
