@@ -4,7 +4,6 @@
 
 [![CI](https://github.com/nitsuah/vhs/actions/workflows/ci.yml/badge.svg)](https://github.com/nitsuah/vhs/actions/workflows/ci.yml)
 [![Pages](https://github.com/nitsuah/vhs/actions/workflows/pages.yml/badge.svg)](https://nitsuah.github.io/vhs/)
-[![Netlify Status](https://api.netlify.com/api/v1/badges/9cf148ef-31d4-4edc-9862-a72a4ca6e0ff/deploy-status)](https://app.netlify.com/projects/vhsbox/deploys)
 [![Live](https://img.shields.io/badge/live-vhs.nitsuah.io-e84040)](https://vhs.nitsuah.io/)
 
 A personal tool to catalog a VHS collection — capturing what each tape is, what it might be worth, and building a record you can actually use (sell, store, share). Live at [vhs.nitsuah.io](https://vhs.nitsuah.io/). Backed by PostgreSQL, served by Express, containerized with Docker.
@@ -66,7 +65,7 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 - **Jest Unit Tests** — server-side logic; 8 test files, ≥ 85% whole-tree line coverage (`src/server.js` + `src/modules/**`)
 - **CI** — Hadolint, Shellcheck, HTMLHint, ESLint, `node --check` syntax, dep-install check, Jest unit tests, Docker build smoke test
 - **Project Site** — GitHub Pages landing page with a launch video and a narrated 20 s vertical short, served from `site/` at [nitsuah.github.io/vhs](https://nitsuah.github.io/vhs/)
-- **Netlify Serverless** — Express app also deployable as a Netlify Function (`netlify/functions/server.js`, `serverless-http`)
+- **Cloudflare Workers** — production at [vhs.nitsuah.io](https://vhs.nitsuah.io): `worker/index.js` plus static assets from `public/` (`wrangler.jsonc`), with the Workers AI binding for photo scanning
 
 ---
 
@@ -148,18 +147,11 @@ docker compose -f config/docker-compose.yml up -d --build
 App at `http://localhost:8080` (or whatever `APP_PORT` you set in `.env`).
 HTTPS at `https://localhost:8443`.
 
-### Netlify deployment (alternative)
+### Cloudflare Workers (production)
 
-The Express app can also run as a Netlify Function. The `serverless-http` package wraps it as a Lambda-compatible handler. Static files are served from `public/`; all `/api/*` and `/auth/*` routes are proxied to the function via `netlify.toml`.
+`wrangler.jsonc` points at `worker/index.js`; static assets come from `public/` with SPA fallback; `/api/*`, `/auth/*` and `/health` run in the Worker first; AI scanning uses the Workers AI binding `AI` (`@cf/meta/llama-3.2-11b-vision-instruct`); deploy with `npx wrangler deploy`; set secrets with `npx wrangler secret put <NAME>` (the names are listed in the comment in `wrangler.jsonc`), never in the file.
 
-```bash
-# Deploy via Netlify CLI
-netlify deploy --prod
-```
-
-Migrations run automatically on each cold start (idempotent). Set the same `.env` variables (especially `DATABASE_URL`) as Netlify environment variables.
-
-> **Note:** The Ollama proxy and local HTTPS cert generation are Docker-only features. The Netlify path assumes Claude Vision API (`ANTHROPIC_API_KEY`) for AI scanning.
+The `netlify/` function and `netlify.toml` are legacy and no longer deployed.
 
 ### Auth (optional)
 
@@ -277,7 +269,7 @@ Immutable IDs: once a tape gets a `VHS-XXXX` ID, it keeps it forever. If a barco
 ## Decisions made
 
 - **PostgreSQL over flat JSON** — migrated from `tapes.json` when multi-user auth arrived. PostgreSQL via Neon handles concurrent writes, upserts, and user-scoped queries cleanly. The ID scheme (`VHS-XXXX`) is still immutable. (`data/tapes.json` remains in the repo as an empty legacy file from the initial version.)
-- **Two deployment modes** — Docker/Express (primary; see `config/docker-compose.yml`) and Netlify Functions (see `netlify/functions/server.js` and `netlify.toml`). The `serverless-http` package wraps the Express app as a Lambda-compatible handler.
+- **Two deployment modes** — Docker/Express (self-hosted; `config/docker-compose.yml`) and Cloudflare Workers (vhs.nitsuah.io; `wrangler.jsonc`, `worker/index.js`).
 - **Single-user mode** — auth is optional. If `GOOGLE_CLIENT_ID` is not set, the app runs with no login wall and all tapes are global.
 - **Condition** — defaults to `"great"`. Notes field for anything specific.
 - **Sold tapes** — stay in the database. `status` field handles everything: `in_collection`, `for_sale`, `sold`, `donated`. No archive table needed.
