@@ -6,6 +6,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — 2026-09-11 → 2026-11-19
 
+### Security
+
+- **Changed:** `/api/ollama` now requires sign-in and forwards only the model-listing, generate and chat endpoints. Protected routes answer 503 when OAuth is not configured, unless `AUTH_DISABLED=1` opts in to open single-user mode for local use. JSON bodies default to a 1 MB limit (5 MB for tapes, 15 MB for photo uploads, authenticated before parsing). `/api/vision/backends` requires sign-in; `/api/trailer` stays public.
+
 ### Added
 
 - **Added:** Settings → Scan backend selector driven by the new `GET /api/vision/backends` (Workers AI availability + free scans left today, Ollama reachability + pulled models, manual review). Unavailable options are disabled with the reason, Auto picks the best available, and the choice is stored on the job (migration `010_upload_job_backend.sql`) so the worker uses it. The header badge and System Health now show Workers AI.

@@ -8,6 +8,10 @@ const REDIRECT_URI  = `${APP_BASE_URL}/auth/google/callback`;
 
 let ENABLED = !!(CLIENT_ID && CLIENT_SECRET);
 
+// Without OAuth configured, protected routes are refused unless the operator
+// explicitly opts in to open single-user mode (local development).
+const LOCAL_OPEN = !ENABLED && /^(1|true|yes)$/i.test((process.env.AUTH_DISABLED || '').trim());
+
 
 if (ENABLED && !JWT_SECRET) {
   console.error('FATAL: JWT_SECRET must be set when auth is enabled');
@@ -87,15 +91,20 @@ function optionalAuth(req, res, next) {
 }
 
 // Rejects with 401 when auth is enabled and no valid session exists.
-// Enforced whenever auth is enabled, regardless of NODE_ENV.
+// Fails closed (503) when OAuth is not configured, unless AUTH_DISABLED=1
+// opts in to open single-user mode. Independent of NODE_ENV.
 function requireAuth(req, res, next) {
-  if (!ENABLED) return next();
+  if (!ENABLED) {
+    if (LOCAL_OPEN) return next();
+    return res.status(503).json({ error: 'auth not configured' });
+  }
   if (!req.user) return res.status(401).json({ error: 'not authenticated' });
   next();
 }
 
 module.exports = {
   ENABLED,
+  LOCAL_OPEN,
   getAuthUrl,
   exchangeCode,
   isValidOAuthState,

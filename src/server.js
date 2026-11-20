@@ -52,12 +52,23 @@ const { serverError } = require('./modules/http-errors');
 
 // ── App setup ──────────────────────────────────────────────────────────────────
 const app = express();
-app.use(express.json({ limit: '50mb' }));
 // codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token limits cross-site cookie submission for state-changing routes
 // codeql[js/missing-token-validation] SameSite=strict on vhs_token limits cross-site cookie submission for state-changing routes
 app.use(cookieParser());
 // codeql[js/missing-rate-limiting] optionalAuth is read-only middleware; all auth and mutation routes carry explicit per-route limiters
 app.use(optionalAuth); // sets req.user from JWT cookie when auth is enabled
+// Body limits: small by default; photo-bearing routes get a larger cap and are
+// authenticated before their body is parsed.
+const jsonDefault = express.json({ limit: '1mb' });
+const jsonTapes = express.json({ limit: '5mb' });
+const jsonImages = express.json({ limit: '15mb' });
+app.use((req, res, next) => {
+  if (req.method === 'POST' && (req.path === '/api/jobs' || req.path === '/api/review')) {
+    return requireAuth(req, res, err => (err ? next(err) : jsonImages(req, res, next)));
+  }
+  if (req.path === '/api/tapes' || req.path.startsWith('/api/tapes/')) return jsonTapes(req, res, next);
+  return jsonDefault(req, res, next);
+});
 
 // ── Activity log SSE endpoint ──────────────────────────────────────────────────
 // Exposes scan/review detail (tape titles, upstream errors) — requireAuth is a
@@ -719,7 +730,7 @@ const jobsCreateLimiter = rateLimit({
 // ── Job endpoints ──────────────────────────────────────────────────────────────
 // Which scan backends can run right now (Workers AI + remaining daily cap,
 // Ollama + its models, manual review). Drives the UI backend selector.
-app.get('/api/vision/backends', defaultLimiter, async (req, res) => {
+app.get('/api/vision/backends', defaultLimiter, requireAuth, async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store');
     res.json(await getVisionBackends());

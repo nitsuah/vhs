@@ -3,9 +3,9 @@
 const mockQuery = jest.fn();
 jest.mock('../src/modules/db', () => ({ pool: { query: (...a) => mockQuery(...a) } }));
 
-function load(enabled) {
+function load(enabled, localOpen = !enabled) {
   jest.resetModules();
-  jest.doMock('../src/modules/auth', () => ({ ENABLED: enabled }));
+  jest.doMock('../src/modules/auth', () => ({ ENABLED: enabled, LOCAL_OPEN: localOpen }));
   return require('../src/modules/routes/tapes').tapesGetHandler;
 }
 
@@ -19,6 +19,14 @@ function mockRes() {
 beforeEach(() => mockQuery.mockReset());
 
 describe('tapesGetHandler scoping', () => {
+  it('returns an empty list when auth is not configured and open mode is not opted in', async () => {
+    const handler = load(false, false);
+    const res = mockRes();
+    await handler({}, res);
+    expect(res.json).toHaveBeenCalledWith([]);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   it('returns an empty list and never queries when auth is enabled and the caller is anonymous', async () => {
     const handler = load(true);
     const res = mockRes();
