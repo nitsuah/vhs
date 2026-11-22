@@ -7,7 +7,7 @@ import { setDbDot } from './db.js';
 import { updateAiBadge, checkOllama, checkVisionBackends } from './ai.js';
 import { renderInv, updateCount } from './inventory.js';
 import { startJobPoller } from './capture.js';
-import { initAuth, loadPublicCollection } from './auth.js';
+import { initAuth, loadPublicCollection, getUser, isAuthEnabled } from './auth.js';
 import { setActiveTab } from './ui.js';
 
 // ── Public share route: /c/:slug ───────────────────────────────────────────────
@@ -23,6 +23,9 @@ async function init() {
   // Auth state first so the chip renders before tapes load
   await initAuth();
 
+  // vhs#201: no private API calls before sign-in
+  const signedOut = isAuthEnabled() && !getUser();
+
   // Honor ?tab=collect from OAuth redirect (or any deep-link)
   const tabParam = new URLSearchParams(location.search).get('tab');
   if (tabParam === 'collect' || tabParam === 'review' || tabParam === 'capture') {
@@ -35,8 +38,10 @@ async function init() {
 
   setDbDot('');
   updateAiBadge();
-  const _aiFallback = setTimeout(updateAiBadge, 6000);
-  checkOllama(true).then(() => { clearTimeout(_aiFallback); updateAiBadge(); });
+  if (!signedOut) {
+    const _aiFallback = setTimeout(updateAiBadge, 6000);
+    checkOllama(true).then(() => { clearTimeout(_aiFallback); updateAiBadge(); });
+  }
   checkVisionBackends().catch(() => {});
   // Only signal ok from the health ping — apiReq handles err to avoid a race
   // where a slow health SELECT 1 overrides a successful /api/tapes call
@@ -56,6 +61,6 @@ async function init() {
     if (!preload.length) { renderInv(); updateCount(); }
   }
   renderInv(); updateCount();
-  startJobPoller();
+  if (!signedOut) startJobPoller();
 }
 window.init = init;
