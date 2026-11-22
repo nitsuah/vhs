@@ -52,6 +52,12 @@ const { serverError } = require('./modules/http-errors');
 
 // ── App setup ──────────────────────────────────────────────────────────────────
 const app = express();
+// vhs#203: on every response, Express-served or forwarded by the Worker. Hosted static files get the same pair from public/_headers.
+app.use((req, res, next) => {
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+});
 // codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token limits cross-site cookie submission for state-changing routes
 // codeql[js/missing-token-validation] SameSite=strict on vhs_token limits cross-site cookie submission for state-changing routes
 app.use(cookieParser());
