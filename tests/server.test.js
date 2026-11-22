@@ -457,7 +457,21 @@ describe('POST /api/jobs/:id/retry', () => {
 
 describe('GET /api/health', () => {
   const origFetch = global.fetch;
-  afterEach(() => { global.fetch = origFetch; });
+  const origOllamaUpstream = process.env.OLLAMA_UPSTREAM;
+  const origCfEnv = globalThis.__CF_ENV;
+  afterEach(() => {
+    global.fetch = origFetch;
+    if (origOllamaUpstream === undefined) {
+      delete process.env.OLLAMA_UPSTREAM;
+    } else {
+      process.env.OLLAMA_UPSTREAM = origOllamaUpstream;
+    }
+    if (origCfEnv === undefined) {
+      delete globalThis.__CF_ENV;
+    } else {
+      globalThis.__CF_ENV = origCfEnv;
+    }
+  });
 
   it('returns 200 with db:ok and ollama:ok when both healthy', async () => {
     mockQuery.mockResolvedValue({ rows: [{ '?column?': 1 }] });
@@ -490,6 +504,38 @@ describe('GET /api/health', () => {
     expect(res.status).toBe(200);
     expect(res.body.db).toBe('ok');
     expect(res.body.ollama).toBe('error');
+  });
+
+  it('reports ollama:not configured and omits ollamaModels on Cloudflare without OLLAMA_UPSTREAM', async () => {
+    mockQuery.mockResolvedValue({ rows: [{ '?column?': 1 }] });
+    globalThis.__CF_ENV = { AI: {} };
+    delete process.env.OLLAMA_UPSTREAM;
+    global.fetch = jest.fn();
+    const res = await request(app).get('/api/health');
+    expect(res.status).toBe(200);
+    expect(res.body.db).toBe('ok');
+    expect(res.body.ollama).toBe('not configured');
+    expect(res.body.ollamaModels).toBeUndefined();
+    expect(res.body.vision.ollama).toBe('not configured');
+    expect(res.body.vision.ollamaModels).toBeUndefined();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('reports ollama:ok with models when OLLAMA_UPSTREAM is set on Cloudflare', async () => {
+    mockQuery.mockResolvedValue({ rows: [{ '?column?': 1 }] });
+    globalThis.__CF_ENV = { AI: {} };
+    process.env.OLLAMA_UPSTREAM = 'http://gpu-box:11434';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ models: [{ name: 'llava:7b' }] }),
+    });
+    const res = await request(app).get('/api/health');
+    expect(res.status).toBe(200);
+    expect(res.body.db).toBe('ok');
+    expect(res.body.ollama).toBe('ok');
+    expect(res.body.ollamaModels).toContain('llava:7b');
+    expect(res.body.vision.ollama).toBe('ok');
+    expect(res.body.vision.ollamaModels).toContain('llava:7b');
   });
 });
 

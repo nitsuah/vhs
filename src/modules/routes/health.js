@@ -10,6 +10,9 @@ async function healthHandler(req, res) {
   let ollamaOk = false;
   let models = [];
 
+  const ollamaConfigured = !!String(process.env.OLLAMA_UPSTREAM || '').trim();
+  const ollamaSkipped = !ollamaConfigured && !!getAiBinding(); // same rule as getOllamaStatus()
+
   try {
     await pool.query('SELECT 1');
     dbOk = true;
@@ -17,19 +20,23 @@ async function healthHandler(req, res) {
     dbOk = false;
   }
 
-  try {
-    const upstream = await resolveOllamaUrl();
-    const ollamaRes = await fetch(`${upstream}/api/tags`, { signal: AbortSignal.timeout(3000) });
-    ollamaOk = ollamaRes.ok;
-    if (ollamaOk) {
-      const data = await ollamaRes.json();
-      models = data?.models?.map(m => m.name) || [];
+  if (!ollamaSkipped) {
+    try {
+      const upstream = await resolveOllamaUrl();
+      const ollamaRes = await fetch(`${upstream}/api/tags`, { signal: AbortSignal.timeout(3000) });
+      ollamaOk = ollamaRes.ok;
+      if (ollamaOk) {
+        const data = await ollamaRes.json();
+        models = data?.models?.map(m => m.name) || [];
+      }
+    } catch (e) {
+      ollamaOk = false;
     }
-  } catch (e) {
-    ollamaOk = false;
   }
 
-  logActivity('info', `Health check: DB ${dbOk ? 'ok' : 'error'}, Ollama ${ollamaOk ? 'ok' : 'unreachable'}, models: ${models.join(', ') || 'none'}`);
+  const ollamaState = ollamaSkipped ? 'not configured' : (ollamaOk ? 'ok' : 'error');
+
+  logActivity('info', `Health check: DB ${dbOk ? 'ok' : 'error'}, Ollama ${ollamaSkipped ? 'not configured' : (ollamaOk ? 'ok' : 'unreachable')}, models: ${models.join(', ') || 'none'}`);
 
   const backend = resolveBackend();
   const usage = await getUsageToday();
@@ -40,31 +47,30 @@ async function healthHandler(req, res) {
     backend,
     model: backend === 'workers-ai' ? WORKERS_AI_MODEL : OLLAMA_MODEL,
     workersAi,
-    ollama: ollamaOk ? 'ok' : 'error',
-    ollamaModels: models,
+    ollama: ollamaState,
     scansToday: usage.scansToday,
     scanCap: usage.scanCap || VISION_DAILY_CAP,
   };
-
-  if (!dbOk) {
-    return res.status(503).json({
-      status: 'error',
-      db: 'error',
-      ollama: ollamaOk ? 'ok' : 'error',
-      ollamaModels: models,
-      vision,
-      ts: new Date().toISOString()
-    });
+  if (!ollamaSkipped) {
+    vision.ollamaModels = models;
   }
 
-  res.json({
-    status: 'ok',
-    db: 'ok',
-    ollama: ollamaOk ? 'ok' : 'error',
-    ollamaModels: models,
+  const topLevel = {
+    status: dbOk ? 'ok' : 'error',
+    db: dbOk ? 'ok' : 'error',
+    ollama: ollamaState,
     vision,
     ts: new Date().toISOString()
-  });
+  };
+  if (!ollamaSkipped) {
+    topLevel.ollamaModels = models;
+  }
+
+  if (!dbOk) {
+    return res.status(503).json(topLevel);
+  }
+
+  res.json(topLevel);
 }
 
 module.exports = { healthHandler };
