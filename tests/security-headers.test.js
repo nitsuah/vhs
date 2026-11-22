@@ -9,8 +9,13 @@ const mockClientQuery = jest.fn();
 const mockClient = { query: mockClientQuery, release: jest.fn() };
 const mockConnect = jest.fn();
 jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: mockQuery, connect: mockConnect })) }));
+let mockProxyOptions;
 jest.mock('http-proxy-middleware', () => ({
-  createProxyMiddleware: () => (_req, _res, next) => next(),
+  createProxyMiddleware: opts => {
+    mockProxyOptions = opts;
+    return (_req, _res, next) => next();
+  },
+  fixRequestBody: jest.fn(),
 }));
 // Prevent openssl/fs calls during test load
 jest.mock('child_process', () => ({ execSync: jest.fn() }));
@@ -61,6 +66,14 @@ describe('Security headers on API responses', () => {
     expect(res.status).toBe(200);
     expect(res.headers['strict-transport-security']).toBe('max-age=31536000; includeSubDomains');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('Ollama proxy responses keep HSTS and X-Content-Type-Options over upstream values', () => {
+    const headers = { 'strict-transport-security': 'max-age=0', 'x-content-type-options': 'none' };
+    const res = { setHeader: (k, v) => { headers[k.toLowerCase()] = v; } };
+    mockProxyOptions.onProxyRes({}, {}, res);
+    expect(headers['strict-transport-security']).toBe('max-age=31536000; includeSubDomains');
+    expect(headers['x-content-type-options']).toBe('nosniff');
   });
 });
 
