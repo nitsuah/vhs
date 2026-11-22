@@ -55,6 +55,10 @@ function registerStaticAndProxy(app) {
       timeout: 300000,
       rejectUnauthorized: true,
       onProxyReq: fixRequestBody,
+      onProxyRes: (_proxyRes, _req, res) => {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+      },
       onError: (err, _req, res) => res.status(502).json({ error: 'Ollama unavailable: ' + err.message }),
     })
   );
