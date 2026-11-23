@@ -27,8 +27,17 @@ test(
       await expect(page.locator('#tab-review-count')).toBeHidden();
       // Toasts fade on a timer; let them go so the baseline is stable.
       await expect(page.locator('#toast-wrap .toast')).toHaveCount(0, { timeout: 10000 });
-      // TODO(#79): then open Collection and expect 19 cards. Today the shelf
-      // stays at 17 until something re-renders it.
     });
+
+    await step(
+      page,
+      'open the collection',
+      async () => {
+        await page.locator('#tab-collect').click();
+        await expect(page.locator('#wall-view .su-card')).toHaveCount(19);
+        await expect(page.locator('#collect-count')).toHaveText('19');
+      },
+      { screenshot: false },
+    );
   },
 );
