@@ -14,11 +14,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
-  queue: max
-
 jobs:
   test:
     name: Unit tests
@@ -43,6 +38,11 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
+    # Only deploys queue (in order, none replaced); test jobs run in parallel.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+      queue: max
     steps:
       - name: Check deploy credentials
         env:
