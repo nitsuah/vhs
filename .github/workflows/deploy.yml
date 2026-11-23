@@ -17,6 +17,7 @@ permissions:
 concurrency:
   group: deploy-production
   cancel-in-progress: false
+  queue: max
 
 jobs:
   test:
