@@ -19,6 +19,7 @@ All notable changes to this project are documented here.
 ### Fixed
 
 - **Fixed:** `/api/health` reports Ollama as "not configured" (no model list) on deployments without OLLAMA_UPSTREAM.
+- **test:** the review journey checks that confirmed tapes appear in the Collection (19 cards) again (#79).
 - **Fixed:** signed-out home no longer calls the job, review and Ollama endpoints.
 - **Fixed:** Server-side scans never ran: `POST /api/jobs` inserted into columns that don't exist (`image`, `barcode`, no `updated_at`), and on Cloudflare Workers nothing ever called `processJobs()`. Jobs now insert into `image_data`/`thumb`, and each `/api/jobs*` request kicks one claim-safe job pass via `ctx.waitUntil`.
 - **Fixed:** Serialize tape writes per ID so concurrent artwork and photo updates cannot overwrite one another; failed artwork saves leave shared inventory unchanged.
