@@ -3,6 +3,8 @@ name: Deploy
 # Deploys the Cloudflare Worker (vhs.nitsuah.io) after tests pass on main.
 # Needs repo secrets CLOUDFLARE_API_TOKEN (Workers Scripts: Edit) and
 # CLOUDFLARE_ACCOUNT_ID. Worker secrets stay in Cloudflare (`wrangler secret put`).
+# The vhs.nitsuah.io custom domain is attached in the Cloudflare dashboard, not
+# in wrangler.jsonc, so the smoke check assumes it is already set up.
 
 on:
   push:
@@ -68,8 +70,11 @@ jobs:
 
       - name: Smoke check
         run: |
+          # 200 means the Worker and its database are both up; a 503 here
+          # usually means a missing Worker secret or a database outage.
+          code=none
           for _ in 1 2 3 4 5; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' https://vhs.nitsuah.io/api/health)
+            code=$(curl -s --max-time 10 -o /dev/null -w '%{http_code}' https://vhs.nitsuah.io/api/health || echo none)
             [ "$code" = "200" ] && exit 0
             sleep 10
           done
