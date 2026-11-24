@@ -3,7 +3,8 @@
 // JSON 405 + Allow, and non-API paths keep their old behavior (vhs#202).
 const request = require('supertest');
 
-jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: jest.fn(), connect: jest.fn() })) }));
+const mockQuery = jest.fn();
+jest.mock('pg', () => ({ Pool: jest.fn(() => ({ query: mockQuery, connect: jest.fn() })) }));
 jest.mock('http-proxy-middleware', () => ({
   createProxyMiddleware: () => (_req, _res, next) => next(),
   fixRequestBody: jest.fn(),
@@ -43,9 +44,10 @@ describe('/api fallback', () => {
     expect(res.headers.allow).toBe('DELETE, PUT');
   });
 
-  it('a real route is untouched', async () => {
+  it('a real route is untouched (share handler answers, not the fallback)', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
     const res = await request(app).get('/api/share/bogus');
-    expect(res.status).not.toBe(405);
-    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'collection not found or private' });
   });
 });

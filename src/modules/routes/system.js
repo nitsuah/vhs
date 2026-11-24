@@ -28,6 +28,11 @@ const OLLAMA_ALLOWED = [
 function ollamaAllowlist(req, res, next) {
   const p = req.path.replace(/\/+$/, '');
   if (OLLAMA_ALLOWED.some(([m, path]) => m === req.method && path === p)) return next();
+  const allow = OLLAMA_ALLOWED.filter(([, path]) => path === p).map(([m]) => m);
+  if (allow.length) {
+    res.set('Allow', allow.join(', '));
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
   return res.status(404).json({ error: 'not found' });
 }
 
@@ -36,7 +41,7 @@ function ollamaAllowlist(req, res, next) {
 function allowedMethods(app, pathname) {
   const methods = new Set();
   for (const layer of (app._router && app._router.stack) || []) {
-    if (!layer.route || layer.route.path === '*' || !layer.match(pathname)) continue;
+    if (!layer.route || layer.route.path === '*' || !layer.regexp.test(pathname)) continue;
     for (const [m, on] of Object.entries(layer.route.methods)) if (on) methods.add(m.toUpperCase());
   }
   if (methods.has('GET')) methods.add('HEAD');
