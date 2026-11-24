@@ -75,6 +75,11 @@ function renderAuthChip() {
     if (el) el.style.display = canWrite ? '' : 'none';
   });
 
+  const landing = document.getElementById('signed-out-landing');
+  if (landing) {
+    landing.style.display = (_authEnabled && !_user) ? 'flex' : 'none';
+  }
+
   if (new URLSearchParams(location.search).get('auth') === 'error') {
     import('./utils.js').then(({ toast }) => toast('Google sign-in failed. Please try again.', 'err', 5000));
     history.replaceState(null, '', location.pathname);
