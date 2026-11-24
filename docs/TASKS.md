@@ -13,7 +13,7 @@ Last Updated: 2026-11-24
 - [x] **Metadata Fill: find missing cover/spine art from the Fill review** ([#85](https://github.com/nitsuah/vhs/issues/85)) — Fill cards list tapes missing cover/spine art and search licensed Commons candidates on demand; link-only, local photos preserved (`tests_playwright/fill-review.spec.js`)
   - Priority: P2
   - Type: Feature
-- [ ] **Retire Netlify leftovers** — delete `netlify.toml` and `netlify/` once the Netlify site is cancelled (README already rewritten in #199). Source: #197.
+- [ ] **Retire Netlify leftovers** — delete `netlify.toml` and `netlify/` once the Netlify site is cancelled, and drop the `netlify/functions/server.js` entry from `docs/FEATURES.md` (README already rewritten in #199). Source: #197.
   - Priority: P3
   - Type: Owner + code
 - [x] **Confirmed review tapes don't appear in the Collection until it re-renders** ([#79](https://github.com/nitsuah/vhs/issues/79)) — ~~`setActiveTab()` never calls `renderInv()`~~ (fixed in #91); the 19-card check is back in `tests/journeys/review.spec.js`
