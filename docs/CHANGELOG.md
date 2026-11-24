@@ -20,6 +20,7 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- **Fixed:** unknown `/api/*` paths answer JSON `404 {"error":"Not found"}`, and a known path with the wrong method answers JSON `405 {"error":"Method not allowed"}` with an `Allow` header, instead of an HTML error page (#202, #197).
 - **Fixed:** `/api/health` reports Ollama as "not configured" (no model list) on deployments without OLLAMA_UPSTREAM.
 - **test:** the review journey checks that confirmed tapes appear in the Collection (19 cards) again (#79).
 - **Fixed:** signed-out home no longer calls the job, review and Ollama endpoints.
