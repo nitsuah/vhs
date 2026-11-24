@@ -33,11 +33,13 @@ function ollamaAllowlist(req, res, next) {
     res.set('Allow', allow.join(', '));
     return res.status(405).json({ error: 'Method not allowed' });
   }
-  return res.status(404).json({ error: 'not found' });
+  return res.status(404).json({ error: 'Not found' });
 }
 
 // Methods registered for `pathname` (excluding the `*` SPA catch-all), so a
 // known /api path hit with the wrong verb can answer 405 + Allow, not 404.
+// Every API route is registered directly on `app` (no express.Router mounts);
+// a mounted router would need its own stack walked here.
 function allowedMethods(app, pathname) {
   const methods = new Set();
   for (const layer of (app._router && app._router.stack) || []) {
