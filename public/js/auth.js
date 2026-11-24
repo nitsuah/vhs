@@ -77,7 +77,7 @@ function renderAuthChip() {
 
   const landing = document.getElementById('signed-out-landing');
   if (landing) {
-    landing.style.display = (_authEnabled && !_user) ? 'flex' : 'none';
+    landing.classList.toggle('on', _authEnabled && !_user);
   }
 
   if (new URLSearchParams(location.search).get('auth') === 'error') {
