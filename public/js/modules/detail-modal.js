@@ -5,7 +5,7 @@ import { dbUpdateTape } from '../db.js';
 import { toast } from '../utils.js';
 import { searchArtwork, renderArtworkCandidates } from './artwork-search.js';
 
-async function saveArtworkLink(t, role, selected) {
+export async function saveArtworkLink(t, role, selected) {
   const id = t.id;
   await dbUpdateTape(id, current => {
     const links = { ...(current.artwork_links || {}) };

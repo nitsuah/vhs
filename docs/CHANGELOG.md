@@ -12,7 +12,11 @@ All notable changes to this project are documented here.
 
 ### Added
 
+<<<<<<< HEAD
 - **Added:** `Deploy` workflow: every push to `main` runs the unit tests, then `wrangler deploy` and a `/api/health` smoke check, so merged changes reach vhs.nitsuah.io without a manual deploy.
+=======
+- **Added:** Fill review now flags selected tapes that have no cover or spine art (no local photo and no saved link) and offers an on-demand **Find artwork** search on the card, reusing the licensed Commons search. **Use link** saves only the link, license and attribution; local photos are never touched, and a failed save leaves the tape unchanged (#85).
+>>>>>>> origin/main
 - **Added:** Settings → Scan backend selector driven by the new `GET /api/vision/backends` (Workers AI availability + free scans left today, Ollama reachability + pulled models, manual review). Unavailable options are disabled with the reason, Auto picks the best available, and the choice is stored on the job (migration `010_upload_job_backend.sql`) so the worker uses it. The header badge and System Health now show Workers AI.
 - **Added:** Cloudflare Workers AI tape/cover recognition (`@cf/meta/llama-3.2-11b-vision-instruct`) as the default vision backend on vhs.nitsuah.io, with a 200-scan/day cap so usage stays inside the free 10,000 neuron allocation. Caps and Workers AI errors queue the photo for manual review, or fall back to Ollama when it is configured. Local Docker still defaults to Ollama. Migration `009_vision_daily_usage.sql`.
 - **Added:** On-demand cover/spine artwork search in the tape detail modal, storing source/license/attribution metadata independently of local photos (#169).
@@ -20,6 +24,7 @@ All notable changes to this project are documented here.
 ### Fixed
 
 - **Fixed:** `/api/health` reports Ollama as "not configured" (no model list) on deployments without OLLAMA_UPSTREAM.
+- **test:** the review journey checks that confirmed tapes appear in the Collection (19 cards) again (#79).
 - **Fixed:** signed-out home no longer calls the job, review and Ollama endpoints.
 - **Fixed:** Server-side scans never ran: `POST /api/jobs` inserted into columns that don't exist (`image`, `barcode`, no `updated_at`), and on Cloudflare Workers nothing ever called `processJobs()`. Jobs now insert into `image_data`/`thumb`, and each `/api/jobs*` request kicks one claim-safe job pass via `ctx.waitUntil`.
 - **Fixed:** Serialize tape writes per ID so concurrent artwork and photo updates cannot overwrite one another; failed artwork saves leave shared inventory unchanged.

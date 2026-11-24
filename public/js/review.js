@@ -3,6 +3,8 @@ import { inventory, setInventory, renderInv, updateCount, esc, renderTagChips, i
 import { dbAdd, dbPut, nextId } from './db.js';
 import { lookupMetadata, callAI, getLastLookupFailure } from './ai.js';
 import { findDup, toast, rotateImage90CCW, triggerTapeInsertAnim, flashInvRow } from './utils.js';
+import { searchArtwork, renderArtworkCandidates, missingArtworkRoles } from './modules/artwork-search.js';
+import { saveArtworkLink } from './modules/detail-modal.js';
 import { cards, setCards, uidSeq, setUidSeq, nextUidSeq } from './state.js';
 
 const revPanel = document.getElementById('review');
@@ -54,8 +56,11 @@ export function addProposalCard(tape, proposals, partialFailures = {}) {
       reasons: Array.isArray(p.reasons) ? p.reasons.filter(r => typeof r === 'string').slice(0, 6).map(r => r.slice(0, 120)) : [],
       state: 'pending', editing: false,
     }));
-  if (!fields.length) return null;
+  const artwork = {};
+  missingArtworkRoles(tape).forEach(role => { artwork[role] = { phase: 'idle', items: [], message: '' }; });
+  if (!fields.length && !Object.keys(artwork).length) return null;
   const card = {
+    artwork,
     uid: nextUidSeq(), source: 'fill-proposal', processingState: 'ready', jobId: null,
     data: { tape_id: String(tape.id || ''), title: String(tape.title || '') },
     thumb: typeof tape.photo_thumbnail === 'string' ? tape.photo_thumbnail : null,
@@ -63,6 +68,25 @@ export function addProposalCard(tape, proposals, partialFailures = {}) {
   };
   cards.push(card);
   return card;
+}
+
+const ART_LABEL = { face: 'cover', spine: 'spine' };
+
+function renderFillArtwork(card) {
+  const roles = Object.keys(card.artwork || {});
+  if (!roles.length) return '';
+  const title = esc(card.data.title || 'Untitled tape');
+  return '<div class="fill-artwork"><strong>Missing artwork</strong>' + roles.map(role => {
+    const a = card.artwork[role];
+    const label = ART_LABEL[role];
+    if (a.phase === 'linked') {
+      return '<section class="fill-artwork-role" data-uid="' + card.uid + '" data-role="' + role + '" data-phase="linked"><span role="status">Linked ' + label + ' artwork: ' + esc(a.link?.title || 'selected image') + ' (' + esc(a.link?.license || 'license unknown') + '). Local photos untouched.</span></section>';
+    }
+    return '<section class="fill-artwork-role" data-uid="' + card.uid + '" data-role="' + role + '" data-phase="' + a.phase + '">' +
+      '<button type="button" class="hbtn fill-artwork-find" data-uid="' + card.uid + '" data-role="' + role + '" aria-label="Find ' + label + ' artwork for ' + title + '"' + (a.phase === 'searching' ? ' disabled' : '') + '>Find artwork (' + label + ')</button>' +
+      '<span class="fill-artwork-msg" role="status">' + esc(a.phase === 'searching' ? 'Searching…' : a.message) + '</span>' +
+      '<div class="artwork-results"></div></section>';
+  }).join('') + '</div>';
 }
 
 function renderFillProposalCard(card) {
@@ -95,11 +119,11 @@ function renderFillProposalCard(card) {
   return '<tr class="rev-card fill-proposal-card" data-uid="' + card.uid + '"><td colspan="3"><div class="fill-proposal-wrap">' +
     '<div class="fill-proposal-header"><div><strong>' + title + '</strong><span class="fill-proposal-tape-id">' + esc(card.data.tape_id) + '</span></div><span>' + (card.hasApplied ? 'Applied results' : 'Review only · nothing saved') + '</span>' +
     (bulk ? '<button type="button" class="hbtn fill-proposal-accept-high" data-uid="' + card.uid + '" aria-label="Accept verified and inferred proposals for ' + title + '">Accept verified/inferred</button>' : '') +
-    '<button type="button" class="hbtn fill-proposal-apply" data-uid="' + card.uid + '" aria-label="Apply accepted fields for ' + title + '"' + (acceptedCount === 0 || card.applying ? ' disabled' : '') + '>' + (card.applying ? 'Applying…' : 'Apply accepted fields (' + acceptedCount + ')') + '</button>' +
+    (card.proposals.length ? '<button type="button" class="hbtn fill-proposal-apply" data-uid="' + card.uid + '" aria-label="Apply accepted fields for ' + title + '"' + (acceptedCount === 0 || card.applying ? ' disabled' : '') + '>' + (card.applying ? 'Applying…' : 'Apply accepted fields (' + acceptedCount + ')') + '</button>' : '') +
     '<button type="button" class="hbtn fill-proposal-dismiss" data-uid="' + card.uid + '" aria-label="Dismiss proposals for ' + title + '">Dismiss</button></div>' +
     (card.partialFailures ? '<div class="fill-proposal-status" role="status">Provider status: ' + esc(card.partialFailures) + '</div>' : '') +
     (card.applyStatus ? '<div class="fill-proposal-status fill-proposal-apply-status" role="status">' + esc(card.applyStatus) + '</div>' : '') +
-    '<div class="fill-proposal-fields">' + fields + '</div></div></td></tr>';
+    '<div class="fill-proposal-fields">' + fields + '</div>' + renderFillArtwork(card) + '</div></td></tr>';
 }
 
 function _claimJob(card) {
@@ -387,6 +411,33 @@ async function applyFillProposal(uid) {
   renderCards();
 }
 
+async function findFillArtwork(uid, role) {
+  const card = cards.find(c => c.uid === uid && c.source === 'fill-proposal');
+  const a = card?.artwork?.[role];
+  if (!a || a.phase === 'searching') return;
+  Object.assign(a, { phase: 'searching', message: '', items: [] });
+  renderCards();
+  try {
+    a.items = await searchArtwork({ title: card.data.title, role: ART_LABEL[role] });
+    a.phase = 'results';
+  } catch (error) {
+    a.phase = 'error';
+    a.message = error.message || 'Artwork search unavailable';
+  }
+  renderCards();
+}
+
+async function useFillArtwork(card, role, selected) {
+  const a = card.artwork[role];
+  try {
+    await saveArtworkLink({ id: card.data.tape_id }, role, selected);
+    Object.assign(a, { phase: 'linked', link: selected, items: [] });
+  } catch (error) {
+    Object.assign(a, { phase: 'error', message: 'Save failed: ' + (error.message || 'unknown error') + '. Nothing changed.', items: [] });
+  }
+  renderCards();
+}
+
 function attachFillProposalHandlers() {
   revCardsEl.querySelectorAll('.fill-proposal-input').forEach(input => input.addEventListener('input', () => {
     const { card, proposal } = fillProposalAt(+input.dataset.uid, +input.dataset.index);
@@ -437,6 +488,13 @@ function attachFillProposalHandlers() {
   revCardsEl.querySelectorAll('.fill-proposal-apply').forEach(btn => btn.addEventListener('click', () => {
     applyFillProposal(+btn.dataset.uid);
   }));
+  revCardsEl.querySelectorAll('.fill-artwork-role[data-phase="results"]').forEach(section => {
+    const card = cards.find(c => c.uid === +section.dataset.uid && c.source === 'fill-proposal');
+    const a = card?.artwork?.[section.dataset.role];
+    if (!a) return;
+    renderArtworkCandidates(section.querySelector('.artwork-results'), a.items, { onUse: selected => useFillArtwork(card, section.dataset.role, selected) });
+  });
+  revCardsEl.querySelectorAll('.fill-artwork-find').forEach(btn => btn.addEventListener('click', () => findFillArtwork(+btn.dataset.uid, btn.dataset.role)));
   revCardsEl.querySelectorAll('.fill-proposal-dismiss').forEach(btn => btn.addEventListener('click', () => discardCard(+btn.dataset.uid)));
 }
 
