@@ -16,6 +16,7 @@ All notable changes to this project are documented here.
 - **Added:** Settings → Scan backend selector driven by the new `GET /api/vision/backends` (Workers AI availability + free scans left today, Ollama reachability + pulled models, manual review). Unavailable options are disabled with the reason, Auto picks the best available, and the choice is stored on the job (migration `010_upload_job_backend.sql`) so the worker uses it. The header badge and System Health now show Workers AI.
 - **Added:** Cloudflare Workers AI tape/cover recognition (`@cf/meta/llama-3.2-11b-vision-instruct`) as the default vision backend on vhs.nitsuah.io, with a 200-scan/day cap so usage stays inside the free 10,000 neuron allocation. Caps and Workers AI errors queue the photo for manual review, or fall back to Ollama when it is configured. Local Docker still defaults to Ollama. Migration `009_vision_daily_usage.sql`.
 - **Added:** On-demand cover/spine artwork search in the tape detail modal, storing source/license/attribution metadata independently of local photos (#169).
+- **Added:** Signed-out landing card shown when OAuth is enabled but no user is signed in — one-line pitch and **Sign in with Google** button (#213).
 
 ### Fixed
 
