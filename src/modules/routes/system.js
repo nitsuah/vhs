@@ -31,6 +31,30 @@ function ollamaAllowlist(req, res, next) {
   return res.status(404).json({ error: 'not found' });
 }
 
+// Methods registered for `pathname` (excluding the `*` SPA catch-all), so a
+// known /api path hit with the wrong verb can answer 405 + Allow, not 404.
+function allowedMethods(app, pathname) {
+  const methods = new Set();
+  for (const layer of (app._router && app._router.stack) || []) {
+    if (!layer.route || layer.route.path === '*' || !layer.match(pathname)) continue;
+    for (const [m, on] of Object.entries(layer.route.methods)) if (on) methods.add(m.toUpperCase());
+  }
+  if (methods.has('GET')) methods.add('HEAD');
+  return [...methods].sort();
+}
+
+// Anything under /api that no route answered: JSON, never the SPA shell/HTML.
+function apiFallback(app) {
+  return (req, res) => {
+    const allow = allowedMethods(app, req.baseUrl + req.path);
+    if (allow.length) {
+      res.set('Allow', allow.join(', '));
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    return res.status(404).json({ error: 'Not found' });
+  };
+}
+
 function registerStaticAndProxy(app) {
   app.use('/api', limiter);
 
@@ -63,7 +87,9 @@ function registerStaticAndProxy(app) {
     })
   );
 
+  app.use('/api', apiFallback(app));
+
   app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html'))); // codeql[js/missing-rate-limiting] app.use('/',limiter) above covers this catch-all
 }
 
-module.exports = { registerStaticAndProxy, ollamaAllowlist };
+module.exports = { registerStaticAndProxy, ollamaAllowlist, allowedMethods };
