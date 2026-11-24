@@ -51,6 +51,7 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 - `[shipped]` **Artwork Search & Links** — on-demand cover/spine artwork search with source, license and attribution metadata; independent Use/Clear controls
 - `[shipped]` **StacksUp Integration** — spine rotation enrichment
 - `[shipped]` **OMDb Verification** — AI scan results cross-checked against movie database
+- `[shipped]` **Fill finds missing artwork** — Fill review cards flag tapes with no cover/spine art and search licensed Commons images on demand; Use saves a link only
 - `[shipped]` **Batch AI Metadata Fill** — ⚡ Fill button auto-fills year, label, value for incomplete tapes
 - `[shipped]` **Analytics** — basic collection analytics
 

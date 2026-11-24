@@ -10,6 +10,9 @@ Last Updated: 2026-10-14
 
 ## Todo
 
+- [x] **Metadata Fill: find missing cover/spine art from the Fill review** ([#85](https://github.com/nitsuah/vhs/issues/85)) — Fill cards list tapes missing cover/spine art and search licensed Commons candidates on demand; link-only, local photos preserved (`tests_playwright/fill-review.spec.js`)
+  - Priority: P2
+  - Type: Feature
 - [x] **Confirmed review tapes don't appear in the Collection until it re-renders** ([#79](https://github.com/nitsuah/vhs/issues/79)) — ~~`setActiveTab()` never calls `renderInv()`~~ (fixed in #91); the 19-card check is back in `tests/journeys/review.spec.js`
   - Priority: P1
   - Type: Bug

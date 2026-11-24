@@ -19,6 +19,12 @@ export async function searchArtwork({ title, role, fetchImpl = fetch }) {
   return payload.items;
 }
 
+// Roles (face = cover, spine) with neither a local photo nor a saved artwork link.
+export function missingArtworkRoles(tape) {
+  if (!tape || typeof tape !== 'object') return [];
+  return ['face', 'spine'].filter(role => !tape['photo_' + role] && !(tape.artwork_links && tape.artwork_links[role]));
+}
+
 export function toArtworkLink(item) {
   return {
     url: item.previewUrl,

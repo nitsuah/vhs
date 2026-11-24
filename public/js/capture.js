@@ -213,6 +213,7 @@ async function requestFillProposals() {
   showRevPanel(); setRevLoading(true);
   const noProposalNotes = [];
   let proposalCount = 0;
+  let artworkTapes = 0;
   try {
     for (let i = 0; i < selected.length; i++) {
       const tape = selected[i];
@@ -237,7 +238,7 @@ async function requestFillProposals() {
         const result = await response.json();
         if (!Array.isArray(result.proposals)) { noProposalNotes.push(title + ': invalid_response'); continue; }
         const card = addProposalCard(tape, result.proposals, result.partialFailures);
-        if (card) proposalCount += card.proposals.length;
+        if (card) { proposalCount += card.proposals.length; if (Object.keys(card.artwork || {}).length) artworkTapes++; }
         else noProposalNotes.push(title + ': no_proposals' + (safeFillFailureText(result.partialFailures) ? ' (' + safeFillFailureText(result.partialFailures) + ')' : ''));
       } catch {
         noProposalNotes.push(title + ': request_failed');
@@ -248,8 +249,9 @@ async function requestFillProposals() {
     renderCards();
     if (status) {
       status.style.display = 'block';
-      status.textContent = proposalCount
-        ? 'Generated ' + proposalCount + ' field proposal(s). Review only; nothing saved.' + (noProposalNotes.length ? ' ' + noProposalNotes.join(' · ') : '')
+      const artNote = artworkTapes ? artworkTapes + ' tape(s) missing cover/spine artwork: use Find artwork on each card. ' : '';
+      status.textContent = (proposalCount || artworkTapes)
+        ? artNote + 'Generated ' + proposalCount + ' field proposal(s). Review only; nothing saved.' + (noProposalNotes.length ? ' ' + noProposalNotes.join(' · ') : '')
         : 'No proposals generated. ' + (noProposalNotes.join(' · ') || 'No missing or suspicious fields were found.') + ' Nothing saved.';
     }
     if (!cards.length) showRevPanel();

@@ -215,3 +215,70 @@ test('proposal review controls fit a mobile viewport', async ({ page }) => {
     `document horizontal overflow: ${JSON.stringify(dimensions)}`,
   ).toBeLessThanOrEqual(dimensions.viewportWidth);
 });
+
+async function openArtworkFill(page, { saveStatus = 200 } = {}) {
+  await page.addInitScript(() => {
+    localStorage.setItem('vhs-apikey', 'test-only');
+    localStorage.setItem('vhs-wall-mode', '0');
+  });
+  const tape = { ...TAPE, id: 'VHS-0002', title: 'Aliens', year: '1986', label: 'Fox', value_low: '5', value_high: '9',
+    photo_thumbnail: '', photo_face: null, photo_spine: null, photos: [] };
+  const state = { searches: [], puts: [] };
+  await page.route('**/api/**', async route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const method = request.method();
+    if (url.pathname === '/api/tapes' && method === 'GET') return route.fulfill({ json: [tape] });
+    if (url.pathname === '/api/fill/proposals') return route.fulfill({ json: { proposals: [], partialFailures: {} } });
+    if (url.pathname === '/api/artwork/search') {
+      state.searches.push(url.searchParams.get('role'));
+      return route.fulfill({ json: { items: [{ previewUrl: 'https://images.example/aliens.jpg', sourceUrl: 'https://commons.wikimedia.org/wiki/File:Aliens.jpg',
+        license: 'CC BY-SA', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/', attribution: 'Example author', title: 'Aliens poster' }] } });
+    }
+    if (url.pathname === '/api/tapes/VHS-0002' && method === 'PUT') {
+      state.puts.push(request.postDataJSON());
+      return route.fulfill({ status: saveStatus, json: saveStatus >= 400 ? { error: 'write failed' } : request.postDataJSON() });
+    }
+    if (url.pathname === '/api/review/pending') return route.fulfill({ json: [] });
+    if (url.pathname === '/api/jobs/inflight') return route.fulfill({ json: [] });
+    if (url.pathname === '/api/jobs/status') return route.fulfill({ json: { pending: 0, processing: 0, done: 0, failed: 0, review_pending: 0 } });
+    return route.fulfill({ json: {} });
+  });
+  await page.goto(baseUrl);
+  await page.locator('#tab-collect').click();
+  const row = page.locator('.tape-row[data-id="VHS-0002"]');
+  await expect(row).toBeVisible();
+  await row.dblclick();
+  await page.locator('#bulk-fill').click();
+  await page.locator('#tab-review').click();
+  const card = page.locator('.fill-proposal-card');
+  await expect(card).toBeVisible();
+  return { card, state };
+}
+
+test('Fill flags tapes with no cover/spine art, searches only on demand, and links the chosen image', async ({ page }) => {
+  const { card, state } = await openArtworkFill(page);
+  await expect(page.locator('#fill-review-status')).toContainText('1 tape(s) missing cover/spine artwork');
+  await expect(card.locator('.fill-proposal-field')).toHaveCount(0);
+  await expect(card.getByRole('button', { name: /Apply accepted fields/ })).toHaveCount(0);
+  expect(state.searches).toEqual([]);
+  await card.getByRole('button', { name: 'Find cover artwork for Aliens' }).click();
+  await expect(card.getByRole('button', { name: 'Use link' })).toBeVisible();
+  expect(state.searches).toEqual(['cover']);
+  await card.getByRole('button', { name: 'Use link' }).click();
+  await expect(card.locator('section[data-role="face"]')).toContainText('Linked cover artwork: Aliens poster (CC BY-SA)');
+  expect(state.puts).toHaveLength(1);
+  expect(state.puts[0].artwork_links.face.url).toBe('https://images.example/aliens.jpg');
+  expect(state.puts[0].photos).toEqual([]);
+  expect(state.puts[0].photo_face).toBeNull();
+  await expect(card.getByRole('button', { name: 'Find spine artwork for Aliens' })).toBeVisible();
+});
+
+test('a failed artwork save reports it and leaves the tape unchanged', async ({ page }) => {
+  const { card } = await openArtworkFill(page, { saveStatus: 500 });
+  await card.getByRole('button', { name: 'Find cover artwork for Aliens' }).click();
+  await card.getByRole('button', { name: 'Use link' }).click();
+  await expect(card.locator('section[data-role="face"]')).toContainText('Save failed');
+  await expect(card.locator('section[data-role="face"]')).toContainText('Nothing changed');
+  await expect(card.locator('section[data-role="face"] .fill-artwork-find')).toBeVisible();
+});
