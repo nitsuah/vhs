@@ -13,13 +13,16 @@ All notable changes to this project are documented here.
 ### Added
 
 - **Added:** `Deploy` workflow: every push to `main` runs the unit tests, then `wrangler deploy` and a `/api/health` smoke check, so merged changes reach vhs.nitsuah.io without a manual deploy.
+- **Added:** Tests for `json-parser.js` and `http-errors.js` modules covering balanced extraction, escape handling, invalid/partial input, null/undefined safety, and first-structure-only behavior (#218).
 - **Added:** Fill review now flags selected tapes that have no cover or spine art (no local photo and no saved link) and offers an on-demand **Find artwork** search on the card, reusing the licensed Commons search. **Use link** saves only the link, license and attribution; local photos are never touched, and a failed save leaves the tape unchanged (#85).
 - **Added:** Settings → Scan backend selector driven by the new `GET /api/vision/backends` (Workers AI availability + free scans left today, Ollama reachability + pulled models, manual review). Unavailable options are disabled with the reason, Auto picks the best available, and the choice is stored on the job (migration `010_upload_job_backend.sql`) so the worker uses it. The header badge and System Health now show Workers AI.
 - **Added:** Cloudflare Workers AI tape/cover recognition (`@cf/meta/llama-3.2-11b-vision-instruct`) as the default vision backend on vhs.nitsuah.io, with a 200-scan/day cap so usage stays inside the free 10,000 neuron allocation. Caps and Workers AI errors queue the photo for manual review, or fall back to Ollama when it is configured. Local Docker still defaults to Ollama. Migration `009_vision_daily_usage.sql`.
 - **Added:** On-demand cover/spine artwork search in the tape detail modal, storing source/license/attribution metadata independently of local photos (#169).
+- **Added:** Signed-out landing card shown when OAuth is enabled but no user is signed in — one-line pitch and **Sign in with Google** button (#213).
 
 ### Fixed
 
+- **Fixed:** unknown `/api/*` paths answer JSON `404 {"error":"Not found"}`, and a known path with the wrong method answers JSON `405 {"error":"Method not allowed"}` with an `Allow` header, instead of an HTML error page (#202, #197).
 - **Fixed:** `/api/health` reports Ollama as "not configured" (no model list) on deployments without OLLAMA_UPSTREAM.
 - **test:** the review journey checks that confirmed tapes appear in the Collection (19 cards) again (#79).
 - **Fixed:** signed-out home no longer calls the job, review and Ollama endpoints.
