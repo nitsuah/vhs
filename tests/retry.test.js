@@ -1,4 +1,4 @@
-const { afterEach, describe, expect, it, jest } = require('@jest/globals');
+const { afterEach, describe, expect, it } = require('@jest/globals');
 const { withRetry } = require('../src/modules/retry');
 
 afterEach(() => jest.restoreAllMocks());
