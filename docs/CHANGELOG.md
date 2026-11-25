@@ -11,7 +11,6 @@ All notable changes to this project are documented here.
 - **Changed:** `/api/ollama` now requires sign-in and forwards only the model-listing, generate and chat endpoints. Protected routes answer 503 when OAuth is not configured, unless `AUTH_DISABLED=1` opts in to open single-user mode for local use. JSON bodies default to a 1 MB limit (5 MB for tapes, 15 MB for photo uploads, authenticated before parsing). `/api/vision/backends` requires sign-in; `/api/trailer` stays public.
 
 ### Added
-
 - Unit tests for retry behavior, ID generators, and activity-log buffering/SSE clients (#219).
 
 - **Added:** Tests for `json-parser.js` and `http-errors.js` modules covering balanced extraction, escape handling, invalid/partial input, null/undefined safety, and first-structure-only behavior (#218).
