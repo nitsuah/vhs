@@ -21,8 +21,8 @@ describe('parseJsonArray', () => {
     expect(parseJsonArray('[1,2')).toEqual([]);
   });
 
-  test('balanced but invalid JSON {a:1} gives []', () => {
-    expect(parseJsonArray('{a:1}')).toEqual([]);
+  test('balanced but invalid JSON [1,] gives []', () => {
+    expect(parseJsonArray('[1,]')).toEqual([]);
   });
 
   test('null, undefined, and empty string give [] without throwing', () => {
