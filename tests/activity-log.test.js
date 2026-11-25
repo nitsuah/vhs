@@ -1,5 +1,4 @@
 const { afterEach, beforeEach, describe, expect, it, jest } = require('@jest/globals');
-
 describe('activity log', () => {
   let api, limit, originalLog, originalWarn;
   beforeEach(() => {
