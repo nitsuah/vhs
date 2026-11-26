@@ -1,8 +1,9 @@
 name: Deploy
 
 # Deploys the Cloudflare Worker (vhs.nitsuah.io) after tests pass on main.
-# Needs repo secrets PRODUCTION_CLOUDFLARE_API_TOKEN (Workers Scripts: Edit) and
-# PRODUCTION_CLOUDFLARE_ACCOUNT_ID. Worker secrets stay in Cloudflare (`wrangler secret put`).
+# Needs `production` environment secrets PRODUCTION_CLOUDFLARE_API_TOKEN
+# (Workers Scripts: Edit) and PRODUCTION_CLOUDFLARE_ACCOUNT_ID. Worker secrets
+# stay in Cloudflare (`wrangler secret put`).
 # The vhs.nitsuah.io custom domain is attached in the Cloudflare dashboard, not
 # in wrangler.jsonc, so the smoke check assumes it is already set up.
 
