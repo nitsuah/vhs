@@ -48,6 +48,11 @@ const actualEnhancedLookup = jest.requireActual('../src/modules/omdb').enhancedL
 const actualTmdbLookup = jest.requireActual('../src/modules/tmdb').tmdbLookup;
 const actualResolveOllamaUrl = jest.requireActual('../src/modules/ollama').resolveOllamaUrl;
 
+const originalFetch = global.fetch;
+afterEach(() => {
+  global.fetch = originalFetch;
+});
+
 beforeEach(() => {
   mockQuery.mockReset();
   mockClientQuery.mockReset();
