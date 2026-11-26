@@ -11,6 +11,7 @@ All notable changes to this project are documented here.
 - **Changed:** `/api/ollama` now requires sign-in and forwards only the model-listing, generate and chat endpoints. Protected routes answer 503 when OAuth is not configured, unless `AUTH_DISABLED=1` opts in to open single-user mode for local use. JSON bodies default to a 1 MB limit (5 MB for tapes, 15 MB for photo uploads, authenticated before parsing). `/api/vision/backends` requires sign-in; `/api/trailer` stays public.
 
 ### Added
+- Unit tests for `ensureCerts` reuse and generation, with fs and openssl mocked (#225).
 - Unit tests for retry behavior, ID generators, and activity-log buffering/SSE clients (#219).
 
 - **Added:** Tests for `json-parser.js` and `http-errors.js` modules covering balanced extraction, escape handling, invalid/partial input, null/undefined safety, and first-structure-only behavior (#218).
@@ -19,7 +20,6 @@ All notable changes to this project are documented here.
 - **Added:** Cloudflare Workers AI tape/cover recognition (`@cf/meta/llama-3.2-11b-vision-instruct`) as the default vision backend on vhs.nitsuah.io, with a 200-scan/day cap so usage stays inside the free 10,000 neuron allocation. Caps and Workers AI errors queue the photo for manual review, or fall back to Ollama when it is configured. Local Docker still defaults to Ollama. Migration `009_vision_daily_usage.sql`.
 - **Added:** On-demand cover/spine artwork search in the tape detail modal, storing source/license/attribution metadata independently of local photos (#169).
 - **Added:** Signed-out landing card shown when OAuth is enabled but no user is signed in — one-line pitch and **Sign in with Google** button (#213).
-- Unit tests for `logScanAnalytics` success and failure paths (#224).
 
 ### Fixed
 
