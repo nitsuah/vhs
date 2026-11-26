@@ -149,7 +149,7 @@ HTTPS at `https://localhost:8443`.
 
 ### Cloudflare Workers (production)
 
-`wrangler.jsonc` points at `worker/index.js`; static assets come from `public/` with SPA fallback; `/api/*`, `/auth/*` and `/health` run in the Worker first; AI scanning uses the Workers AI binding `AI` (`@cf/meta/llama-3.2-11b-vision-instruct`); pushes to `main` deploy automatically through `.github/workflows/deploy.yml` after the unit tests pass (repo secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`), or deploy by hand with `npx wrangler deploy`; set secrets with `npx wrangler secret put <NAME>` (the names are listed in the comment in `wrangler.jsonc`), never in the file.
+`wrangler.jsonc` points at `worker/index.js`; static assets come from `public/` with SPA fallback; `/api/*`, `/auth/*` and `/health` run in the Worker first; AI scanning uses the Workers AI binding `AI` (`@cf/meta/llama-3.2-11b-vision-instruct`); pushes to `main` deploy automatically through `.github/workflows/deploy.yml` after the unit tests pass (`production` environment secrets `PRODUCTION_CLOUDFLARE_API_TOKEN` and `PRODUCTION_CLOUDFLARE_ACCOUNT_ID`), or deploy by hand with `npx wrangler deploy`; set secrets with `npx wrangler secret put <NAME>` (the names are listed in the comment in `wrangler.jsonc`), never in the file.
 
 The `netlify/` function and `netlify.toml` are legacy and no longer deployed.
 
