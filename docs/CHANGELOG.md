@@ -11,6 +11,8 @@ All notable changes to this project are documented here.
 - **Changed:** `/api/ollama` now requires sign-in and forwards only the model-listing, generate and chat endpoints. Protected routes answer 503 when OAuth is not configured, unless `AUTH_DISABLED=1` opts in to open single-user mode for local use. JSON bodies default to a 1 MB limit (5 MB for tapes, 15 MB for photo uploads, authenticated before parsing). `/api/vision/backends` requires sign-in; `/api/trailer` stays public.
 
 ### Added
+
+- **Added:** `Deploy` workflow: every push to `main` runs the unit tests, then `wrangler deploy` and a `/api/health` smoke check, so merged changes reach vhs.nitsuah.io without a manual deploy.
 - Unit tests for `GET /api/health` status codes, database failure, and optional Ollama and Workers AI reporting, with all dependencies mocked (#230).
 - Unit tests for `ensureCerts` reuse and generation, with fs and openssl mocked (#225).
 - Unit tests for retry behavior, ID generators, and activity-log buffering/SSE clients (#219).
