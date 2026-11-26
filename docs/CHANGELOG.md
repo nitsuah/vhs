@@ -12,6 +12,7 @@ All notable changes to this project are documented here.
 
 ### Added
 - Unit tests for `isPrivateAddress` covering private, public and unparseable addresses (#222).
+- Unit tests for `ensureCerts` reuse and generation, with fs and openssl mocked (#225).
 - Unit tests for retry behavior, ID generators, and activity-log buffering/SSE clients (#219).
 
 - **Added:** Tests for `json-parser.js` and `http-errors.js` modules covering balanced extraction, escape handling, invalid/partial input, null/undefined safety, and first-structure-only behavior (#218).
