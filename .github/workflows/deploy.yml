@@ -9,7 +9,6 @@ name: Deploy
 on:
   push:
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -34,7 +33,7 @@ jobs:
   deploy:
     name: Deploy Worker
     needs: test
-    # Production deploys only from main, including manual dispatches.
+    # Production deploys only from main.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
