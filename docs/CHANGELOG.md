@@ -13,7 +13,7 @@ All notable changes to this project are documented here.
 ### Added
 - Unit tests for `ensureCerts` reuse and generation, with fs and openssl mocked (#225).
 - Unit tests for retry behavior, ID generators, and activity-log buffering/SSE clients (#219).
-
+- **Added:** Fill proposals now return separate candidates: provider fields (`title`, `year`, `label`, `imdb_id`) from OMDb/TMDb as `verified`, and AI-guessed fields (`format`, `value_low`, `value_high`) from Ollama as `low` confidence. Provider `year` takes precedence over AI `year` when both present. Fixes source misattribution that allowed low-confidence AI values to be bulk-accepted (#231).
 - **Added:** Tests for `json-parser.js` and `http-errors.js` modules covering balanced extraction, escape handling, invalid/partial input, null/undefined safety, and first-structure-only behavior (#218).
 - **Added:** Fill review now flags selected tapes that have no cover or spine art (no local photo and no saved link) and offers an on-demand **Find artwork** search on the card, reusing the licensed Commons search. **Use link** saves only the link, license and attribution; local photos are never touched, and a failed save leaves the tape unchanged (#85).
 - **Added:** Settings → Scan backend selector driven by the new `GET /api/vision/backends` (Workers AI availability + free scans left today, Ollama reachability + pulled models, manual review). Unavailable options are disabled with the reason, Auto picks the best available, and the choice is stored on the job (migration `010_upload_job_backend.sql`) so the worker uses it. The header badge and System Health now show Workers AI.

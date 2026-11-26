@@ -842,9 +842,50 @@ describe('POST /api/fill/proposals', () => {
     expect(res.status).toBe(200);
     expect(res.body.partialFailures).toEqual({});
     expect(res.body.proposals.map((proposal) => proposal.field)).toEqual(['year', 'value_low', 'value_high']);
-    expect(res.body.proposals.every((proposal) => proposal.confidence === 'verified')).toBe(true);
+    // year from provider (verified), value_low/value_high from AI (low)
+    expect(res.body.proposals.find(p => p.field === 'year').confidence).toBe('verified');
+    expect(res.body.proposals.find(p => p.field === 'year').source).toBe('omdb_exact');
+    expect(res.body.proposals.find(p => p.field === 'value_low').confidence).toBe('low');
+    expect(res.body.proposals.find(p => p.field === 'value_low').source).toBe('ai');
+    expect(res.body.proposals.find(p => p.field === 'value_high').confidence).toBe('low');
+    expect(res.body.proposals.find(p => p.field === 'value_high').source).toBe('ai');
     expect(enhancedLookup).toHaveBeenCalledWith({ title: 'Alien' }, 'test-omdb-key');
     expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('provider year takes precedence over AI year when both present', async () => {
+    enhancedLookup.mockResolvedValueOnce({
+      title: 'Alien',
+      year: '1979',
+      label: 'Brandywine',
+      imdb_id: 'tt0078748',
+      source: 'omdb_exact'
+    });
+    resolveOllamaUrl.mockResolvedValueOnce('http://ollama');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        response: '{"year":"1980","format":"VHS","value_low":"5","value_high":"20"}'
+      })
+    });
+
+    const res = await request(app)
+      .post('/api/fill/proposals')
+      .set('x-omdb-key', 'test-omdb-key')
+      .send({ tape });
+
+    expect(res.status).toBe(200);
+    // Only one year proposal, from provider
+    const yearProposals = res.body.proposals.filter(p => p.field === 'year');
+    expect(yearProposals).toHaveLength(1);
+    expect(yearProposals[0].value).toBe('1979');
+    expect(yearProposals[0].source).toBe('omdb_exact');
+    expect(yearProposals[0].confidence).toBe('verified');
+    // AI format/value fields still come through as low
+    expect(res.body.proposals.find(p => p.field === 'value_low').confidence).toBe('low');
+    expect(res.body.proposals.find(p => p.field === 'value_low').source).toBe('ai');
+    expect(res.body.proposals.find(p => p.field === 'value_high').confidence).toBe('low');
+    expect(res.body.proposals.find(p => p.field === 'value_high').source).toBe('ai');
   });
 
   it('supports TMDb with noai and reports Ollama as skipped', async () => {

@@ -2,11 +2,11 @@
 
 > 🧭 [vhs](../README.md) · [Features](./FEATURES.md) · [Roadmap](./ROADMAP.md) · **Tasks** · [Changelog](./CHANGELOG.md) · [Metrics](./METRICS.md) <!-- nav -->
 
-Last Updated: 2026-11-24
+Last Updated: 2026-11-26
 
 ## In Progress
 
-- _None yet._
+- [x] **Fill proposals: separate provider and AI candidates, correct source/confidence** ([#231](https://github.com/nitsuah/vhs/issues/231)) — provider fields (`title`, `year`, `label`, `imdb_id`) from OMDb/TMDb as `verified`, AI fields (`format`, `value_low`, `value_high`) from Ollama as `low`. Provider `year` takes precedence over AI `year`. Fixes source misattribution that allowed low-confidence AI values to be bulk-accepted.
 
 ## Todo
 
