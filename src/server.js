@@ -634,20 +634,44 @@ Rules: year is a four-digit release year; value_low/value_high are USD resale ra
     }
   }
 
-  // AI-only values deliberately have no verified title/identifier match and
-  // therefore stay low-confidence in the pure proposal builder.
-  const candidate = {
-    title: metadata?.title || '',
-    year: metadata?.year || ai.year || '',
-    label: metadata?.label || ai.label || '',
-    format: ai.format || '',
-    value_low: ai.value_low ?? '',
-    value_high: ai.value_high ?? '',
-    imdb_id: metadata?.imdb_id || '',
-    source: metadata?.source || (metadata ? `${provider}_enhanced` : 'ai')
-  };
+  // Build separate candidates: provider (verified) and AI (low)
+  const candidates = [];
 
-  return { candidate, partialFailures };
+  if (metadata) {
+    // Provider candidate: only provider data, no AI-guessed format/value_low/value_high
+    candidates.push({
+      title: metadata.title || '',
+      year: metadata.year || '',
+      label: metadata.label || '',
+      imdb_id: metadata.imdb_id || '',
+      source: metadata.source || `${provider}_enhanced`
+    });
+  }
+
+  // AI candidate: only AI-guessed fields, no title/label/imdb_id so it scores 'low'
+  const aiFields = ['format', 'value_low', 'value_high'];
+  const hasAiField = aiFields.some(field => {
+    const value = ai[field];
+    return (typeof value === 'string' && value.trim() !== '') ||
+      (typeof value === 'number' && Number.isFinite(value));
+  });
+  let aiYear = ai.year;
+  // Only include AI year if provider didn't supply one
+  if (metadata?.year) {
+    aiYear = '';
+  }
+  if (hasAiField || (aiYear && typeof aiYear === 'string' && aiYear.trim() !== '')) {
+    candidates.push({
+      title: '',
+      year: aiYear || '',
+      format: ai.format || '',
+      value_low: ai.value_low ?? '',
+      value_high: ai.value_high ?? '',
+      source: 'ai'
+    });
+  }
+
+  return { candidates, partialFailures };
 }
 
 app.post('/api/fill/proposals', defaultLimiter, requireAuth, async (req, res) => {
@@ -690,11 +714,11 @@ app.post('/api/fill/proposals', defaultLimiter, requireAuth, async (req, res) =>
   const tmdbKey = String(req.get('x-tmdb-key') || process.env.TMDB_KEY || '').trim();
 
   try {
-    const { candidate, partialFailures } = await lookupFillCandidate({
+    const { candidates, partialFailures } = await lookupFillCandidate({
       title, provider, noai, omdbKey, tmdbKey
     });
     return res.json({
-      proposals: buildFieldProposals(tape, [candidate]),
+      proposals: buildFieldProposals(tape, candidates),
       partialFailures
     });
   } catch {
