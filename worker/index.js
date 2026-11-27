@@ -25,7 +25,7 @@ const load = () => (loaded ??= Promise.all([
   return { app, db: db.default, processJobs };
 }));
 
-const isSharePath = pathname => /^\/c\/[^/]+\/?$/.test(pathname);
+const isSharePath = pathname => /^\\/c\\/[^/]+\\/?$/.test(pathname);
 
 const PORT = 8080;
 let migrated = null;
@@ -94,6 +94,12 @@ export default {
   async fetch(req, env, ctx) {
     const { pathname } = new URL(req.url);
     if (pathname.startsWith('/c/')) {
+      if (isSharePath(pathname) && req.method !== 'GET' && req.method !== 'HEAD') {
+        return new Response('Method Not Allowed', {
+          status: 405,
+          headers: { Allow: 'GET, HEAD' },
+        });
+      }
       const target = isSharePath(pathname) ? new Request(new URL('/', req.url), req) : req;
       return env.ASSETS.fetch(target);
     }
