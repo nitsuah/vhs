@@ -60,7 +60,7 @@ echo "  First run: Ollama will download ~4.7 GB for llava:7b"
 echo "  Subsequent runs: model is cached, starts instantly."
 echo ""
 
-docker compose --env-file .env up --build --force-recreate "$@"
+docker compose --env-file .env -f config/docker-compose.yml up --build --force-recreate "$@"
 
 echo ""
 echo "  ✓ Running at http://localhost:$APP_PORT"

@@ -10,6 +10,10 @@ All notable changes to this project are documented here.
 
 - **Live site review (#244):** the signed-out landing card is now visible and has a 3-step quick start with example entries; empty and no-match collections say so and offer **Add Manually** or **Clear filters**; exports are disabled with no tapes; signed out, the app no longer calls signed-in endpoints. Capture shows a sign-in notice, a labelled **Upload a photo** button and the active mode name. Every popup is a labelled dialog that Esc closes. Self-hosting settings collapse on hosted sites, Help leads with the capture flow on touch, phone tab labels stay visible, dim text meets 4.5:1, icon controls have names, and sound files load on first use.
 
+### Changed
+
+- **Local Docker Compose:** the public Cloudflare tunnel is now opt-in (`--profile tunnel`, set up sign-in first). Ports listen on `127.0.0.1` by default (`BIND_ADDR=0.0.0.0` for LAN phone access), Ollama keeps its default origins, and `POSTGRES_PASSWORD` comes from `.env`. Start with `docker compose --env-file .env -f config/docker-compose.yml up -d --build`; an existing database volume keeps its original password.
+
 ### Security
 
 - **Changed:** `/api/ollama` now requires sign-in and forwards only the model-listing, generate and chat endpoints. Protected routes answer 503 when OAuth is not configured, unless `AUTH_DISABLED=1` opts in to open single-user mode for local use. JSON bodies default to a 1 MB limit (5 MB for tapes, 15 MB for photo uploads, authenticated before parsing). `/api/vision/backends` requires sign-in; `/api/trailer` stays public.

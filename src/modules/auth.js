@@ -102,7 +102,21 @@ function requireAuth(req, res, next) {
   next();
 }
 
+// Open single-user mode is for local use only: refuse anything that arrived
+// through a Cloudflare tunnel or edge (those requests carry cf-* headers).
+function refuseTunneledOpenMode(req, res, next) {
+  if (LOCAL_OPEN && (req.headers['cf-ray'] || req.headers['cf-connecting-ip'])) {
+    return res.status(503).json({ error: 'open mode is local only: configure sign-in to use a tunnel' });
+  }
+  next();
+}
+
+if (LOCAL_OPEN) {
+  console.warn('WARNING: sign-in is off (open single-user mode). Keep this instance on this machine or a trusted network.');
+}
+
 module.exports = {
+  refuseTunneledOpenMode,
   ENABLED,
   LOCAL_OPEN,
   getAuthUrl,

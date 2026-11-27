@@ -140,9 +140,11 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 ## Running the app
 
 ```bash
-cp .env.example .env   # fill in DATABASE_URL and HOST_IP at minimum
-docker compose -f config/docker-compose.yml up -d --build
+cp .env.example .env   # set DATABASE_URL, POSTGRES_PASSWORD and HOST_IP
+docker compose --env-file .env -f config/docker-compose.yml up -d --build
 ```
+
+Ports listen on `127.0.0.1` only. `DATABASE_URL` can point at Neon or at the bundled `db` service (see `.env.example`).
 
 App at `http://localhost:8080` (or whatever `APP_PORT` you set in `.env`).
 HTTPS at `https://localhost:8443`.
@@ -178,17 +180,30 @@ LEGACY_OWNER_EMAIL=you@gmail.com
 
 ---
 
+### Public tunnel (opt-in)
+
+The compose file also has a Cloudflare quick tunnel that is **off by default**. It puts your instance on the public internet, so set up Google sign-in (above) first; requests through the tunnel are refused when sign-in is off.
+
+```bash
+docker compose --env-file .env -f config/docker-compose.yml --profile tunnel up -d
+docker compose --env-file .env -f config/docker-compose.yml logs cloudflared | grep trycloudflare
+```
+
+**Sign-in through the quick tunnel is not supported.** Google sends you back to `APP_BASE_URL/auth/google/callback`, and a quick-tunnel URL changes every run, so it can't be registered as a redirect URI; a remote visitor would land on their own `localhost`. Use the quick tunnel only to reach an instance you have already signed in to from the host, or for remote sign-in use a named Cloudflare tunnel with a stable hostname: set `APP_BASE_URL=https://<that-host>` and add `https://<that-host>/auth/google/callback` as an authorized redirect URI.
+
+---
+
 ## Mobile / HTTPS setup
 
 Mobile browsers block camera access on plain HTTP. The app auto-generates a self-signed TLS cert on first boot and serves it for easy installation.
 
 **One-time setup per device:**
 
-1. Set `HOST_IP=<your LAN IP>` in `.env` (e.g. `HOST_IP=192.168.1.171`)
-2. Start the app: `docker compose -f config/docker-compose.yml up -d --build`
+1. Set `HOST_IP=<your LAN IP>` in `.env` (e.g. `HOST_IP=192.168.1.171`) and `BIND_ADDR=0.0.0.0` so your phone can reach the app
+2. Start the app: `docker compose --env-file .env -f config/docker-compose.yml up -d --build`
 3. On the host, print the CA's SHA-256 fingerprint and keep it handy:
    ```bash
-   docker compose -f config/docker-compose.yml exec web openssl x509 -in /app/certs/ca.crt -noout -fingerprint -sha256
+   docker compose --env-file .env -f config/docker-compose.yml exec web openssl x509 -in /app/certs/ca.crt -noout -fingerprint -sha256
    ```
 4. On your phone, open: `http://192.168.1.171:8080/api/ca-cert`
 5. **Verify before trusting.** The download is plain HTTP, so anyone on the same network could swap the file. Open the downloaded certificate's details on the phone and check that its SHA-256 fingerprint matches step 3 exactly. If it doesn't match, delete it and don't install it.
