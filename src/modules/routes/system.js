@@ -36,6 +36,13 @@ function ollamaAllowlist(req, res, next) {
   return res.status(404).json({ error: 'Not found' });
 }
 
+// Ollama rejects browser origins it does not know. This request is made by the
+// server on the user's behalf, so do not forward the browser's Origin.
+function forwardToOllama(proxyReq, req) {
+  proxyReq.removeHeader('origin');
+  fixRequestBody(proxyReq, req);
+}
+
 // Methods registered for `pathname` (excluding the `*` SPA catch-all), so a
 // known /api path hit with the wrong verb can answer 405 + Allow, not 404.
 // Every API route is registered directly on `app` (no express.Router mounts);
@@ -85,7 +92,7 @@ function registerStaticAndProxy(app) {
       proxyTimeout: 300000,
       timeout: 300000,
       rejectUnauthorized: true,
-      onProxyReq: fixRequestBody,
+      onProxyReq: forwardToOllama,
       onProxyRes: (_proxyRes, _req, res) => {
         res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -99,4 +106,4 @@ function registerStaticAndProxy(app) {
   app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html'))); // codeql[js/missing-rate-limiting] app.use('/',limiter) above covers this catch-all
 }
 
-module.exports = { registerStaticAndProxy, ollamaAllowlist, allowedMethods };
+module.exports = { registerStaticAndProxy, ollamaAllowlist, allowedMethods, forwardToOllama };

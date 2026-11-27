@@ -1,13 +1,18 @@
 name: vhs
 
+# Run from the repository root so Compose reads the root .env:
+#   docker compose --env-file .env -f config/docker-compose.yml up -d --build
+# Published ports listen on 127.0.0.1 only. For phone access over your LAN set
+# BIND_ADDR=0.0.0.0 in .env (web ports only; Ollama and Postgres stay local).
+
 services:
 
   web:
     build: ..
     env_file: ../.env
     ports:
-      - "${APP_PORT:-8082}:8080"
-      - "${HTTPS_PORT:-8443}:8443"
+      - "${BIND_ADDR:-127.0.0.1}:${APP_PORT:-8082}:8080"
+      - "${BIND_ADDR:-127.0.0.1}:${HTTPS_PORT:-8443}:8443"
     volumes:
       - certs:/app/certs
     depends_on:
@@ -21,11 +26,11 @@ services:
   # Run only this service when using native Windows Ollama (DirectML/CUDA):
   #   OLLAMA_UPSTREAM=http://host.docker.internal:11434 docker compose up web-gpu
   web-gpu:
-    build: .
+    build: ..
     profiles: [gpu]
     env_file: ../.env
     ports:
-      - "${APP_PORT:-8082}:8080"
+      - "${BIND_ADDR:-127.0.0.1}:${APP_PORT:-8082}:8080"
     environment:
       - OLLAMA_UPSTREAM=${OLLAMA_UPSTREAM}
     restart: unless-stopped
@@ -33,11 +38,12 @@ services:
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama_models:/root/.ollama
     environment:
-      - OLLAMA_ORIGINS=*
+      # Empty keeps Ollama's localhost-only default; the app's own proxy needs nothing more.
+      - OLLAMA_ORIGINS=${OLLAMA_ORIGINS:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "ollama list > /dev/null 2>&1 || exit 1"]
@@ -60,9 +66,9 @@ services:
     environment:
       POSTGRES_DB: vhs-db
       POSTGRES_USER: neondb_owner
-      POSTGRES_PASSWORD: vhs-local
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env and pass --env-file .env}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -73,12 +79,16 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # ── HTTPS tunnel (mobile camera access) ───────────────────────────────────
-  # Exposes the app at a random *.trycloudflare.com HTTPS URL.
+  # ── Public HTTPS tunnel (opt-in) ──────────────────────────────────────────
+  # Off by default. It puts the app on the public internet at a random
+  # *.trycloudflare.com HTTPS URL, so configure Google sign-in first; open
+  # single-user mode is refused for tunnelled requests.
+  #   docker compose --env-file .env -f config/docker-compose.yml --profile tunnel up -d
   # URL is printed in logs: docker compose logs cloudflared | grep trycloudflare
   # For a stable URL, replace with a named Cloudflare Tunnel (needs CF account).
   cloudflared:
     image: cloudflare/cloudflared:latest
+    profiles: [tunnel]
     command: tunnel --no-autoupdate --url http://web:8080
     depends_on:
       - web
