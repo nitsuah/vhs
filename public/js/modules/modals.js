@@ -7,10 +7,11 @@ const CLOSE_BUTTON = {
   'm-detail': 'd-cancel', 'm-del-confirm': 'del-cancel', 'm-crop': 'crop-cancel',
   'm-share': 'btn-share-close',
 };
-const FOCUSABLE = 'button:not([disabled]),a[href],input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+const FOCUSABLE = 'summary,button:not([disabled]),a[href],input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 const returnFocus = new Map();
 
 const isOpen = el => getComputedStyle(el).display !== 'none';
+const isShown = el => !!el?.isConnected && el.checkVisibility({ checkVisibilityCSS: true }) && !el.closest('#hbr-drawer:not(.open)');
 // Later in the document paints on top (confirm and crop sit above details).
 const topModal = () => [...document.querySelectorAll('.backdrop')].filter(isOpen).pop();
 
@@ -24,7 +25,9 @@ function sync(backdrop) {
   } else if (!open && returnFocus.has(backdrop)) {
     const previous = returnFocus.get(backdrop);
     returnFocus.delete(backdrop);
-    if (previous?.isConnected && previous !== document.body) previous.focus({ preventScroll: true });
+    // Drawer buttons are hidden once their dialog opens: fall back to the menu.
+    const target = previous !== document.body && isShown(previous) ? previous : document.getElementById('btn-menu');
+    target?.focus({ preventScroll: true });
   }
 }
 

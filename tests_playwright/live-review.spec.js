@@ -16,7 +16,8 @@ test('signed-out visitors see the landing card and call no signed-in endpoint', 
   await expect(page.locator('#signed-out-landing')).toBeVisible();
   await expect(page.locator('#signed-out-landing .qs-steps li')).toHaveCount(3);
   await expect(page.locator('#empty-state')).toBeHidden();
-  await page.click('#btn-settings');
+  await page.click('#btn-menu');
+  await page.click('#btn-settings-mob');
   await expect(page.locator('#vision-backend-status')).toHaveText('Sign in to see scan options.');
   expect(requested.filter(u => /\/api\/(vision|ollama|jobs|review)/.test(u))).toEqual([]);
   await page.keyboard.press('Escape');
@@ -86,4 +87,17 @@ test('tab labels stay visible at phone width', async ({ page }) => {
   await gotoCollect(page);
   await expect(page.locator('#tab-capture .tab-lbl')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+});
+
+test('focus returns to the menu and Tab passes the advanced disclosure', async ({ page }) => {
+  await setupBasicMocks(page, { tapes: [] });
+  await openAuth(page);
+  await gotoCollect(page);
+  await page.click('#btn-menu');
+  await page.click('#btn-settings-mob');
+  await page.locator('#s-advanced > summary').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#s-vision-backend')).not.toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#btn-menu')).toBeFocused();
 });
