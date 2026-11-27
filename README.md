@@ -189,7 +189,7 @@ docker compose --env-file .env -f config/docker-compose.yml --profile tunnel up 
 docker compose --env-file .env -f config/docker-compose.yml logs cloudflared | grep trycloudflare
 ```
 
-**Sign-in through the quick tunnel is not supported.** Google sends you back to `APP_BASE_URL/auth/google/callback`, and a quick-tunnel URL changes every run, so it can't be registered as a redirect URI; a remote visitor would land on their own `localhost`. Use the quick tunnel only to reach an instance you have already signed in to from the host, or for remote sign-in use a named Cloudflare tunnel with a stable hostname: set `APP_BASE_URL=https://<that-host>` and add `https://<that-host>/auth/google/callback` as an authorized redirect URI.
+**Sign-in through the quick tunnel is not supported.** Google sends you back to `APP_BASE_URL/auth/google/callback`, and a quick-tunnel URL changes every run, so it can't be registered as a redirect URI; a remote visitor would land on their own `localhost`. A session from `localhost` does not carry over either (the sign-in cookie belongs to one hostname), so anything that needs sign-in is unavailable on a quick tunnel. For authenticated remote access, use a named Cloudflare tunnel with a stable hostname: set `APP_BASE_URL=https://<that-host>` and add `https://<that-host>/auth/google/callback` as an authorized redirect URI.
 
 ---
 
