@@ -4,7 +4,9 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased] — 2026-09-11 → 2026-11-19
+## [Unreleased]
+
+- CI: after bootstrap, enforce the risk guard from the trusted base-branch workflow. — 2026-09-11 → 2026-11-19
 
 - CI: pull requests now run the shared risk guard check (`.github/workflows/risk-guard.yml`) (#234).
 ### Changed
