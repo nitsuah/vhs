@@ -4,9 +4,11 @@ import { toast } from './utils.js';
 const dbDot = document.getElementById('db-dot');
 const dbDotMob = document.getElementById('db-dot-mob');
 export function setDbDot(state){
-  const errTitle='Database error — tap retry';
-  if(dbDot){dbDot.className=state;dbDot.title=state==='err'?errTitle:'';}
-  if(dbDotMob){dbDotMob.className=state;dbDotMob.title=state==='err'?errTitle:'';}
+  const title={ok:'Database connected (green)',err:'Database error (red) — tap retry'}[state]||'Database: checking';
+  [dbDot,dbDotMob].forEach(dot=>{
+    if(!dot)return;
+    dot.className=state;dot.title=title;dot.setAttribute('aria-label',title);
+  });
 }
 dbDot?.addEventListener('click',()=>{if(dbDot.className==='err')window.init?.();});
 dbDotMob?.addEventListener('click',()=>{if(dbDotMob.className==='err')window.init?.();});

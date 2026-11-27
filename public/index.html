@@ -30,20 +30,20 @@
   <nav id="tab-nav">
     <button class="tab-btn" data-tab="capture" id="tab-capture"><span class="tab-ico">📷</span><span class="tab-lbl">Capture</span></button>
     <button class="tab-btn" data-tab="review" id="tab-review"><span class="tab-ico-wrap"><span class="tab-ico">📋</span><span class="tab-badge" id="tab-review-count" style="display:none">0</span></span><span class="tab-lbl">Review</span></button>
-    <button class="tab-btn active" data-tab="collect" id="tab-collect"><span class="tab-ico">📼</span><span class="tab-lbl" id="collect-count"></span></button>
+    <button class="tab-btn active" data-tab="collect" id="tab-collect" aria-label="Collection"><span class="tab-ico">📼</span><span class="tab-lbl" id="collect-count"></span></button>
   </nav>
   <select id="camera-select" style="display:none"></select>
   <div class="hdr-right" id="hdr-right-desktop">
-    <span id="count-badge">0 tapes</span><span id="db-dot" title="Neon connection"></span>
+    <span id="count-badge">0 tapes</span><span id="db-dot" role="img" title="Database: checking" aria-label="Database: checking"></span>
     <div id="auth-slot"><a href="/auth/google" class="hbtn auth-signin-btn">Sign in</a></div>
     <button class="hbtn" id="btn-settings">⚙ Settings</button>
     <button class="hbtn" id="btn-help" title="Keyboard shortcuts (?)">?</button>
   </div>
   <!-- Mobile-only right side -->
   <div class="hdr-right-mob" id="hdr-right-mob">
-    <span id="ai-badge" class="loading"></span>
+    <span id="ai-badge" class="loading" role="img" aria-label="AI status"></span>
     <div id="auth-slot-mob"></div>
-    <button id="btn-menu">☰</button>
+    <button id="btn-menu" aria-label="Menu">☰</button>
   </div>
 </header>
 <!-- Mobile hamburger drawer -->
@@ -138,6 +138,7 @@
 
 <main id="main">
   <section id="cam-panel">
+    <div id="cam-signin-notice">Sign in to scan and save tapes. <a href="/auth/google">Sign in with Google</a></div>
     <div id="vid-wrap">
       <div id="queue-strip"></div>
       <div id="queue-status" style="display:none"></div>
@@ -146,6 +147,7 @@
         <div id="no-cam-icon">📷</div>
         <p id="no-cam-msg">Tap to enable camera</p>
         <button id="btn-enable-cam">Enable Camera</button>
+        <button id="btn-nocam-upload" type="button" class="hbtn">Upload a photo</button>
       </div>
       <div id="crop" data-preset="default">
         <div class="cc tl"></div><div class="cc tr"></div>
@@ -168,19 +170,20 @@
     </div>
     <div id="cam-ctrl">
       <!-- Row 1: Flip · Stage · Barcode · Upload -->
-      <button id="btn-cam-flip" title="Flip camera">⇅</button>
-      <button id="btn-cap" title="Stage capture"><svg width="22" height="18" viewBox="0 0 22 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5h3l2-2.5h10L18 5h3a1 1 0 011 1v9a1 1 0 01-1 1H1a1 1 0 01-1-1V6a1 1 0 011-1z"/><circle cx="11" cy="10" r="3"/></svg></button>
-      <button class="ctrl-btn" id="btn-barcode" title="Scan barcode"><svg width="22" height="16" viewBox="0 0 44 28" fill="currentColor"><rect x="1" y="0" width="3" height="24"/><rect x="6" y="0" width="1" height="24"/><rect x="9" y="0" width="4" height="24"/><rect x="15" y="0" width="1" height="24"/><rect x="18" y="0" width="2" height="24"/><rect x="22" y="0" width="1" height="24"/><rect x="25" y="0" width="4" height="24"/><rect x="31" y="0" width="1" height="24"/><rect x="34" y="0" width="3" height="24"/><rect x="39" y="0" width="1" height="24"/><rect x="42" y="0" width="2" height="24"/></svg></button>
-      <button class="ctrl-btn" id="btn-upload" title="Upload image"><svg width="16" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h10M8 14V4M4 8l4-4 4 4"/></svg></button>
+      <button id="btn-cam-flip" aria-label="Flip camera" title="Flip camera">⇅</button>
+      <button id="btn-cap" aria-label="Stage capture" title="Stage capture"><svg width="22" height="18" viewBox="0 0 22 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5h3l2-2.5h10L18 5h3a1 1 0 011 1v9a1 1 0 01-1 1H1a1 1 0 01-1-1V6a1 1 0 011-1z"/><circle cx="11" cy="10" r="3"/></svg></button>
+      <button class="ctrl-btn" id="btn-barcode" aria-label="Scan barcode" title="Scan barcode"><svg width="22" height="16" viewBox="0 0 44 28" fill="currentColor"><rect x="1" y="0" width="3" height="24"/><rect x="6" y="0" width="1" height="24"/><rect x="9" y="0" width="4" height="24"/><rect x="15" y="0" width="1" height="24"/><rect x="18" y="0" width="2" height="24"/><rect x="22" y="0" width="1" height="24"/><rect x="25" y="0" width="4" height="24"/><rect x="31" y="0" width="1" height="24"/><rect x="34" y="0" width="3" height="24"/><rect x="39" y="0" width="1" height="24"/><rect x="42" y="0" width="2" height="24"/></svg></button>
+      <button class="ctrl-btn" id="btn-upload" aria-label="Upload a photo" title="Upload image"><svg width="16" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h10M8 14V4M4 8l4-4 4 4"/></svg> <span>Upload a photo</span></button>
       <input type="file" id="file-input" accept="image/*" multiple>
+      <span id="cam-mode-label" role="status">Free crop: drag the box around what to read.</span>
       <!-- Row 2: Torch · Presets -->
       <span class="cam-ctrl-break"></span>
-      <button class="ctrl-btn" id="btn-torch" style="display:none" title="Flash / torch">🔦</button>
+      <button class="ctrl-btn" id="btn-torch" aria-label="Flash / torch" style="display:none" title="Flash / torch">🔦</button>
       <div id="crop-presets">
-        <button class="preset-btn active" data-preset="default" title="Default crop">▣</button>
-        <button class="preset-btn" data-preset="cover" title="VHS cover (portrait)"><svg width="13" height="18" viewBox="0 0 13 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="1" width="11" height="16" rx="1"/></svg></button>
-        <button class="preset-btn" data-preset="spine" title="Single spine">▮</button>
-        <button class="preset-btn" data-preset="multispine" title="Multi-spine (5 tapes)"><svg width="30" height="18" viewBox="0 0 30 18" fill="none"><rect x="1" y="1" width="28" height="16" rx="1" stroke="rgba(255,120,0,.85)" stroke-width="1.5"/><line x1="6.6" y1="1" x2="6.6" y2="17" stroke="currentColor" stroke-width="1.2"/><line x1="12.2" y1="1" x2="12.2" y2="17" stroke="currentColor" stroke-width="1.2"/><line x1="17.8" y1="1" x2="17.8" y2="17" stroke="currentColor" stroke-width="1.2"/><line x1="23.4" y1="1" x2="23.4" y2="17" stroke="currentColor" stroke-width="1.2"/></svg></button>
+        <button class="preset-btn active" data-preset="default" aria-label="Free crop" title="Default crop">▣</button>
+        <button class="preset-btn" data-preset="cover" aria-label="Cover crop" title="VHS cover (portrait)"><svg width="13" height="18" viewBox="0 0 13 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="1" width="11" height="16" rx="1"/></svg></button>
+        <button class="preset-btn" data-preset="spine" aria-label="Single spine crop" title="Single spine">▮</button>
+        <button class="preset-btn" data-preset="multispine" aria-label="Multi-spine crop" title="Multi-spine (5 tapes)"><svg width="30" height="18" viewBox="0 0 30 18" fill="none"><rect x="1" y="1" width="28" height="16" rx="1" stroke="rgba(255,120,0,.85)" stroke-width="1.5"/><line x1="6.6" y1="1" x2="6.6" y2="17" stroke="currentColor" stroke-width="1.2"/><line x1="12.2" y1="1" x2="12.2" y2="17" stroke="currentColor" stroke-width="1.2"/><line x1="17.8" y1="1" x2="17.8" y2="17" stroke="currentColor" stroke-width="1.2"/><line x1="23.4" y1="1" x2="23.4" y2="17" stroke="currentColor" stroke-width="1.2"/></svg></button>
       </div>
       <span class="key-hint">Space to stage · Enter to analyze</span>
       <span id="upload-prog"></span>
@@ -214,9 +217,9 @@
       <div id="collect-subhdr">
         <div class="csh-row1">
           <button class="hbtn hbtn-view" id="btn-wall">📋 Table</button>
-          <input id="search" type="text" placeholder="Search…">
-          <button id="btn-search" title="Search">🔍</button>
-          <select id="sort-sel">
+          <input id="search" aria-label="Search collection" type="text" placeholder="Search…">
+          <button id="btn-search" aria-label="Search" title="Search">🔍</button>
+          <select id="sort-sel" aria-label="Sort order">
             <option value="scanned_desc">Newest</option><option value="scanned_asc">Oldest</option>
             <option value="title_asc">Title A–Z</option><option value="title_desc">Title Z–A</option>
             <option value="year_asc">Year ↑</option><option value="year_desc">Year ↓</option>
@@ -276,13 +279,41 @@
         <tbody id="inv-tbl"></tbody>
       </table></div>
       <div id="wall-view"></div>
-      <div id="signed-out-landing" class="empty" style="display:none">
+      <div id="signed-out-landing" class="empty">
         <p>Sign in to catalog your VHS collection — snap a shelf, AI reads the spines.</p>
+        <ol class="qs-steps">
+          <li><b>Sign in</b> with Google.</li>
+          <li><b>Photograph, upload or scan</b> a shelf, cover or barcode.</li>
+          <li><b>Review and confirm</b> what was read before it is saved.</li>
+        </ol>
+        <div class="qs-sample">
+          <span class="qs-sample-lbl">Example entries (not saved anywhere)</span>
+          <ul>
+            <li>📼 Night of the Living Dead · 1968 · Good</li>
+            <li>📼 Nosferatu · 1922 · Fair</li>
+            <li>📼 His Girl Friday · 1940 · Great</li>
+          </ul>
+        </div>
         <a href="/auth/google" class="hbtn">Sign in with Google</a>
+      </div>
+      <div id="empty-state" class="empty" style="display:none">
+        <div id="empty-none">
+          <p>No tapes yet.</p>
+          <ol class="qs-steps" id="empty-steps">
+            <li><b>Photograph, upload or scan</b> a shelf, cover or barcode.</li>
+            <li><b>Review and confirm</b> what was read before it is saved.</li>
+            <li>Browse, filter and export your shelf.</li>
+          </ol>
+          <button type="button" class="hbtn" id="empty-add">Add Manually</button>
+        </div>
+        <div id="empty-nomatch" style="display:none">
+          <p>No tapes match your search or filters.</p>
+          <button type="button" class="hbtn" id="empty-clear">Clear filters</button>
+        </div>
       </div>
       <div id="zoom-bar">
         <span style="color:var(--text3);font-size:13px;cursor:default;user-select:none" title="Zoom out">⊖</span>
-        <input type="range" id="zoom-slider" min="0.5" max="2.5" step="0.1" value="1" title="Collection zoom">
+        <input type="range" id="zoom-slider" aria-label="Collection zoom" min="0.5" max="2.5" step="0.1" value="1" title="Collection zoom">
         <span style="color:var(--text3);font-size:13px;cursor:default;user-select:none" title="Zoom in">⊕</span>
       </div>
     </div>
@@ -340,8 +371,17 @@
 
 <div class="backdrop" id="m-help" style="display:none">
   <div class="modal" style="max-width:380px">
-    <h2>Keyboard Shortcuts</h2>
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <h2>Help</h2>
+    <div class="help-touch">
+      <h3 style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">Capture on your phone</h3>
+      <ol class="qs-steps">
+        <li>Open the <b>Capture</b> tab and allow the camera, or tap <b>Upload a photo</b>.</li>
+        <li>Tap the picture (or the camera button) to queue a frame.</li>
+        <li>Send the queue to AI, then confirm each card in <b>Review</b>.</li>
+      </ol>
+    </div>
+    <h3 class="help-keys" style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">Keyboard Shortcuts</h3>
+    <table class="help-keys" style="width:100%;border-collapse:collapse;font-size:13px">
       <tr><td style="padding:5px 0;color:var(--text3);width:90px"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">N</kbd></td><td style="padding:5px 0">Add tape manually (no photo)</td></tr>
       <tr><td style="padding:5px 0;color:var(--text3);width:90px"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Space</kbd></td><td style="padding:5px 0">Stage frame to capture queue</td></tr>
       <tr><td style="padding:5px 0"><kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:2px 7px;font-size:11px">Enter</kbd></td><td style="padding:5px 0">Process queue with AI</td></tr>
@@ -350,7 +390,7 @@
     </table>
     <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
     <p style="font-size:12px;color:var(--text3);line-height:1.6">
-      <strong style="color:var(--text2)">Capture flow:</strong> aim camera → Space to queue frames → Enter to send all to AI → review cards → ✓ Confirm each.<br><br>
+      <span class="help-keys"><strong style="color:var(--text2)">Capture flow:</strong> aim camera → Space to queue frames → Enter to send all to AI → review cards → ✓ Confirm each.<br><br></span>
       <strong style="color:var(--text2)">Barcode mode:</strong> toggle with the Barcode button. Tapes are auto-added on scan; UPC lookup runs in the background.<br><br>
       <strong style="color:var(--text2)">🔍 Lookup:</strong> edit a title and click 🔍 to auto-fill year, label, format, and estimated value.
     </p>
@@ -385,6 +425,8 @@
       <span class="shint">Stored in localStorage only. Sent directly to api.anthropic.com.</span>
     </div>
     <hr class="ssep">
+    <details id="s-advanced">
+      <summary>Advanced / self-hosting</summary>
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Local Ollama (tier 2)</div>
     <div class="ai-status-row">
       <div class="ai-dot spin2" id="ollama-dot"></div>
@@ -411,6 +453,7 @@
       <button class="hbtn" id="btn-find-local-ai" style="white-space:nowrap;margin-bottom:1px">🔎 Find Local AI</button>
     </div>
     <div id="local-ai-results" style="display:none;margin-top:8px;font-size:12px;color:var(--text2);line-height:1.6"></div>
+    </details>
     <hr class="ssep">
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">Movie Metadata API</div>
     <div class="srow">
@@ -470,10 +513,10 @@
 <!-- ACTIVITY LOG PANEL -->
 <div id="log-panel" style="display:none;position:fixed;bottom:0;left:0;right:0;height:220px;background:#0a0a0a;border-top:1px solid #2a2a2a;z-index:200;display:none;flex-direction:column">
   <div style="display:flex;align-items:center;gap:8px;padding:4px 10px;background:#111;border-bottom:1px solid #222;flex-shrink:0">
-    <span style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.08em">▶ Activity Log</span>
-    <span style="font-size:10px;color:#444;margin-left:4px">server ↔ Ollama</span>
-    <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:#555;cursor:pointer"><input type="checkbox" id="log-follow" checked style="accent-color:#e84040"> Follow</label>
-    <button id="log-close" onclick="document.getElementById('log-panel').style.display='none'" style="background:none;border:none;color:#555;font-size:16px;cursor:pointer;line-height:1;padding:0 2px">✕</button>
+    <span style="font-size:11px;font-weight:700;color:#8c8c8c;text-transform:uppercase;letter-spacing:.08em">▶ Activity Log</span>
+    <span style="font-size:10px;color:#8c8c8c;margin-left:4px">server ↔ Ollama</span>
+    <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:#8c8c8c;cursor:pointer"><input type="checkbox" id="log-follow" checked style="accent-color:#e84040"> Follow</label>
+    <button id="log-close" onclick="document.getElementById('log-panel').style.display='none'" style="background:none;border:none;color:#8c8c8c;font-size:16px;cursor:pointer;line-height:1;padding:0 2px">✕</button>
   </div>
   <div id="log-output" style="flex:1;overflow-y:auto;font-family:monospace;font-size:11px;padding:6px 10px;color:#888;line-height:1.5"></div>
 </div>
@@ -605,6 +648,7 @@
 <script type="module" src="/js/camera.js"></script>
 <script type="module" src="/js/capture.js"></script>
 <script type="module" src="/js/ui.js"></script>
+<script type="module" src="/js/modules/modals.js"></script>
 <script type="module" src="/js/init.js"></script>
 </body>
 </html>

@@ -109,7 +109,6 @@ export function playAkiraDing(){
     }catch{}
   }
 }
-_loadAkiraAudio();
 
 export function buzz(){
   if(!soundEnabled)return;
