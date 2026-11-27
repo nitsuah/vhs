@@ -1,6 +1,7 @@
 // ── Static files, Ollama proxy, SPA catch-all ─────────────────────────────────
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 // Rate limit for all routes - 100 requests per minute per IP
 const limiter = rateLimit({
@@ -106,7 +107,7 @@ function registerStaticAndProxy(app) {
 
   // The app shell is served only for the pages it has; anything else is a real 404.
   app.get(APP_PAGES, (_req, res) => res.sendFile(path.join(publicDir, 'index.html'))); // codeql[js/missing-rate-limiting] app.use('/',limiter) above covers this route
-  app.get('*', (_req, res) => res.status(404).sendFile(path.join(publicDir, '404.html')));
+  app.get('*', limiter, (_req, res) => res.status(404).sendFile(path.join(publicDir, '404.html')));
 }
 
 module.exports = { registerStaticAndProxy, ollamaAllowlist, allowedMethods, forwardToOllama };
