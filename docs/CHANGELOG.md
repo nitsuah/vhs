@@ -8,6 +8,7 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- **GitHub Pages (#243):** links to the live site, adds screenshots, corrects the AI, database and hosting setup text, and on phones keeps **Run it**, wraps the command block and adds a Copy button; adds a skip link and `<main>`.
 - **Live site review (#244):** the signed-out landing card is now visible and has a 3-step quick start with example entries; empty and no-match collections say so and offer **Add Manually** or **Clear filters**; exports are disabled with no tapes; signed out, the app no longer calls signed-in endpoints. Capture shows a sign-in notice, a labelled **Upload a photo** button and the active mode name. Every popup is a labelled dialog that Esc closes. Self-hosting settings collapse on hosted sites, Help leads with the capture flow on touch, phone tab labels stay visible, dim text meets 4.5:1, icon controls have names, and sound files load on first use.
 
 ### Changed
