@@ -297,10 +297,10 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
 <pre><span class="c"># clone and configure</span>
 <span class="p">$ </span>git clone https://github.com/nitsuah/vhs.git
 <span class="p">$ </span>cd vhs
-<span class="p">$ </span>cp .env.example .env   <span class="c"># set DATABASE_URL + HOST_IP</span>
+<span class="p">$ </span>cp .env.example .env   <span class="c"># set DATABASE_URL, POSTGRES_PASSWORD, HOST_IP</span>
 
 <span class="c"># start it</span>
-<span class="p">$ </span>docker compose -f config/docker-compose.yml up -d --build
+<span class="p">$ </span>docker compose --env-file .env -f config/docker-compose.yml up -d --build
 
 <span class="c"># open http://localhost:8080</span>
 <span class="c"># phone camera: https://&lt;LAN-IP&gt;:8443</span></pre>

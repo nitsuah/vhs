@@ -48,7 +48,7 @@ if ($Gpu) {
 }
 if ($Detach) { $flags += "-d" }
 
-docker compose @flags
+docker compose --env-file .env -f config/docker-compose.yml @flags
 
 Write-Host ""
 Write-Host "  Running at http://localhost:$port" -ForegroundColor Green

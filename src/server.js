@@ -19,7 +19,7 @@ const {
   ENABLED: AUTH_ENABLED,
   getAuthUrl, exchangeCode, isValidOAuthState, mintJWT,
   setAuthCookie, clearAuthCookie,
-  optionalAuth, requireAuth,
+  optionalAuth, requireAuth, refuseTunneledOpenMode,
 } = require('./modules/auth');
 const { pool, runMigrations } = require('./modules/db');
 const { isPrivateAddress } = require('./modules/ip-guard');
@@ -58,6 +58,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   next();
 });
+app.use(refuseTunneledOpenMode);
 // codeql[js/missing-csrf-middleware] SameSite=lax on vhs_token limits cross-site cookie submission for state-changing routes
 // codeql[js/missing-token-validation] SameSite=strict on vhs_token limits cross-site cookie submission for state-changing routes
 app.use(cookieParser());

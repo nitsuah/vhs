@@ -16,7 +16,7 @@
 // OMDB_API_KEY from the compose env_file, and this repo has no local dotenv
 // loader of its own — see .env / docker-compose.yml):
 //
-//   docker compose -f config/docker-compose.yml exec web node scripts/audit-metadata.js
+//   docker compose --env-file .env -f config/docker-compose.yml exec web node scripts/audit-metadata.js
 //
 // Usage:
 //   node scripts/audit-metadata.js                       # dry-run, whole collection
