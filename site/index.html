@@ -115,6 +115,7 @@ h2 em{font-style:normal;color:var(--accent)}
 /* quickstart */
 .qs{display:grid;grid-template-columns:1.1fr .9fr;gap:20px;margin-top:32px;align-items:start}
 pre{background:#050505;border:1px solid var(--border2);border-radius:10px;padding:18px 20px;overflow-x:auto;font-size:14px;line-height:1.7;color:#d6d6d6}
+pre code{white-space:pre-wrap;word-break:break-word}
 pre .c{color:var(--text3)}
 pre .p{color:var(--green);user-select:none}
 .notes{display:flex;flex-direction:column;gap:10px}
@@ -153,7 +154,7 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
 <script src="https://cdn.jsdelivr.net/gh/nitsuah/.github@main/showcase/expand.js" defer></script>
 </head>
 <body>
-<a class="skip" href="#content">Skip to content</a>
+<a class="skip" href="#main">Skip to main content</a>
 
 <nav>
   <div class="wrap">
@@ -166,8 +167,13 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
     <a class="btn" href="https://github.com/nitsuah/vhs">★ GitHub</a>
   </div>
 </nav>
+<nav class="mobile-drawer" aria-label="Mobile navigation">
+  <a href="#run">Run it locally</a>
+  <a href="#features">Features</a>
+  <a href="#how">How it works</a>
+</nav>
 
-<main id="content" tabindex="-1">
+<main id="main" tabindex="-1">
 <header class="hero">
   <div class="wrap">
     <div class="osd">▶ PLAY</div>
@@ -180,7 +186,10 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
     </div>
     <p class="try-note">Signed out, the live site shows how it works and opens shared shelf links. Sign in with Google to catalog your own tapes.</p>
     <div class="video">
-      <video src="brag.mp4" poster="brag.jpg" controls playsinline preload="metadata"></video>
+      <video controls playsinline preload="metadata">
+        <source src="brag.mp4" type="video/mp4">
+        <track kind="captions" src="promo/brag-20s/captions.vtt" srclang="en" label="English" default>
+      </video>
     </div>
   </div>
 </header>
@@ -258,10 +267,10 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
 
 <section class="block" aria-label="Screenshots">
   <div class="wrap shots">
-      <figure><img src="assets/shots/wall-view.png" alt="Wall view of a tape collection" loading="lazy"><figcaption>Wall view of a tape collection</figcaption></figure>
-      <figure><img src="assets/shots/tabbed-edit-form.png" alt="Tabbed tape edit form" loading="lazy"><figcaption>Tabbed tape edit form</figcaption></figure>
-      <figure><img src="assets/shots/condition-tracking.png" alt="Condition and value fields for one tape" loading="lazy"><figcaption>Condition and value fields for one tape</figcaption></figure>
-      <figure><img src="assets/shots/mobile-ui.png" alt="The collection on a phone" loading="lazy"><figcaption>The collection on a phone</figcaption></figure>
+      <figure><img src="../docs/screenshots/wall-view.png" alt="Wall view masonry grid" loading="lazy"><figcaption>Wall view</figcaption></figure>
+      <figure><img src="../docs/screenshots/condition-tracking.png" alt="Condition tracking" loading="lazy"><figcaption>Condition tracking</figcaption></figure>
+      <figure><img src="../docs/screenshots/tabbed-edit-form.png" alt="Tabbed edit form" loading="lazy"><figcaption>Tabbed edit form</figcaption></figure>
+      <figure><img src="../docs/screenshots/full-text-search.png" alt="Full-text search" loading="lazy"><figcaption>Full-text search</figcaption></figure>
   </div>
 </section>
 
@@ -317,7 +326,7 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
   <div class="wrap">
     <div class="eyebrow">◀◀ REW · SETUP</div>
     <h2>Run it on <em>your</em> box.</h2>
-    <p class="sub">Express + PostgreSQL in Docker. Point <code>DATABASE_URL</code> at the bundled <code>db</code> service or at a hosted Postgres such as Neon. AI scanning works with the bundled Ollama.</p>
+    <p class="sub">Production runs on <strong>Cloudflare Workers</strong> with Workers AI. Local dev uses Docker Compose (Postgres + app + worker).</p>
     <div class="qs">
 <div class="code">
 <button type="button" class="copy" id="copy-setup">Copy</button>
@@ -333,7 +342,7 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
 <span class="c"># phone camera: https://&lt;LAN-IP&gt;:8443</span></pre>
 </div>
       <div class="notes">
-        <div class="note"><b>AI scanning:</b> the compose file runs Ollama with <code>llava:7b</code> by default. To use Claude instead, paste an Anthropic API key in the app under Settings; it is stored in your browser only.</div>
+        <div class="note"><b>AI scanning:</b> Cloudflare Workers AI (production) — set <code>CF_ACCOUNT_ID</code>, <code>CF_API_TOKEN</code> with Workers AI permission. Local default: Ollama (<code>OLLAMA_URL=http://localhost:11434</code>, <code>OLLAMA_MODEL=llava:7b</code>). No Anthropic key used.</div>
         <div class="note"><b>Phones:</b> install the auto-generated CA from <code>/api/ca-cert</code> once (check its SHA-256 fingerprint against the host first, see the <a href="https://github.com/nitsuah/vhs#mobile--https-setup">README</a>) and the camera works over LAN HTTPS.</div>
         <div class="note"><b>Hosted:</b> vhs.nitsuah.io runs the same app on Cloudflare Workers, with Workers AI for scanning.</div>
       </div>
