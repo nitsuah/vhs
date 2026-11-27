@@ -69,6 +69,8 @@ function apiFallback(app) {
   };
 }
 
+const APP_PAGES = ['/', '/c/:slug'];
+
 function registerStaticAndProxy(app) {
   app.use('/api', limiter);
 
@@ -103,7 +105,9 @@ function registerStaticAndProxy(app) {
 
   app.use('/api', apiFallback(app));
 
-  app.get('*', (_req, res) => res.sendFile(path.join(publicDir, 'index.html'))); // codeql[js/missing-rate-limiting] app.use('/',limiter) above covers this catch-all
+  // The app shell is served only for the pages it has; anything else is a real 404.
+  app.get(APP_PAGES, (_req, res) => res.sendFile(path.join(publicDir, 'index.html'))); // codeql[js/missing-rate-limiting] app.use('/',limiter) above covers this route
+  app.get('*', limiter, (_req, res) => res.status(404).sendFile(path.join(publicDir, '404.html')));
 }
 
 module.exports = { registerStaticAndProxy, ollamaAllowlist, allowedMethods, forwardToOllama };

@@ -1,6 +1,7 @@
 // Cloudflare Worker entry for vhs.nitsuah.io.
-// Static SPA comes from the assets binding (public/); only /api/*, /auth/* and
-// /health reach this Worker (assets.run_worker_first in wrangler.jsonc).
+// Static SPA comes from the assets binding (public/); only /api/*, /auth/*,
+// /health and /c/* reach this Worker (assets.run_worker_first in wrangler.jsonc).
+// Unknown paths get public/404.html; public share links get the app shell.
 // The Express app is served via Workers' node:http server support.
 // Never import src/modules/certs.js here (child_process + openssl).
 import http from 'node:http';
@@ -23,6 +24,8 @@ const load = () => (loaded ??= Promise.all([
   app.set('env', 'production'); // no stack traces in Express' default error page
   return { app, db: db.default, processJobs };
 }));
+
+const isSharePath = pathname => /^\/c\/[^/]+\/?$/.test(pathname);
 
 const PORT = 8080;
 let migrated = null;
@@ -89,6 +92,11 @@ async function runJobsInBackground() {
 const api = httpServerHandler({ port: PORT });
 export default {
   async fetch(req, env, ctx) {
+    const { pathname } = new URL(req.url);
+    if (pathname.startsWith('/c/')) {
+      const target = isSharePath(pathname) ? new Request(new URL('/', req.url), req) : req;
+      return env.ASSETS.fetch(target);
+    }
     globalThis.__CF_ENV = env;
     const res = await api.fetch(req, env, ctx);
     if (ctx && typeof ctx.waitUntil === 'function' && shouldKickJobs(req, res)) {

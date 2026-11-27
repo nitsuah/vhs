@@ -49,7 +49,7 @@ function renderAuthChip() {
 
   const mobileHeaderHtml = _user
     ? `<button class="hbtn auth-share-btn btn-share-open" title="Sharing settings">🔗 Share</button>`
-    : `<a href="/auth/google" class="hbtn auth-signin-btn" title="Sign in with Google" aria-label="Sign in with Google" style="padding:10px 12px">🔐</a>`;
+    : `<a href="/auth/google" class="hbtn auth-signin-btn" title="Sign in with Google" style="padding:10px 12px">Sign in</a>`;
 
   const sidebarHtml = _user
     ? `<div class="auth-chip" style="justify-content:flex-start">
