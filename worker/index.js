@@ -25,7 +25,7 @@ const load = () => (loaded ??= Promise.all([
   return { app, db: db.default, processJobs };
 }));
 
-const isSharePath = pathname => /^\\/c\\/[^/]+\\/?$/.test(pathname);
+const isSharePath = pathname => /^\/c\/[^/]+\/?$/.test(pathname);
 
 const PORT = 8080;
 let migrated = null;
