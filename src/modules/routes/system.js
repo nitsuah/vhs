@@ -25,7 +25,7 @@ const OLLAMA_ALLOWED = [
   ['POST', '/v1/chat/completions'],
 ];
 function ollamaAllowlist(req, res, next) {
-  const p = req.path.replace(/\\/+$/, '');
+  const p = req.path.replace(/\/+$/, '');
   if (OLLAMA_ALLOWED.some(([m, path]) => m === req.method && path === p)) return next();
   const allow = OLLAMA_ALLOWED.filter(([, path]) => path === p).map(([m]) => m);
   if (allow.length) {
