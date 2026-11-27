@@ -2,7 +2,7 @@
   --bg:#0a0a0a;--bg2:#111;--bg3:#1a1a1a;--bg4:#222;
   --border:#2a2a2a;--border2:#333;
   --accent:#e84040;--accent2:#ff6060;
-  --text:#e8e8e8;--text2:#999;--text3:#555;
+  --text:#e8e8e8;--text2:#999;--text3:#8c8c8c;
   --green:#3dbb3d;--yellow:#f0c040;--blue:#4488ff;--red:#e84040;
   --purple:#9966ff;--crop:rgba(255,120,0,.9);
   --inv-zoom:1;
@@ -210,16 +210,19 @@ body[data-tab="review"] #review{max-height:none;flex:1}
 .badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;white-space:nowrap}
 .b-in_collection{background:rgba(61,187,61,.15);color:#3dbb3d}
 .b-for_sale{background:rgba(240,192,64,.15);color:#f0c040}
-.b-sold{background:rgba(100,100,100,.15);color:#777}
+.b-sold{background:rgba(100,100,100,.15);color:#a0a0a0}
 .b-donated{background:rgba(68,136,255,.15);color:#4488ff}
 .b-missing{background:rgba(232,64,64,.15);color:#e84040}
 .b-wanted{background:rgba(153,102,255,.15);color:#9966ff}
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--text3);padding:40px;text-align:center;font-size:13px;line-height:1.6}
 #signed-out-landing p{font-size:14px;max-width:280px;margin:0 0 12px}
 #signed-out-landing .hbtn{margin-top:4px}
-#signed-out-landing.on{flex:1;display:flex}
+#signed-out-landing{display:none}
+#signed-out-landing.on{flex:1;display:flex;justify-content:safe center;overflow:auto}
 #inv-panel:has(#signed-out-landing.on) #inv-list,
-#inv-panel:has(#signed-out-landing.on) #wall-view{display:none}
+#inv-panel:has(#signed-out-landing.on) #wall-view,
+#inv-panel.is-empty #inv-list,
+#inv-panel.is-empty #wall-view{display:none!important}
 
 #wall-view{flex:1;overflow-y:auto;display:none;padding:10px;gap:10px;flex-wrap:wrap;align-content:flex-start}
 #wall-view.on{display:flex}
@@ -539,9 +542,9 @@ body.crt-on #crt-overlay{display:block}
   body{overflow:auto;height:auto;min-height:100dvh}
   #header{width:auto;height:auto;flex-wrap:nowrap;padding:8px 10px;gap:4px}
   #header h1{font-size:16px;white-space:nowrap}
-  .tab-lbl{display:none}
+  .tab-lbl{font-size:9px;letter-spacing:0}
   #tab-collect .tab-lbl{display:inline;font-size:12px;font-weight:700;color:var(--text2);line-height:1}
-  .tab-btn{flex:0 1 44px;padding:4px 2px}
+  .tab-btn{flex:0 1 52px;padding:4px 2px}
   .tab-btn .tab-ico{font-size:20px}
   #tab-collect{flex:0 1 56px}
   #btn-filter-tray{display:flex}
@@ -795,3 +798,22 @@ body.crt-on #crt-overlay{display:block}
 .fill-artwork-role .artwork-results img{width:100%;max-height:120px;object-fit:contain}
 @media(max-width:600px){.fill-proposal-values{grid-template-columns:1fr}.fill-proposal-actions{justify-content:flex-start}.fill-proposal-state{flex-basis:100%}.fill-proposal-header{align-items:flex-start}}
 
+
+/* ── QUICK START, EMPTY STATES, CAPTURE HINTS ─────────────────── */
+.qs-steps{text-align:left;max-width:320px;padding-left:20px;font-size:13px;color:var(--text2);line-height:1.7}
+.qs-sample{text-align:left;max-width:320px;font-size:12px;color:var(--text2)}
+.qs-sample ul{list-style:none;border:1px dashed var(--border2);border-radius:6px;padding:8px 12px;margin-top:4px;line-height:1.8}
+.qs-sample-lbl{font-size:11px;color:var(--text3)}
+#empty-state{flex:1;overflow:auto;justify-content:safe center}
+#empty-none,#empty-nomatch{display:flex;flex-direction:column;align-items:center;gap:10px}
+#cam-signin-notice{display:none;padding:8px 14px;font-size:13px;color:var(--text);background:var(--bg3);border-bottom:1px solid var(--border2);text-align:center;flex-shrink:0}
+#cam-signin-notice a{color:#7aa8ff}
+body.signed-out #cam-signin-notice{display:block}
+#cam-mode-label{flex-basis:100%;text-align:center;font-size:12px;color:var(--text2)}
+#btn-upload{display:inline-flex;align-items:center;gap:6px}
+#s-advanced summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--text2);padding:4px 0}
+#s-advanced[open]{display:flex;flex-direction:column;gap:10px}
+.exp-dd button:disabled{opacity:.45;cursor:not-allowed}
+.help-touch{display:none}
+@media (pointer:coarse){.help-touch{display:block}.help-keys{display:none!important}}
+@media (orientation:landscape) and (max-height:600px){#cam-mode-label,#btn-upload span{display:none}}

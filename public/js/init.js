@@ -25,6 +25,7 @@ async function init() {
 
   // vhs#201: no private API calls before sign-in
   const signedOut = isAuthEnabled() && !getUser();
+  document.body.classList.toggle('signed-out', signedOut);
 
   // Honor ?tab=collect from OAuth redirect (or any deep-link)
   const tabParam = new URLSearchParams(location.search).get('tab');
@@ -42,7 +43,7 @@ async function init() {
     const _aiFallback = setTimeout(updateAiBadge, 6000);
     checkOllama(true).then(() => { clearTimeout(_aiFallback); updateAiBadge(); });
   }
-  checkVisionBackends().catch(() => {});
+  if (!signedOut) checkVisionBackends().catch(() => {});
   // Only signal ok from the health ping — apiReq handles err to avoid a race
   // where a slow health SELECT 1 overrides a successful /api/tapes call
   fetch('/api/health', { signal: AbortSignal.timeout(5000) }).then(r => r.json()).then(h => {

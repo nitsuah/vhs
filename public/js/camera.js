@@ -172,6 +172,7 @@ async function toggleBarcodeMode(){
     btnBarcode.classList.remove('active');btnBarcode.innerHTML=_barcodeBtnHTML;
     barcodeOverlay.classList.remove('on');cropEl.style.display='';btnCap.disabled=false;
     barcodeRdr=null;
+    showModeHint();
     if(torchOn){
       torchOn=false;btnTorch.classList.remove('active');btnTorch.textContent='🔦';
     }
@@ -184,6 +185,7 @@ async function toggleBarcodeMode(){
     barcodeMode=true;
     btnBarcode.classList.add('active');btnBarcode.innerHTML=_barcodeBtnHTML;btnBarcode.disabled=false;
     barcodeOverlay.classList.add('on');cropEl.style.display='none';btnCap.disabled=false;
+    showModeHint();
     currentFacing='environment';
     await startBarcodeStream();
     checkTorch();
@@ -500,6 +502,20 @@ btnCamFlip?.addEventListener('click',async()=>{
   currentFacing = id && cameraDevices[camIdx]?.label?.toLowerCase().includes('front') ? 'user' : 'environment';
 });
 
+// ── CAPTURE MODE NAME ────────────────────────────────────────────────────
+const MODE_HINTS={
+  default:'Free crop: drag the box around what to read.',
+  cover:'Cover crop: fit one tape cover in the frame.',
+  spine:'Single spine: line one spine up in the frame.',
+  multispine:'Multi-spine: fit up to five spines side by side.',
+  barcode:'Barcode mode: hold the barcode in the box.',
+};
+function showModeHint(){
+  const el=document.getElementById('cam-mode-label');
+  if(el)el.textContent=MODE_HINTS[barcodeMode?'barcode':(cropEl.dataset.preset||'default')];
+}
+document.getElementById('btn-nocam-upload')?.addEventListener('click',()=>document.getElementById('btn-upload').click());
+
 // ── CROP PRESETS ─────────────────────────────────────────────────────────
 document.querySelectorAll('.preset-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -508,6 +524,7 @@ document.querySelectorAll('.preset-btn').forEach(btn=>{
     Object.assign(cropFrac, CROP_PRESETS[p]);
     updateCrop();
     cropEl.dataset.preset=p;
+    showModeHint();
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',b.dataset.preset===p));
   });
 });

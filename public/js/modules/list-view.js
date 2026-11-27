@@ -12,15 +12,12 @@ export function renderList() {
   const selectedId = getSelectedId();
   const selectedIds = getSelectedIds();
   const tbl = document.getElementById('inv-tbl');
-  const empty = document.getElementById('empty-state');
   if (!tbl) return;
 
   if (!items.length) {
     tbl.innerHTML = '';
-    if (empty) empty.style.display = 'flex';
     return;
   }
-  if (empty) empty.style.display = 'none';
 
   const rows = items.map(t => {
     const sel = t.id === selectedId;
@@ -180,8 +177,40 @@ export function renderStatsChips() {
   });
 }
 
+const EXPORT_BUTTONS = ['exp-json', 'exp-csv', 'exp-sell', 'exp-drafts', 'exp-tags', 'exp-print',
+  'exp-json-mob', 'exp-csv-mob', 'exp-sell-mob', 'exp-drafts-mob', 'exp-print-mob'];
+
+function syncExports(count) {
+  EXPORT_BUTTONS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.disabled = !count;
+    el.title = count ? '' : 'No tapes yet';
+  });
+}
+
+// One empty state for the table and every wall view: nothing saved yet, or
+// nothing matching the current search and filters.
+export function updateEmptyState() {
+  const empty = document.getElementById('empty-state');
+  if (!empty) return;
+  const signedOut = document.getElementById('signed-out-landing')?.classList.contains('on');
+  const total = getInventory().length;
+  const show = !signedOut && !getFiltered().length;
+  empty.style.display = show ? 'flex' : 'none';
+  document.getElementById('inv-panel')?.classList.toggle('is-empty', show);
+  if (!show) return;
+  document.getElementById('empty-none').style.display = total ? 'none' : '';
+  document.getElementById('empty-nomatch').style.display = total ? '' : 'none';
+  const readOnly = getIsReadOnly();
+  ['empty-steps', 'empty-add'].forEach(id => {
+    document.getElementById(id).style.display = readOnly ? 'none' : '';
+  });
+}
+
 export function updateCount() {
   const all = getInventory().length;
+  syncExports(all);
   const filtered = getFiltered();
   const n = filtered.length;
   const isFiltered = n < all;
@@ -211,6 +240,7 @@ window.quickFilter = function (status, cond) {
 
 export function renderInv() {
   renderStatsChips();
+  syncExports(getInventory().length);
   if (document.body.dataset.tab === 'collect') {
     const list = document.getElementById('inv-list');
     const wall = document.getElementById('wall-view');
@@ -222,8 +252,19 @@ export function renderInv() {
       if (list) list.style.display = 'none';
       renderWall();
     }
+    updateEmptyState();
   }
 }
+
+document.getElementById('empty-add')?.addEventListener('click', () => window.openNewTapeModal?.());
+document.getElementById('empty-clear')?.addEventListener('click', () => {
+  const search = document.getElementById('search');
+  if (search) search.value = '';
+  const filters = getColFilters();
+  Object.keys(filters).forEach(key => { filters[key] = ''; });
+  renderInv();
+  updateCount();
+});
 
 // FBI trailer close button
 document.getElementById('fbi-youtube-close')?.addEventListener('click', () => {

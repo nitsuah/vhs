@@ -16,6 +16,11 @@ function csvCell(v) {
   return `"${(/^[=+\-@]/.test(s) ? '\t' + s : s).replace(/"/g, '""')}"`;
 }
 
+function isSelfHosted() {
+  return location.protocol === 'file:' ||
+    /^(localhost|127\.|\[::1\]|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)|\.local$/.test(location.hostname);
+}
+
 // ── TAB NAV ──────────────────────────────────────────────────────────────
 export function setActiveTab(tab) {
   document.body.dataset.tab = tab;
@@ -60,12 +65,6 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Enter' && !inp && !barcodeMode && captureQueue.length && onCapture) { e.preventDefault(); window.processQueue?.(); }
   if (e.code === 'Escape') {
     if (document.getElementById('hbr-drawer')?.classList.contains('open')) { closeDrawer(); return; }
-    if (document.getElementById('m-del-confirm').style.display !== 'none') { document.getElementById('m-del-confirm').style.display = 'none'; return; }
-    if (document.getElementById('m-help').style.display !== 'none') { document.getElementById('m-help').style.display = 'none'; return; }
-    if (document.getElementById('m-detail').style.display !== 'none') { setIsNewTape(false); document.getElementById('d-delete').style.display = ''; document.getElementById('m-detail').style.display = 'none'; return; }
-    if (document.getElementById('m-settings').style.display !== 'none') { document.getElementById('m-settings').style.display = 'none'; return; }
-    if (document.getElementById('m-dup').style.display !== 'none') { document.getElementById('m-dup').style.display = 'none'; return; }
-    if (document.getElementById('m-revalidate').style.display !== 'none') { document.getElementById('m-revalidate').style.display = 'none'; return; }
   }
   if (e.key === '?' && !inp) { document.getElementById('m-help').style.display = 'flex'; }
   if (e.key === 'n' && !inp) { window.openNewTapeModal?.(); }
@@ -118,12 +117,21 @@ document.getElementById('btn-settings').addEventListener('click',()=>{
   document.getElementById('s-ollama-url').value=ollamaUrl;
   document.getElementById('s-ollama-model').value=ollamaModel;
   document.getElementById('s-fast-mode').checked=fastMode;
-  checkOllama();
+  // Self-hosting options stay collapsed on a hosted site.
+  document.getElementById('s-advanced').open=isSelfHosted();
   const visionSelEl=document.getElementById('s-vision-backend');
   if(visionSelEl)delete visionSelEl.dataset.touched;
   populateVisionSelector();
-  // Don't clobber a choice made while discovery is still in flight.
-  checkVisionBackends().then(()=>populateVisionSelector(undefined,undefined,visionSelEl?.dataset.touched?visionSelEl.value:null));
+  if(isAuthEnabled()&&!getUser()){
+    // Both checks need a session: say so instead of calling them.
+    document.getElementById('vision-backend-status').textContent='Sign in to see scan options.';
+    document.getElementById('ollama-dot').className='ai-dot off';
+    document.getElementById('ollama-status-text').textContent='Sign in to check';
+  }else{
+    checkOllama();
+    // Don't clobber a choice made while discovery is still in flight.
+    checkVisionBackends().then(()=>populateVisionSelector(undefined,undefined,visionSelEl?.dataset.touched?visionSelEl.value:null));
+  }
   const localAiResults=document.getElementById('local-ai-results');
   if(localAiResults){
     if(localAiUrl){localAiResults.style.display='block';localAiResults.textContent=`Connected to local AI at ${localAiUrl}`;}
@@ -352,6 +360,7 @@ document.getElementById('btn-add-tape')?.addEventListener('click', () => openNew
 // ── DETAIL MODAL SAVE / CANCEL / DELETE / LOOKUP ─────────────────────────
 document.getElementById('d-cancel')?.addEventListener('click', () => {
   setIsNewTape(false);
+  document.getElementById('d-delete').style.display = '';
   document.getElementById('m-detail').style.display = 'none';
 });
 
@@ -914,6 +923,9 @@ document.getElementById('bulk-del')?.addEventListener('click', async () => { awa
   function updateWallBtn() {
     const m = getWallMode();
     btn.textContent = labels[m];
+    const hint = `View: ${labels[m].replace(/^\S+ /, '')}. Click to change view`;
+    btn.title = hint;
+    btn.setAttribute('aria-label', hint);
     btn.classList.toggle('active', m > 0);
   }
   btn.addEventListener('click', () => {
