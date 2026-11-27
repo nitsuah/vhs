@@ -6,6 +6,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — 2026-09-11 → 2026-11-19
 
+- CI: pull requests now run the shared risk guard check (`.github/workflows/risk-guard.yml`) (#234).
 ### Changed
 
 - **Local Docker Compose:** the public Cloudflare tunnel is now opt-in (`--profile tunnel`, set up sign-in first). Ports listen on `127.0.0.1` by default (`BIND_ADDR=0.0.0.0` for LAN phone access), Ollama keeps its default origins, and `POSTGRES_PASSWORD` comes from `.env`. Start with `docker compose --env-file .env -f config/docker-compose.yml up -d --build`; an existing database volume keeps its original password.
