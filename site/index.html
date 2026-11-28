@@ -325,6 +325,7 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
 <span class="p">$ </span>git clone https://github.com/nitsuah/vhs.git
 <span class="p">$ </span>cd vhs
 <span class="p">$ </span>cp .env.example .env   <span class="c"># set DATABASE_URL, POSTGRES_PASSWORD, HOST_IP</span>
+<span class="c"># local single-user only: uncomment AUTH_DISABLED=1; leave GOOGLE_CLIENT_ID/SECRET unset</span>
 
 <span class="c"># start it</span>
 <span class="p">$ </span>docker compose --env-file .env -f config/docker-compose.yml up -d --build
