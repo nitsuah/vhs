@@ -152,11 +152,111 @@ test('candidate metadata renders as safe text and HTTPS links', async ({ page })
   await page.getByRole('button', { name: 'Find artwork (cover)' }).click();
   await expect(page.getByText('<svg onload=alert(1)>Alien poster')).toBeVisible();
   await expect(page.getByText('<img src=x onerror=alert(1)> Example author')).toBeVisible();
-  const source = page.getByRole('link', { name: /Wikimedia/ });
+  await expect(page.locator('#m-detail img[src="https://images.example/alien.jpg"]')).toHaveCount(1);
+  await expect(page.locator('#m-detail img[onerror]')).toHaveCount(0);
+  const source = page.getByRole('link', { name: 'Source' });
+  await expect(source).toHaveAttribute('href', 'https://commons.wikimedia.org/wiki/File:Alien.jpg');
+  await expect(source).toHaveAttribute('rel', 'noopener noreferrer');
+  const license = page.getByRole('link', { name: 'CC BY-SA' });
+  await expect(license).toHaveAttribute('href', 'https://creativecommons.org/licenses/by-sa/4.0/');
+  await expect(license).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(page.locator('#m-detail svg')).toHaveCount(0);
+});
+
+test('preserves existing photos when saving and clearing an artwork link', async ({ page }) => {
+  const tape = makeTape({
+    id: 'VHS-ART-PHOTOS',
+    title: 'Alien',
+    photo_face: null,
+    photo_spine: 'data:image/jpeg;base64,spine-data',
+    photo_thumbnail: 'data:image/jpeg;base64,thumb-data',
+    photos: ['data:image/jpeg;base64,spine-data'],
+  });
+  await setupBasicMocks(page, { tapes: [tape] });
+  await page.route('**/api/artwork/search**', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ items: [{
+      previewUrl: 'https://images.example/alien.jpg',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Alien.jpg',
+      license: 'CC BY-SA', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+      attribution: 'Example author', title: 'Alien poster',
+    }] }),
+  }));
+  const puts = [];
+  await page.route('**/api/tapes/**', async route => {
+    if (route.request().method() === 'PUT') {
+      puts.push(route.request().postDataJSON());
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(puts[puts.length - 1]) });
+    }
+    return route.continue();
+  });
+  await gotoCollect(page);
+  await page.evaluate(() => window.openDetail('VHS-ART-PHOTOS'));
+  await page.getByRole('button', { name: 'Find artwork (cover)' }).click();
+  await page.getByRole('button', { name: 'Use link' }).click();
+  await expect.poll(() => puts.length).toBe(1);
+  expect(puts[0].photo_face).toBeNull();
+  expect(puts[0].photo_spine).toBe('data:image/jpeg;base64,spine-data');
+  expect(puts[0].photo_thumbnail).toBe('data:image/jpeg;base64,thumb-data');
+  expect(puts[0].photos).toEqual(['data:image/jpeg;base64,spine-data']);
+  expect(puts[0].artwork_links.face.url).toBe('https://images.example/alien.jpg');
+  const firstPut = { ...puts[0] };
+  await page.getByRole('button', { name: 'Clear link' }).click();
+  await expect.poll(() => puts.length).toBe(2);
+  expect(puts[1].photo_face).toBeNull();
+  expect(puts[1].photo_spine).toBe('data:image/jpeg;base64,spine-data');
+  expect(puts[1].photo_thumbnail).toBe('data:image/jpeg;base64,thumb-data');
+  expect(puts[1].photos).toEqual(['data:image/jpeg;base64,spine-data']);
+  expect(puts[1].artwork_links.face).toBeUndefined();
+  // Only artwork_links.face should change; everything else byte-for-byte equal
+  expect({ ...puts[1], artwork_links: null }).toEqual({ ...firstPut, artwork_links: null });
+});
+
+test('persists selected artwork metadata after reload without another search', async ({ page }) => {
+  const tape = makeTape({ id: 'VHS-ART-RELOAD', title: 'Alien' });
+  let searchCount = 0;
+  await page.route('**/api/artwork/search**', route => {
+    searchCount++;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [{
+      previewUrl: 'https://images.example/alien.jpg',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Alien.jpg',
+      license: 'CC BY-SA', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+      attribution: 'Example author', title: 'Alien poster',
+    }] }) });
+  });
+  await setupBasicMocks(page, { tapes: [tape] });
+  // Stateful persistence: reads only return artwork metadata once a PUT has stored it.
+  let stored = tape;
+  let saved;
+  await page.route('**/api/tapes', route => (route.request().method() === 'GET'
+    ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([stored]) })
+    : route.continue()));
+  await page.route(`**/api/tapes/${encodeURIComponent(tape.id)}`, route => {
+    if (route.request().method() === 'PUT') {
+      saved = route.request().postDataJSON();
+      stored = saved;
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(stored) });
+  });
+  await gotoCollect(page);
+  await page.evaluate(() => window.openDetail('VHS-ART-RELOAD'));
+  await page.getByRole('button', { name: 'Find artwork (cover)' }).click();
+  await page.getByRole('button', { name: 'Use link' }).click();
+  await expect.poll(() => saved?.artwork_links?.face?.url).toBe('https://images.example/alien.jpg');
+  expect(searchCount).toBe(1);
+  await page.reload();
+  await page.waitForLoadState('networkidle');
+  await page.click('#tab-collect');
+  await page.waitForTimeout(200);
+  await page.evaluate(() => window.openDetail('VHS-ART-RELOAD'));
+  await expect(page.locator('#m-detail')).toBeVisible();
+  await expect(page.getByText('Alien poster')).toBeVisible();
+  await expect(page.getByText('Example author')).toBeVisible();
+  const source = page.getByRole('link', { name: 'Source' });
   await expect(source).toHaveAttribute('href', 'https://commons.wikimedia.org/wiki/File:Alien.jpg');
   await expect(source).toHaveAttribute('rel', /noopener/);
   const license = page.getByRole('link', { name: 'CC BY-SA' });
   await expect(license).toHaveAttribute('href', 'https://creativecommons.org/licenses/by-sa/4.0/');
   await expect(license).toHaveAttribute('rel', /noopener/);
-  await expect(page.locator('#m-detail svg')).toHaveCount(0);
+  expect(searchCount).toBe(1);
 });
