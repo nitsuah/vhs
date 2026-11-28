@@ -331,7 +331,7 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
 <span class="p">$ </span>docker compose --env-file .env -f config/docker-compose.yml up -d --build
 
 <span class="c"># open http://localhost:8080</span>
-<span class="c"># phone camera: https://&lt;LAN-IP&gt;:8443</span>
+<span class="c"># phone camera (LAN): set BIND_ADDR=0.0.0.0 in .env and sign in with Google OAuth, then use https://&lt;LAN-IP&gt;:8443</span>
 <span class="c"># local open mode: set AUTH_DISABLED=1 in .env (development only)</span></pre>
 </div>
       <div class="notes">
