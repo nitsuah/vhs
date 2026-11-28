@@ -16,7 +16,7 @@ Status guide: `[shipped]` is available now, `[planned]` is backlog work.
 
 ## Auth & Sharing
 
-- `[shipped]` **Google OAuth** — optional sign-in; leave `GOOGLE_CLIENT_ID` blank for single-user mode
+- `[shipped]` **Google OAuth** — required for hosted/production deployments; local single-user mode requires `AUTH_DISABLED=1` with non-production `NODE_ENV` and OAuth variables unset
 - `[shipped]` **Public Collection Sharing** — toggle a shareable `/c/<uuid>` URL per user
 - `[shipped]` **Write-gate UI** — Add/Import buttons hidden when auth is on and user is not logged in
 - `[shipped]` **Legacy tape migration** — `LEGACY_OWNER_EMAIL` claims un-owned tapes on first login
