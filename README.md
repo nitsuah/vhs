@@ -50,7 +50,7 @@ A personal tool to catalog a VHS collection — capturing what each tape is, wha
 - **Printable HTML List** — clean table sorted by ID with Print button
 
 ### Auth & Sharing
-- **Google OAuth** — optional; leave `GOOGLE_CLIENT_ID` blank to run as single-user
+- **Google OAuth** — required for hosted/production deployments; local single-user mode is an explicit development-only opt-in
 - **Public Collection Sharing** — toggle a shareable `/c/<uuid>` URL per user
 - **Write-gate UI** — Add/Import buttons hidden when auth is enabled and user is not logged in
 
@@ -155,22 +155,26 @@ HTTPS at `https://localhost:8443`.
 
 The `netlify/` function and `netlify.toml` are legacy and no longer deployed.
 
-### Auth (optional)
+### Authentication
 
-Auth is disabled by default — the app runs as a single-user tool with no login required.
+Hosted and production deployments must use Google OAuth. Without OAuth, protected routes return `503 auth not configured`; the app does not silently become an open shared collection.
 
-To enable Google OAuth:
+**Configure Google OAuth for production:**
 
-1. Create an OAuth 2.0 Client ID at [Google Cloud Console](https://console.cloud.google.com) → APIs & Services → Credentials
-2. Add Authorized redirect URI: `http://localhost:8080/auth/google/callback` (or your `APP_BASE_URL`)
-3. Set in `.env`:
-   ```
-   GOOGLE_CLIENT_ID=...
-   GOOGLE_CLIENT_SECRET=...
-   JWT_SECRET=<run: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
-   APP_BASE_URL=http://localhost:8080
-   ```
-4. Restart the container. A "Sign in with Google" button appears in the top bar.
+1. Create an OAuth 2.0 Client ID of type **Web application** in [Google Cloud Console](https://console.cloud.google.com) → APIs & Services → Credentials.
+2. Add the exact authorized redirect URI `https://<your-host>/auth/google/callback` (for the live site: `https://vhs.nitsuah.io/auth/google/callback`).
+3. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `JWT_SECRET`, and `APP_BASE_URL=https://<your-host>` in the deployment's secret/environment settings. Generate `JWT_SECRET` with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Never commit credentials or generated secrets.
+4. Restart/redeploy. Users sign in with Google; each account's tapes are scoped to its Google account ID.
+
+**Local single-user development only:**
+
+1. Keep Google OAuth variables unset and set `AUTH_DISABLED=1` in your local `.env`.
+2. Keep `NODE_ENV` non-production. Use the Docker Compose setup below: its published ports bind to `127.0.0.1` by default. Do not set `BIND_ADDR=0.0.0.0` while using open mode.
+3. Start the local Docker stack. Open mode is refused for requests arriving through Cloudflare's edge/tunnel headers and is ignored in production.
+
+**Network binding warning:** the direct `node src/server.js` path is different: Express listens on `0.0.0.0` (all interfaces), not localhost. Do not use `AUTH_DISABLED=1` with a direct run on a network-connected machine. If you must run it directly, first enforce host-firewall rules that block the app's HTTP/HTTPS ports from every external network; prefer Docker Compose's loopback-only published ports for local open mode.
+
+Do not set `AUTH_DISABLED=1` on a hosted deployment or expose an open-mode instance to the internet.
 
 To migrate existing un-owned tapes to your Google account on first login:
 
@@ -285,7 +289,7 @@ Immutable IDs: once a tape gets a `VHS-XXXX` ID, it keeps it forever. If a barco
 
 - **PostgreSQL over flat JSON** — migrated from `tapes.json` when multi-user auth arrived. PostgreSQL via Neon handles concurrent writes, upserts, and user-scoped queries cleanly. The ID scheme (`VHS-XXXX`) is still immutable. (`data/tapes.json` remains in the repo as an empty legacy file from the initial version.)
 - **Two deployment modes** — Docker/Express (self-hosted; `config/docker-compose.yml`) and Cloudflare Workers (vhs.nitsuah.io; `wrangler.jsonc`, `worker/index.js`).
-- **Single-user mode** — auth is optional. If `GOOGLE_CLIENT_ID` is not set, the app runs with no login wall and all tapes are global.
+- **Local single-user mode** — available only when OAuth is unset, `AUTH_DISABLED=1`, and `NODE_ENV` is not `production`; hosted deployments require Google OAuth.
 - **Condition** — defaults to `"great"`. Notes field for anything specific.
 - **Sold tapes** — stay in the database. `status` field handles everything: `in_collection`, `for_sale`, `sold`, `donated`. No archive table needed.
 - **AI for the tedious parts** — photo scanning, title recognition, valuation lookups. Not for the data model.

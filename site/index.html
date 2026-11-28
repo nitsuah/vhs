@@ -290,7 +290,7 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
       <div class="feat"><div class="ic">🧱</div><h3>Wall view</h3><p>A masonry wall of covers or a shelf of spines. Click any tape to open its details.</p></div>
       <div class="feat"><div class="ic">💸</div><h3>Sell drafts</h3><p>Copy-ready eBay and Mercari titles, descriptions and suggested prices for every tape marked for sale.</p></div>
       <div class="feat"><div class="ic">🖨️</div><h3>Exports &amp; tags</h3><p>CSV (formula-injection safe), JSON round-trip with photos, printable lists and dashed-border price tags.</p></div>
-      <div class="feat"><div class="ic">🔗</div><h3>Share your shelf</h3><p>Optional Google sign-in and a public <code>/c/&lt;uuid&gt;</code> link per collection. Runs single-user if you skip auth.</p></div>
+      <div class="feat"><div class="ic">🔗</div><h3>Share your shelf</h3><p>Google sign-in protects personal collections; public <code>/c/&lt;uuid&gt;</code> links let you share a shelf. Self-hosters can opt into local-only open mode for development.</p></div>
       <div class="feat"><div class="ic">📱</div><h3>Phone-ready</h3><p>Responsive layout, rear-camera preference, and an auto-generated LAN HTTPS cert so the camera works on your phone.</p></div>
     </div>
   </div>
@@ -325,17 +325,20 @@ footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between}
 <span class="p">$ </span>git clone https://github.com/nitsuah/vhs.git
 <span class="p">$ </span>cd vhs
 <span class="p">$ </span>cp .env.example .env   <span class="c"># set DATABASE_URL, POSTGRES_PASSWORD, HOST_IP</span>
+<span class="c"># local single-user only: uncomment AUTH_DISABLED=1; leave GOOGLE_CLIENT_ID/SECRET unset</span>
 
 <span class="c"># start it</span>
 <span class="p">$ </span>docker compose --env-file .env -f config/docker-compose.yml up -d --build
 
 <span class="c"># open http://localhost:8080</span>
-<span class="c"># phone camera: https://&lt;LAN-IP&gt;:8443</span></pre>
+<span class="c"># phone camera (LAN): set BIND_ADDR=0.0.0.0 in .env and sign in with Google OAuth, then use https://&lt;LAN-IP&gt;:8443</span>
+<span class="c"># local open mode: set AUTH_DISABLED=1 in .env (development only)</span></pre>
 </div>
       <div class="notes">
         <div class="note"><b>AI scanning:</b> the compose file runs Ollama with <code>llava:7b</code> by default. To use Claude instead, paste an Anthropic API key in the app under Settings; it is stored in your browser only.</div>
         <div class="note"><b>Phones:</b> install the auto-generated CA from <code>/api/ca-cert</code> once (check its SHA-256 fingerprint against the host first, see the <a href="https://github.com/nitsuah/vhs#mobile--https-setup">README</a>) and the camera works over LAN HTTPS.</div>
-        <div class="note"><b>Hosted:</b> vhs.nitsuah.io runs the same app on Cloudflare Workers, with Workers AI for scanning.</div>
+        <div class="note"><b>Sign-in:</b> Google OAuth is required for hosted/production deployments. For local single-user development only, set <code>AUTH_DISABLED=1</code> in <code>.env</code>; keep Docker Compose's default loopback-only port binding and do not expose open mode to your LAN or the internet.</div>
+        <div class="note"><b>Hosted:</b> vhs.nitsuah.io runs the same app on Cloudflare Workers, with Workers AI for scanning. Sign in with Google to catalog your own tapes.</div>
       </div>
     </div>
   </div>
