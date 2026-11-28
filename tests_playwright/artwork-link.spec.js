@@ -21,7 +21,10 @@ test('artwork links are searched only on demand, saved as metadata, and cleared 
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(saved) });
     }
     if (route.request().method() === 'GET') {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tape) });
+      const requestUrl = new URL(route.request().url());
+      if (requestUrl.pathname === `/api/tapes/${encodeURIComponent(tape.id)}`) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tape) });
+      }
     }
     return route.continue();
   });
