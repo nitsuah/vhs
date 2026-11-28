@@ -6,6 +6,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased] — 2026-09-11 → 2026-11-19
 
+### Tests
+
+- Artwork links: browser acceptance tests for safe candidate rendering, photo preservation on use/clear, and persistence after reload (#259, #260, #261; refs #85).
+
 ### Fixed
 
 - **Fixed:** unknown page addresses answer a real 404 page (the app and `/c/<id>` share links are unchanged), and the signed-out phone header shows a **Sign in** text button instead of a lock icon (#244).
