@@ -134,3 +134,29 @@ test('a late save does not replace a different tape opened in the modal', async 
   await expect(page.locator('#detail-photos .d-artwork-link')).toHaveCount(0);
   expect(saved.id).toBe('VHS-ART-A');
 });
+
+
+test('candidate metadata renders as safe text and HTTPS links', async ({ page }) => {
+  const tape = makeTape({ id: 'VHS-ART-SAFE', title: 'Alien' });
+  await setupBasicMocks(page, { tapes: [tape] });
+  await page.route('**/api/artwork/search**', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ items: [{
+      previewUrl: 'https://images.example/alien.jpg',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Alien.jpg',
+      license: 'CC BY-SA', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+      attribution: '<img src=x onerror=alert(1)> Example author', title: '<svg onload=alert(1)>Alien poster',
+    }] }),
+  }));
+  await gotoCollect(page);
+  await page.evaluate(() => window.openDetail('VHS-ART-SAFE'));
+  await page.getByRole('button', { name: 'Find artwork (cover)' }).click();
+  await expect(page.getByText('<svg onload=alert(1)>Alien poster')).toBeVisible();
+  await expect(page.getByText('<img src=x onerror=alert(1)> Example author')).toBeVisible();
+  const source = page.getByRole('link', { name: /Wikimedia/ });
+  await expect(source).toHaveAttribute('href', 'https://commons.wikimedia.org/wiki/File:Alien.jpg');
+  await expect(source).toHaveAttribute('rel', /noopener/);
+  const license = page.getByRole('link', { name: 'CC BY-SA' });
+  await expect(license).toHaveAttribute('href', 'https://creativecommons.org/licenses/by-sa/4.0/');
+  await expect(license).toHaveAttribute('rel', /noopener/);
+  await expect(page.locator('#m-detail svg')).toHaveCount(0);
+});
