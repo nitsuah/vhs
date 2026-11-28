@@ -169,8 +169,10 @@ Hosted and production deployments must use Google OAuth. Without OAuth, protecte
 **Local single-user development only:**
 
 1. Keep Google OAuth variables unset and set `AUTH_DISABLED=1` in your local `.env`.
-2. Keep `NODE_ENV` non-production and bind the app to localhost (the default).
+2. Keep `NODE_ENV` non-production. Use the Docker Compose setup below: its published ports bind to `127.0.0.1` by default. Do not set `BIND_ADDR=0.0.0.0` while using open mode.
 3. Start the local Docker stack. Open mode is refused for requests arriving through Cloudflare's edge/tunnel headers and is ignored in production.
+
+**Network binding warning:** the direct `node src/server.js` path is different: Express listens on `0.0.0.0` (all interfaces), not localhost. Do not use `AUTH_DISABLED=1` with a direct run on a network-connected machine. If you must run it directly, first enforce host-firewall rules that block the app's HTTP/HTTPS ports from every external network; prefer Docker Compose's loopback-only published ports for local open mode.
 
 Do not set `AUTH_DISABLED=1` on a hosted deployment or expose an open-mode instance to the internet.
 
