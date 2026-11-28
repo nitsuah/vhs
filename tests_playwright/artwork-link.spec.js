@@ -20,6 +20,9 @@ test('artwork links are searched only on demand, saved as metadata, and cleared 
       saved = route.request().postDataJSON();
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(saved) });
     }
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tape) });
+    }
     return route.continue();
   });
   await gotoCollect(page);
